@@ -136,8 +136,19 @@ export default function TalepDetayPage() {
             : { ...t, anaGayrimenkul: emptyTapu.anaGayrimenkul };
         case "bagimsizBolum":
           return { ...t, bagimsizBolum: emptyTapu.bagimsizBolum };
-        case "degerleme":
-          return { ...t, degerleme: emptyTapu.degerleme };
+        case "satisKabiliyeti":
+          return { ...t, degerleme: { ...t.degerleme, satisKabiliyetiNotlari: [] } };
+        case "degerlemeAciklamasi":
+          return { ...t, degerleme: { ...t.degerleme, degerlemeAciklamaNotlari: [] } };
+        case "degerHesaplamasi":
+          return {
+            ...t,
+            degerleme: {
+              ...emptyTapu.degerleme,
+              satisKabiliyetiNotlari: t.degerleme.satisKabiliyetiNotlari,
+              degerlemeAciklamaNotlari: t.degerleme.degerlemeAciklamaNotlari,
+            },
+          };
         case "emsaller":
           return { ...t, emsaller: emptyTapu.emsaller };
         case "raporSonucu":

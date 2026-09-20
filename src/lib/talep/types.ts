@@ -229,7 +229,57 @@ export interface BagimsizBolumData {
   tapuNiteligi: string;
 }
 
+// A titled free-text note kept in the Değerleme tab (Satış Kabiliyeti / Değerleme Açıklaması).
+export interface NotKaydi {
+  id: string;
+  baslik: string;
+  detay: string;
+}
+
+export interface NormalDegerlemeData {
+  alanM2: string;
+  birimDeger: string;
+}
+
+// Farkı olan (fiili − resmi) alan, `farkKatsayisi` % oranında değerlenir (boşsa %100).
+export interface AlanFarkiDegerlemeData {
+  resmiAlanM2: string;
+  fiiliAlanM2: string;
+  birimDeger: string;
+  farkKatsayisi: string;
+}
+
+export interface SeviyeSatiri {
+  id: string;
+  ad: string;
+  alanM2: string;
+  birimDeger: string;
+  katsayi: string;
+}
+
+export interface HisseSatiri {
+  id: string;
+  malik: string;
+  pay: string;
+  payda: string;
+}
+
+export interface HisseliDegerlemeData {
+  tamDeger: string;
+  satirlar: HisseSatiri[];
+}
+
+export interface DegerHesaplamalari {
+  normal: NormalDegerlemeData;
+  alanFarki: AlanFarkiDegerlemeData;
+  seviyeli: SeviyeSatiri[];
+  hisseli: HisseliDegerlemeData;
+}
+
 export interface DegerlemeData {
+  satisKabiliyetiNotlari: NotKaydi[];
+  degerlemeAciklamaNotlari: NotKaydi[];
+  hesaplamalar: DegerHesaplamalari;
   alanM2: string;
   emsalYaklasimiDegeri: string;
   yillikNetGelir: string;
@@ -329,7 +379,9 @@ export type TapuSectionKey =
   | "imarDurumu"
   | "anaGayrimenkul"
   | "bagimsizBolum"
-  | "degerleme"
+  | "satisKabiliyeti"
+  | "degerlemeAciklamasi"
+  | "degerHesaplamasi"
   | "emsaller"
   | "yakinRaporlarAdaParsel"
   | "yakinRaporlarHarita"
@@ -539,6 +591,14 @@ export function createEmptyTapu(index: number, defaults?: TalepDetayiDefaults): 
       tapuNiteligi: "",
     },
     degerleme: {
+      satisKabiliyetiNotlari: [],
+      degerlemeAciklamaNotlari: [],
+      hesaplamalar: {
+        normal: { alanM2: "", birimDeger: "" },
+        alanFarki: { resmiAlanM2: "", fiiliAlanM2: "", birimDeger: "", farkKatsayisi: "" },
+        seviyeli: [],
+        hisseli: { tamDeger: "", satirlar: [] },
+      },
       alanM2: "",
       emsalYaklasimiDegeri: "",
       yillikNetGelir: "",

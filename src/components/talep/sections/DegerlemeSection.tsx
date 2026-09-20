@@ -1,99 +1,71 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { Field, SectionCard, SectionGrid, SelectField, TextAreaField, TextField, inputClass, sectionBodyClass } from "@/components/talep/form-fields";
+import { useMemo } from "react";
+import { SectionCard, SectionGrid, SelectField, TextAreaField, TextField, sectionBodyClass } from "@/components/talep/form-fields";
+import DegerHesaplamasi from "@/components/talep/sections/DegerHesaplamasi";
+import NotTaslaklari from "@/components/talep/sections/NotTaslaklari";
+import { ortalamaEmsalBirimFiyatlari } from "@/lib/emsal/hesaplama";
 import { degerlemeDurumOptions, finalDegerKaynakOptions } from "@/lib/talep/options";
-import type { DegerlemeData } from "@/lib/talep/types";
+import type { DegerlemeData, EmsallerData, MulkiyetKaydi } from "@/lib/talep/types";
 
-function ApproachCard({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <SectionCard title={title}>
-      <div className={`${sectionBodyClass} grid grid-cols-1 gap-3 sm:grid-cols-2`}>{children}</div>
-    </SectionCard>
-  );
-}
+export type DegerlemeView = "satisKabiliyeti" | "degerlemeAciklamasi" | "degerHesaplamasi";
 
 export default function DegerlemeSection({
+  view,
   data,
+  emsaller,
+  mulkiyetKayitlari,
   onChange,
 }: {
+  view: DegerlemeView;
   data: DegerlemeData;
+  emsaller: EmsallerData;
+  mulkiyetKayitlari: MulkiyetKaydi[];
   onChange: (patch: Partial<DegerlemeData>) => void;
 }) {
+  const emsalOrtalamasi = useMemo(
+    () =>
+      ortalamaEmsalBirimFiyatlari([
+        emsaller.satilik1,
+        emsaller.satilik2,
+        emsaller.satilik3,
+        emsaller.satilik4,
+        emsaller.satilik5,
+      ]),
+    [emsaller],
+  );
+
+  if (view === "satisKabiliyeti") {
+    return (
+      <NotTaslaklari
+        items={data.satisKabiliyetiNotlari}
+        onChange={(items) => onChange({ satisKabiliyetiNotlari: items })}
+        baslikPlaceholder="Örn. Konum ve ulaşım"
+        emptyText="Taşınmazın satış kabiliyetine ilişkin not taslakları burada saklanır. “Yeni Not Ekle” ile başlık ve not detayı girin."
+      />
+    );
+  }
+
+  if (view === "degerlemeAciklamasi") {
+    return (
+      <NotTaslaklari
+        items={data.degerlemeAciklamaNotlari}
+        onChange={(items) => onChange({ degerlemeAciklamaNotlari: items })}
+        baslikPlaceholder="Örn. Değer takdirinde esas alınan kriterler"
+        emptyText="Değerlemeye ilişkin açıklama taslakları burada saklanır. “Yeni Not Ekle” ile başlık ve not detayı girin."
+      />
+    );
+  }
+
   return (
     <div className="space-y-4">
-      <TextField
-        label="Değerlenen Alan (m²)"
-        type="number"
-        value={data.alanM2}
-        onChange={(v) => onChange({ alanM2: v })}
-        className="max-w-xs"
+      <DegerHesaplamasi
+        value={data.hesaplamalar}
+        onChange={(hesaplamalar) => onChange({ hesaplamalar })}
+        emsal={emsalOrtalamasi}
+        mulkiyetKayitlari={mulkiyetKayitlari}
+        onNihaiDeger={(deger) => onChange({ nihaiDeger: String(Math.round(deger)) })}
       />
-
-      <ApproachCard title="Emsal Karşılaştırma Yaklaşımı">
-        <Field label="Hesaplanan Değer (₺)">
-          <input
-            className={inputClass}
-            type="number"
-            value={data.emsalYaklasimiDegeri}
-            onChange={(e) => onChange({ emsalYaklasimiDegeri: e.target.value })}
-          />
-        </Field>
-      </ApproachCard>
-
-      <ApproachCard title="Gelir Yaklaşımı">
-        <Field label="Yıllık Net Gelir (₺)">
-          <input
-            className={inputClass}
-            type="number"
-            value={data.yillikNetGelir}
-            onChange={(e) => onChange({ yillikNetGelir: e.target.value })}
-          />
-        </Field>
-        <Field label="Kapitalizasyon Oranı (%)">
-          <input
-            className={inputClass}
-            type="number"
-            value={data.kapitalizasyonOrani}
-            onChange={(e) => onChange({ kapitalizasyonOrani: e.target.value })}
-          />
-        </Field>
-        <Field label="Hesaplanan Değer (₺)" className="sm:col-span-2">
-          <input
-            className={inputClass}
-            type="number"
-            value={data.gelirYaklasimiDegeri}
-            onChange={(e) => onChange({ gelirYaklasimiDegeri: e.target.value })}
-          />
-        </Field>
-      </ApproachCard>
-
-      <ApproachCard title="Maliyet Yaklaşımı">
-        <Field label="m² Birim Maliyet (₺)">
-          <input
-            className={inputClass}
-            type="number"
-            value={data.m2BirimMaliyet}
-            onChange={(e) => onChange({ m2BirimMaliyet: e.target.value })}
-          />
-        </Field>
-        <Field label="Yıpranma Oranı (%)">
-          <input
-            className={inputClass}
-            type="number"
-            value={data.yipranmaOrani}
-            onChange={(e) => onChange({ yipranmaOrani: e.target.value })}
-          />
-        </Field>
-        <Field label="Hesaplanan Değer (₺)" className="sm:col-span-2">
-          <input
-            className={inputClass}
-            type="number"
-            value={data.maliyetYaklasimiDegeri}
-            onChange={(e) => onChange({ maliyetYaklasimiDegeri: e.target.value })}
-          />
-        </Field>
-      </ApproachCard>
 
       <SectionCard title="Nihai Değer Mutabakatı">
         <div className={sectionBodyClass}>

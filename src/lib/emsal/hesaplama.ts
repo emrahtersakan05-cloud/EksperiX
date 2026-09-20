@@ -44,6 +44,26 @@ export function hesaplaEmsalDegerleri(
   return { birimFiyat: formatTrNumber(birim), netBirimFiyat: net > 0 ? formatTrNumber(net) : "" };
 }
 
+// Simple mean of the per-record Birim / Net Birim Fiyat; records whose price
+// cannot be computed are skipped. `adet` is how many took part in the birim mean.
+export function ortalamaEmsalBirimFiyatlari(kayitlar: EmsalKaydi[]): {
+  birim: number | null;
+  net: number | null;
+  adet: number;
+} {
+  const birimler: number[] = [];
+  const netler: number[] = [];
+  for (const kaydi of kayitlar) {
+    const hesap = hesaplaEmsalDegerleri(kaydi);
+    const birim = parseTrNumber(hesap.birimFiyat);
+    const net = parseTrNumber(hesap.netBirimFiyat);
+    if (birim !== null) birimler.push(birim);
+    if (net !== null) netler.push(net);
+  }
+  const mean = (values: number[]) => (values.length ? values.reduce((s, v) => s + v, 0) / values.length : null);
+  return { birim: mean(birimler), net: mean(netler), adet: birimler.length };
+}
+
 export const HESAP_GIRDI_ALANLARI: (keyof EmsalKaydi)[] = [
   "pazarlikliFiyat",
   "gercekAlan",

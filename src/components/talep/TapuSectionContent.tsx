@@ -102,10 +102,15 @@ export default function TapuSectionContent({
           onChange={(patch) => onUpdate((t) => ({ ...t, bagimsizBolum: { ...t.bagimsizBolum, ...patch } }))}
         />
       );
-    case "degerleme":
+    case "satisKabiliyeti":
+    case "degerlemeAciklamasi":
+    case "degerHesaplamasi":
       return (
         <DegerlemeSection
+          view={sectionKey}
           data={tapu.degerleme}
+          emsaller={tapu.emsaller}
+          mulkiyetKayitlari={tapu.tapuKaydi.mulkiyetKayitlari}
           onChange={(patch) => onUpdate((t) => ({ ...t, degerleme: { ...t.degerleme, ...patch } }))}
         />
       );

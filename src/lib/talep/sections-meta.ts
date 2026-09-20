@@ -2,6 +2,7 @@ import {
   BarChart3,
   Building2,
   Calculator,
+  ClipboardList,
   DoorOpen,
   FileCheck2,
   FileText,
@@ -13,6 +14,7 @@ import {
   MapPin,
   ScrollText,
   Search,
+  TrendingUp,
   type LucideIcon,
 } from "lucide-react";
 import type { TapuSectionKey } from "./types";
@@ -62,7 +64,15 @@ export const sectionItems: SectionItem[] = [
       { key: "bagimsizBolum", label: "Bağımsız Bölüm", icon: DoorOpen },
     ],
   },
-  { key: "degerleme", label: "Değerleme", icon: Calculator },
+  {
+    label: "Değerleme",
+    icon: Calculator,
+    children: [
+      { key: "satisKabiliyeti", label: "Satış Kabiliyeti Açıklaması", icon: TrendingUp },
+      { key: "degerlemeAciklamasi", label: "Değerleme Açıklaması", icon: ClipboardList },
+      { key: "degerHesaplamasi", label: "Değer Hesaplaması", icon: Calculator },
+    ],
+  },
   {
     label: "Araştırma",
     icon: Search,
