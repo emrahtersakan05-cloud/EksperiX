@@ -12,10 +12,16 @@ const DATA_FILE = path.join(DATA_DIR, "users.json");
 
 const redisUrl = process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL;
 const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN;
-const redis = redisUrl && redisToken ? new Redis({ url: redisUrl, token: redisToken }) : null;
+let redisClient: Redis | null | undefined;
+function getRedis(): Redis | null {
+  if (redisClient === undefined) {
+    redisClient = redisUrl && redisToken ? new Redis({ url: redisUrl, token: redisToken }) : null;
+  }
+  return redisClient;
+}
 
 function assertStorageConfigured(): void {
-  if (!redis && process.env.NODE_ENV === "production") {
+  if (!getRedis() && process.env.NODE_ENV === "production") {
     throw new Error(
       "Kullanıcı verisi için Redis ayarlanmamış (UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN).",
     );
@@ -41,6 +47,7 @@ function seedAdmin(): StoredUser {
 
 async function readAll(): Promise<StoredUser[]> {
   assertStorageConfigured();
+  const redis = getRedis();
   if (redis) {
     const existing = await redis.get<StoredUser[]>(REDIS_KEY);
     if (existing && existing.length > 0) return existing;
@@ -57,6 +64,7 @@ async function readAll(): Promise<StoredUser[]> {
 }
 
 async function writeAll(users: StoredUser[]): Promise<void> {
+  const redis = getRedis();
   if (redis) {
     await redis.set(REDIS_KEY, users);
     return;
