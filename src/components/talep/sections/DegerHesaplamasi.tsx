@@ -43,7 +43,6 @@ function CalcCard({
   sonuc,
   sonucEtiketi = "Hesaplanan Değer",
   sonucAciklama,
-  onUse,
   children,
 }: {
   icon: ReactNode;
@@ -52,11 +51,8 @@ function CalcCard({
   sonuc: number | null;
   sonucEtiketi?: string;
   sonucAciklama?: string;
-  onUse: (deger: number) => void;
   children: ReactNode;
 }) {
-  const [used, setUsed] = useState(false);
-
   return (
     <section className="flex min-w-0 flex-col rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
       <header className="flex items-start gap-3 border-b border-slate-100 p-4">
@@ -71,26 +67,10 @@ function CalcCard({
 
       <div className="flex-1 space-y-4 p-4">{children}</div>
 
-      <footer className="flex flex-wrap items-center justify-between gap-3 rounded-b-2xl border-t border-lime-100 bg-lime-50/70 px-4 py-3">
-        <div>
-          <p className="text-[11px] font-medium uppercase tracking-wider text-lime-800">{sonucEtiketi}</p>
-          <p className="text-xl font-semibold tabular-nums text-slate-900">{sonuc === null ? "—" : para(sonuc)}</p>
-          {sonucAciklama && <p className="text-xs text-slate-500">{sonucAciklama}</p>}
-        </div>
-        <button
-          type="button"
-          disabled={sonuc === null}
-          onClick={() => {
-            if (sonuc === null) return;
-            onUse(sonuc);
-            setUsed(true);
-            window.setTimeout(() => setUsed(false), 2000);
-          }}
-          className="inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-3.5 py-2 text-xs font-semibold text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {used ? <CircleCheck className="h-4 w-4 text-lime-300" /> : <Download className="h-4 w-4" />}
-          {used ? "Aktarıldı" : "Nihai Değere Aktar"}
-        </button>
+      <footer className="rounded-b-2xl border-t border-lime-100 bg-lime-50/70 px-4 py-3">
+        <p className="text-[11px] font-medium uppercase tracking-wider text-lime-800">{sonucEtiketi}</p>
+        <p className="text-xl font-semibold tabular-nums text-slate-900">{sonuc === null ? "—" : para(sonuc)}</p>
+        {sonucAciklama && <p className="text-xs text-slate-500">{sonucAciklama}</p>}
       </footer>
     </section>
   );
@@ -203,13 +183,11 @@ export default function DegerHesaplamasi({
   onChange,
   emsal,
   mulkiyetKayitlari,
-  onNihaiDeger,
 }: {
   value: DegerHesaplamalari;
   onChange: (next: DegerHesaplamalari) => void;
   emsal: EmsalOrtalamasi;
   mulkiyetKayitlari: MulkiyetKaydi[];
-  onNihaiDeger: (deger: number) => void;
 }) {
   const { normal, alanFarki, seviyeli, hisseli } = value;
   const [aktif, setAktif] = useState<HesapKey>("normal");
@@ -309,7 +287,6 @@ export default function DegerHesaplamasi({
           description="Değerlenen alan ile birim değerin çarpımı."
           sonuc={normalSonuc}
           sonucAciklama="Alan × Birim Değer"
-          onUse={onNihaiDeger}
         >
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <TextField
@@ -334,7 +311,6 @@ export default function DegerHesaplamasi({
           description="Resmi alan ile fiili alan arasındaki fark, belirlenen katsayıyla değerlenir."
           sonuc={farkSonuc?.toplam ?? null}
           sonucAciklama="Resmi alan değeri + Fark alanı değeri"
-          onUse={onNihaiDeger}
         >
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <TextField
@@ -392,7 +368,6 @@ export default function DegerHesaplamasi({
           sonuc={seviyeSonuc.guncel}
           sonucEtiketi="Güncel Satış Değeri"
           sonucAciklama="Yuvarlanmış Fiyat − Yuvarlanmış Maliyet Fiyatı"
-          onUse={onNihaiDeger}
         >
           <AltBlok baslik="Bitmesi Halinde Değer Hesaplaması">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -459,7 +434,6 @@ export default function DegerHesaplamasi({
           sonucAciklama={
             hisseSonuc.hesaplananSatir > 0 ? `Toplam hisse: ${yuzde(hisseSonuc.toplamOran)}` : "Yuvarlanmış Fiyat"
           }
-          onUse={onNihaiDeger}
         >
           <AltBlok baslik="Yasal ve Mevcut Durum Değeri">
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
