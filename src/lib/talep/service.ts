@@ -1,5 +1,12 @@
 import { getKurumKisaltma } from "./reference-lists";
-import { createEmptyTapu, newRowId, type RuhsatIncelemeData, type Talep, type Tapu } from "./types";
+import {
+  createEmptyTapu,
+  newRowId,
+  type DegerHesaplamalari,
+  type RuhsatIncelemeData,
+  type Talep,
+  type Tapu,
+} from "./types";
 
 const STORAGE_KEY = "eksperix_talepler_v1";
 
@@ -9,6 +16,25 @@ const STORAGE_KEY = "eksperix_talepler_v1";
 // 3-record-table form) — without this, a Tapu saved under an older shape
 // has `undefined` for newly-added fields, and a section component reading
 // e.g. `data.mulkiyetKayitlari.length` on that `undefined` crashes outright.
+// Değer Hesaplaması inputs changed shape over time (seviyeli used to be a list of
+// rows, hisseli had a tamDeger); anything that is not the current shape is dropped.
+function normalizeHesaplamalar(stored: unknown, empty: DegerHesaplamalari): DegerHesaplamalari {
+  const s = (stored && typeof stored === "object" ? stored : {}) as Partial<Record<keyof DegerHesaplamalari, unknown>>;
+  const obj = (value: unknown) => (value && typeof value === "object" && !Array.isArray(value) ? value : {});
+  const hisseli = obj(s.hisseli) as Partial<DegerHesaplamalari["hisseli"]>;
+  return {
+    normal: { ...empty.normal, ...obj(s.normal) },
+    alanFarki: { ...empty.alanFarki, ...obj(s.alanFarki) },
+    seviyeli: { ...empty.seviyeli, ...obj(s.seviyeli) },
+    hisseli: {
+      ...empty.hisseli,
+      alanM2: hisseli.alanM2 ?? "",
+      birimFiyat: hisseli.birimFiyat ?? "",
+      satirlar: Array.isArray(hisseli.satirlar) ? hisseli.satirlar : [],
+    },
+  };
+}
+
 function normalizeTapu(tapu: Tapu): Tapu {
   const empty = createEmptyTapu(0);
   const legacyKurumIncelemeleri = Array.isArray(tapu.kurumIncelemeleri) ? tapu.kurumIncelemeleri : null;
@@ -41,7 +67,11 @@ function normalizeTapu(tapu: Tapu): Tapu {
     anaGayrimenkul: { ...empty.anaGayrimenkul, ...tapu.anaGayrimenkul },
     araziOzellikleri: { ...empty.araziOzellikleri, ...tapu.araziOzellikleri },
     bagimsizBolum: { ...empty.bagimsizBolum, ...tapu.bagimsizBolum },
-    degerleme: { ...empty.degerleme, ...tapu.degerleme },
+    degerleme: {
+      ...empty.degerleme,
+      ...tapu.degerleme,
+      hesaplamalar: normalizeHesaplamalar(tapu.degerleme?.hesaplamalar, empty.degerleme.hesaplamalar),
+    },
     emsaller: {
       ...empty.emsaller,
       ...tapu.emsaller,

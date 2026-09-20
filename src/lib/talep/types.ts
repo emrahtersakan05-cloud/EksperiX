@@ -249,12 +249,13 @@ export interface AlanFarkiDegerlemeData {
   farkKatsayisi: string;
 }
 
-export interface SeviyeSatiri {
-  id: string;
-  ad: string;
+// Bitmesi halindeki değer (alan × birim fiyat) eksi kalan maliyet (alan × maliyet birim fiyat × (1 − seviye oranı)).
+export interface SeviyeliDegerlemeData {
   alanM2: string;
-  birimDeger: string;
-  katsayi: string;
+  birimFiyat: string;
+  maliyetBirimFiyat: string;
+  // Yüzde olarak girilir (örn. 60).
+  seviyeOrani: string;
 }
 
 export interface HisseSatiri {
@@ -265,14 +266,15 @@ export interface HisseSatiri {
 }
 
 export interface HisseliDegerlemeData {
-  tamDeger: string;
+  alanM2: string;
+  birimFiyat: string;
   satirlar: HisseSatiri[];
 }
 
 export interface DegerHesaplamalari {
   normal: NormalDegerlemeData;
   alanFarki: AlanFarkiDegerlemeData;
-  seviyeli: SeviyeSatiri[];
+  seviyeli: SeviyeliDegerlemeData;
   hisseli: HisseliDegerlemeData;
 }
 
@@ -596,8 +598,8 @@ export function createEmptyTapu(index: number, defaults?: TalepDetayiDefaults): 
       hesaplamalar: {
         normal: { alanM2: "", birimDeger: "" },
         alanFarki: { resmiAlanM2: "", fiiliAlanM2: "", birimDeger: "", farkKatsayisi: "" },
-        seviyeli: [],
-        hisseli: { tamDeger: "", satirlar: [] },
+        seviyeli: { alanM2: "", birimFiyat: "", maliyetBirimFiyat: "", seviyeOrani: "" },
+        hisseli: { alanM2: "", birimFiyat: "", satirlar: [] },
       },
       alanM2: "",
       emsalYaklasimiDegeri: "",

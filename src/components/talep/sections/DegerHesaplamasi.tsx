@@ -1,17 +1,29 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
-import { Calculator, ChartPie, CircleCheck, Download, Layers, Plus, Ruler, Trash2, TriangleAlert } from "lucide-react";
+import {
+  Calculator,
+  ChartPie,
+  CircleCheck,
+  Copy,
+  Download,
+  Layers,
+  Plus,
+  Ruler,
+  Trash2,
+  TriangleAlert,
+} from "lucide-react";
 import { TextField, tableInputClass } from "@/components/talep/form-fields";
 import { formatTrNumber } from "@/lib/emsal/hesaplama";
-import { hesaplaAlanFarki, hesaplaHisseli, hesaplaNormal, hesaplaSeviyeli } from "@/lib/talep/deger-hesaplama";
 import {
-  newRowId,
-  type DegerHesaplamalari,
-  type HisseSatiri,
-  type MulkiyetKaydi,
-  type SeviyeSatiri,
-} from "@/lib/talep/types";
+  hesaplaAlanFarki,
+  hesaplaHisseli,
+  hesaplaNormal,
+  hesaplaSeviyeli,
+  hisseliMetni,
+  seviyeliMetni,
+} from "@/lib/talep/deger-hesaplama";
+import { newRowId, type DegerHesaplamalari, type HisseSatiri, type MulkiyetKaydi } from "@/lib/talep/types";
 
 const para = (v: number) => `${formatTrNumber(v)} ₺`;
 const yuzde = (oran: number) => `%${(oran * 100).toLocaleString("tr-TR", { maximumFractionDigits: 4 })}`;
@@ -29,26 +41,24 @@ function CalcCard({
   title,
   description,
   sonuc,
+  sonucEtiketi = "Hesaplanan Değer",
   sonucAciklama,
   onUse,
   children,
-  className = "",
 }: {
   icon: ReactNode;
   title: string;
   description: string;
   sonuc: number | null;
+  sonucEtiketi?: string;
   sonucAciklama?: string;
   onUse: (deger: number) => void;
   children: ReactNode;
-  className?: string;
 }) {
   const [used, setUsed] = useState(false);
 
   return (
-    <section
-      className={`flex min-w-0 flex-col rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)] ${className}`}
-    >
+    <section className="flex min-w-0 flex-col rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
       <header className="flex items-start gap-3 border-b border-slate-100 p-4">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-lime-100 text-lime-800">
           {icon}
@@ -59,11 +69,11 @@ function CalcCard({
         </div>
       </header>
 
-      <div className="flex-1 space-y-3 p-4">{children}</div>
+      <div className="flex-1 space-y-4 p-4">{children}</div>
 
       <footer className="flex flex-wrap items-center justify-between gap-3 rounded-b-2xl border-t border-lime-100 bg-lime-50/70 px-4 py-3">
         <div>
-          <p className="text-[11px] font-medium uppercase tracking-wider text-lime-800">Hesaplanan Değer</p>
+          <p className="text-[11px] font-medium uppercase tracking-wider text-lime-800">{sonucEtiketi}</p>
           <p className="text-xl font-semibold tabular-nums text-slate-900">{sonuc === null ? "—" : para(sonuc)}</p>
           {sonucAciklama && <p className="text-xs text-slate-500">{sonucAciklama}</p>}
         </div>
@@ -86,11 +96,23 @@ function CalcCard({
   );
 }
 
+// Titled sub-block inside a calculation card.
+function AltBlok({ baslik, children }: { baslik: string; children: ReactNode }) {
+  return (
+    <div className="rounded-xl border border-slate-100 bg-slate-50/50 p-4">
+      <h4 className="mb-3 text-xs font-semibold text-slate-700">{baslik}</h4>
+      <div className="space-y-3">{children}</div>
+    </div>
+  );
+}
+
 function BirimDegerField({
+  label = "Birim Değer (₺/m²)",
   value,
   onChange,
   emsal,
 }: {
+  label?: string;
   value: string;
   onChange: (v: string) => void;
   emsal: EmsalOrtalamasi;
@@ -98,7 +120,7 @@ function BirimDegerField({
   const oneri = emsal.net ?? emsal.birim;
   return (
     <div>
-      <TextField label="Birim Değer (₺/m²)" value={value} onChange={onChange} placeholder="Örn. 48.000" />
+      <TextField label={label} value={value} onChange={onChange} placeholder="Örn. 12.500" />
       {oneri !== null && (
         <button
           type="button"
@@ -113,8 +135,54 @@ function BirimDegerField({
   );
 }
 
-function SatirListesiBaslik({ children }: { children: ReactNode }) {
-  return <div className="flex flex-wrap items-center justify-between gap-2">{children}</div>;
+function HesapAlani({ label, value }: { label: string; value: number | null }) {
+  return (
+    <TextField
+      label={label}
+      value={value === null ? "" : para(value)}
+      onChange={() => {}}
+      readOnly
+      placeholder="Otomatik hesaplanır"
+    />
+  );
+}
+
+function AkiciMetin({ metin }: { metin: string }) {
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(metin);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Clipboard blocked: the text stays selectable in the box.
+    }
+  }
+
+  return (
+    <AltBlok baslik="Akıcı Metin">
+      {metin ? (
+        <>
+          <pre className="whitespace-pre-wrap rounded-lg border border-slate-100 bg-white p-3 font-sans text-sm leading-relaxed text-slate-700">
+            {metin}
+          </pre>
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={copy}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+            >
+              {copied ? <CircleCheck className="h-3.5 w-3.5 text-emerald-600" /> : <Copy className="h-3.5 w-3.5" />}
+              {copied ? "Kopyalandı" : "Metni Kopyala"}
+            </button>
+          </div>
+        </>
+      ) : (
+        <p className="text-sm text-slate-400">Metin, alan ve birim fiyat girildikçe otomatik oluşur.</p>
+      )}
+    </AltBlok>
+  );
 }
 
 const ekleButtonClass =
@@ -151,9 +219,6 @@ export default function DegerHesaplamasi({
   const seviyeSonuc = hesaplaSeviyeli(seviyeli);
   const hisseSonuc = hesaplaHisseli(hisseli);
 
-  function updateSeviye(id: string, patch: Partial<SeviyeSatiri>) {
-    onChange({ ...value, seviyeli: seviyeli.map((s) => (s.id === id ? { ...s, ...patch } : s)) });
-  }
   function updateHisse(id: string, patch: Partial<HisseSatiri>) {
     onChange({
       ...value,
@@ -189,15 +254,15 @@ export default function DegerHesaplamasi({
       key: "seviyeli",
       icon: <Layers className="h-5 w-5" />,
       title: "Seviyeli Değerleme",
-      description: "Seviye bazlı alan ve değer",
-      sonuc: seviyeSonuc?.toplamDeger ?? null,
+      description: "Bitmesi halindeki değer − kalan maliyet",
+      sonuc: seviyeSonuc.guncel,
     },
     {
       key: "hisseli",
       icon: <ChartPie className="h-5 w-5" />,
       title: "Hisseli Değerleme",
       description: "Pay / payda oranına göre",
-      sonuc: hisseSonuc?.toplamDeger ?? null,
+      sonuc: hisseSonuc.durum?.yuvarlanmis ?? null,
     },
   ];
 
@@ -237,7 +302,6 @@ export default function DegerHesaplamasi({
         })}
       </div>
 
-      {/* Normal Değerleme */}
       {aktif === "normal" && (
         <CalcCard
           icon={<Calculator className="h-5 w-5" />}
@@ -263,7 +327,6 @@ export default function DegerHesaplamasi({
         </CalcCard>
       )}
 
-      {/* Alan Farkı Değerleme */}
       {aktif === "alanFarki" && (
         <CalcCard
           icon={<Ruler className="h-5 w-5" />}
@@ -321,253 +384,213 @@ export default function DegerHesaplamasi({
         </CalcCard>
       )}
 
-      {/* Seviyeli Değerleme */}
       {aktif === "seviyeli" && (
         <CalcCard
           icon={<Layers className="h-5 w-5" />}
           title="Seviyeli Değerleme"
-          description="Bodrum, zemin, normal kat gibi seviyeler ayrı alan, birim değer ve katsayıyla değerlenir; toplam alınır."
-          sonuc={seviyeSonuc?.toplamDeger ?? null}
-          sonucAciklama={
-            seviyeSonuc
-              ? `${formatTrNumber(seviyeSonuc.toplamAlan)} m²${
-                  seviyeSonuc.ortalamaBirim !== null
-                    ? ` · ortalama ${formatTrNumber(seviyeSonuc.ortalamaBirim)} ₺/m²`
-                    : ""
-                }`
-              : "Seviyelerin tutarlarının toplamı"
-          }
+          description="Bitmesi halindeki değerden kalan maliyet düşülerek güncel satış değeri bulunur."
+          sonuc={seviyeSonuc.guncel}
+          sonucEtiketi="Güncel Satış Değeri"
+          sonucAciklama="Yuvarlanmış Fiyat − Yuvarlanmış Maliyet Fiyatı"
           onUse={onNihaiDeger}
         >
-          {seviyeli.length > 0 && (
-            <div className="-mx-4 overflow-x-auto px-4">
-              <table className="w-full min-w-[720px] text-left text-sm">
-                <thead>
-                  <tr>
-                    <Th>Seviye</Th>
-                    <Th>Alan (m²)</Th>
-                    <Th>Birim Değer (₺/m²)</Th>
-                    <Th>Katsayı (%)</Th>
-                    <Th right>Tutar (₺)</Th>
-                    <th className="w-8" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {seviyeli.map((s) => {
-                    const tutar = seviyeSonuc?.satirDegerleri[s.id] ?? null;
-                    return (
-                      <tr key={s.id} className="border-t border-slate-100">
-                        <td className="py-2 pr-2">
-                          <input
-                            className={tableInputClass}
-                            value={s.ad}
-                            placeholder="Örn. Zemin kat"
-                            onChange={(e) => updateSeviye(s.id, { ad: e.target.value })}
-                          />
-                        </td>
-                        <td className="py-2 pr-2">
-                          <input
-                            className={tableInputClass}
-                            value={s.alanM2}
-                            onChange={(e) => updateSeviye(s.id, { alanM2: e.target.value })}
-                          />
-                        </td>
-                        <td className="py-2 pr-2">
-                          <input
-                            className={tableInputClass}
-                            value={s.birimDeger}
-                            onChange={(e) => updateSeviye(s.id, { birimDeger: e.target.value })}
-                          />
-                        </td>
-                        <td className="py-2 pr-2">
-                          <input
-                            className={tableInputClass}
-                            value={s.katsayi}
-                            placeholder="100"
-                            onChange={(e) => updateSeviye(s.id, { katsayi: e.target.value })}
-                          />
-                        </td>
-                        <td className="whitespace-nowrap py-2 pr-2 text-right font-medium tabular-nums text-slate-800">
-                          {tutar === null ? <span className="text-slate-300">—</span> : para(tutar)}
-                        </td>
-                        <td className="py-2 text-right">
-                          <button
-                            type="button"
-                            aria-label="Seviyeyi sil"
-                            onClick={() => onChange({ ...value, seviyeli: seviyeli.filter((x) => x.id !== s.id) })}
-                            className="rounded-full p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+          <AltBlok baslik="Bitmesi Halinde Değer Hesaplaması">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <TextField
+                label="Yasal ve Mevcut Alan (m²)"
+                value={seviyeli.alanM2}
+                onChange={(v) => onChange({ ...value, seviyeli: { ...seviyeli, alanM2: v } })}
+                placeholder="Örn. 125"
+              />
+              <BirimDegerField
+                label="Birim Fiyat (₺/m²)"
+                value={seviyeli.birimFiyat}
+                onChange={(v) => onChange({ ...value, seviyeli: { ...seviyeli, birimFiyat: v } })}
+                emsal={emsal}
+              />
+              <HesapAlani label="Net Fiyat" value={seviyeSonuc.durum?.net ?? null} />
+              <HesapAlani label="Yuvarlanmış Fiyat" value={seviyeSonuc.durum?.yuvarlanmis ?? null} />
             </div>
-          )}
-          <SatirListesiBaslik>
-            <button
-              type="button"
-              onClick={() =>
-                onChange({
-                  ...value,
-                  seviyeli: [...seviyeli, { id: newRowId(), ad: "", alanM2: "", birimDeger: "", katsayi: "" }],
-                })
-              }
-              className={ekleButtonClass}
-            >
-              <Plus className="h-3.5 w-3.5" />
-              Seviye Ekle
-            </button>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-              {emsal.net !== null || emsal.birim !== null ? (
-                <span className="text-slate-400">
-                  Emsal ortalaması: {formatTrNumber((emsal.net ?? emsal.birim) as number)} ₺/m²
-                </span>
-              ) : null}
-              <span className="text-slate-400">Katsayı boşsa %100 uygulanır.</span>
+            <p className="text-xs text-slate-400">
+              Net Fiyat = Yasal ve Mevcut Alan × Birim Fiyat. Yuvarlanmış Fiyat, Net Fiyatın en yakın 5.000 katıdır.
+            </p>
+          </AltBlok>
+
+          <AltBlok baslik="Kalan Maliyet Hesaplaması">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <TextField
+                label="Maliyet Birim Fiyat (₺/m²)"
+                value={seviyeli.maliyetBirimFiyat}
+                onChange={(v) => onChange({ ...value, seviyeli: { ...seviyeli, maliyetBirimFiyat: v } })}
+                placeholder="Örn. 8.000"
+              />
+              <TextField
+                label="Seviye Oranı (%)"
+                value={seviyeli.seviyeOrani}
+                onChange={(v) => onChange({ ...value, seviyeli: { ...seviyeli, seviyeOrani: v } })}
+                placeholder="Örn. 60"
+              />
+              <HesapAlani label="Net Maliyet Fiyatı" value={seviyeSonuc.maliyet?.net ?? null} />
+              <HesapAlani label="Yuvarlanmış Maliyet Fiyatı" value={seviyeSonuc.maliyet?.yuvarlanmis ?? null} />
             </div>
-          </SatirListesiBaslik>
+            <p className="text-xs text-slate-400">
+              Net Maliyet Fiyatı = Yasal ve Mevcut Alan × Maliyet Birim Fiyat × (1 − Seviye Oranı). Seviye oranı 0–100
+              arasında yüzde olarak girilir.
+            </p>
+          </AltBlok>
+
+          <AltBlok baslik="Güncel Satış Değeri Hesaplaması">
+            <div className="max-w-sm">
+              <HesapAlani label="Güncel Satış Değeri" value={seviyeSonuc.guncel} />
+            </div>
+          </AltBlok>
+
+          <AkiciMetin metin={seviyeliMetni(seviyeSonuc)} />
         </CalcCard>
       )}
 
-      {/* Hisseli Değerleme */}
       {aktif === "hisseli" && (
         <CalcCard
           icon={<ChartPie className="h-5 w-5" />}
           title="Hisseli Değerleme"
-          description="Taşınmazın tam değeri, hissedarların pay / payda oranlarına göre paylaştırılır."
-          sonuc={hisseSonuc?.toplamDeger ?? null}
-          sonucAciklama={hisseSonuc ? `Toplam hisse: ${yuzde(hisseSonuc.toplamOran)}` : "Hisse değerlerinin toplamı"}
+          description="Yasal ve mevcut durum değeri, hissedarların pay / payda oranlarına göre paylaştırılır."
+          sonuc={hisseSonuc.durum?.yuvarlanmis ?? null}
+          sonucEtiketi="Yasal ve Mevcut Durum Değeri"
+          sonucAciklama={
+            hisseSonuc.hesaplananSatir > 0 ? `Toplam hisse: ${yuzde(hisseSonuc.toplamOran)}` : "Yuvarlanmış Fiyat"
+          }
           onUse={onNihaiDeger}
         >
-          <div className="max-w-sm">
-            <TextField
-              label="Taşınmazın Tam Değeri (₺)"
-              value={hisseli.tamDeger}
-              onChange={(v) => onChange({ ...value, hisseli: { ...hisseli, tamDeger: v } })}
-              placeholder="Örn. 4.800.000"
-            />
-            {normalSonuc !== null && (
-              <button
-                type="button"
-                onClick={() => onChange({ ...value, hisseli: { ...hisseli, tamDeger: formatTrNumber(normalSonuc) } })}
-                className="mt-1.5 text-xs font-medium text-lime-800 underline-offset-2 hover:underline"
-              >
-                Normal değerleme sonucunu kullan: {para(normalSonuc)}
-              </button>
-            )}
-          </div>
-
-          {hisseli.satirlar.length > 0 && (
-            <div className="-mx-4 overflow-x-auto px-4">
-              <table className="w-full min-w-[720px] text-left text-sm">
-                <thead>
-                  <tr>
-                    <Th>Hissedar (Malik)</Th>
-                    <Th>Pay</Th>
-                    <Th>Payda</Th>
-                    <Th right>Oran</Th>
-                    <Th right>Hisse Değeri (₺)</Th>
-                    <th className="w-8" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {hisseli.satirlar.map((s) => {
-                    const sonuc = hisseSonuc?.satirlar[s.id] ?? null;
-                    return (
-                      <tr key={s.id} className="border-t border-slate-100">
-                        <td className="py-2 pr-2">
-                          <input
-                            className={tableInputClass}
-                            value={s.malik}
-                            onChange={(e) => updateHisse(s.id, { malik: e.target.value })}
-                          />
-                        </td>
-                        <td className="py-2 pr-2">
-                          <input
-                            className={`${tableInputClass} max-w-[6rem]`}
-                            value={s.pay}
-                            onChange={(e) => updateHisse(s.id, { pay: e.target.value })}
-                          />
-                        </td>
-                        <td className="py-2 pr-2">
-                          <input
-                            className={`${tableInputClass} max-w-[6rem]`}
-                            value={s.payda}
-                            onChange={(e) => updateHisse(s.id, { payda: e.target.value })}
-                          />
-                        </td>
-                        <td className="whitespace-nowrap py-2 pr-2 text-right tabular-nums text-slate-600">
-                          {sonuc ? yuzde(sonuc.oran) : <span className="text-slate-300">—</span>}
-                        </td>
-                        <td className="whitespace-nowrap py-2 pr-2 text-right font-medium tabular-nums text-slate-800">
-                          {sonuc ? para(sonuc.deger) : <span className="text-slate-300">—</span>}
-                        </td>
-                        <td className="py-2 text-right">
-                          <button
-                            type="button"
-                            aria-label="Hisseyi sil"
-                            onClick={() =>
-                              onChange({
-                                ...value,
-                                hisseli: { ...hisseli, satirlar: hisseli.satirlar.filter((x) => x.id !== s.id) },
-                              })
-                            }
-                            className="rounded-full p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+          <AltBlok baslik="Yasal ve Mevcut Durum Değeri">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <TextField
+                label="Yasal ve Mevcut Alan (m²)"
+                value={hisseli.alanM2}
+                onChange={(v) => onChange({ ...value, hisseli: { ...hisseli, alanM2: v } })}
+                placeholder="Örn. 125"
+              />
+              <BirimDegerField
+                label="Birim Fiyat (₺/m²)"
+                value={hisseli.birimFiyat}
+                onChange={(v) => onChange({ ...value, hisseli: { ...hisseli, birimFiyat: v } })}
+                emsal={emsal}
+              />
+              <HesapAlani label="Net Fiyat" value={hisseSonuc.durum?.net ?? null} />
+              <HesapAlani label="Yuvarlanmış Fiyat" value={hisseSonuc.durum?.yuvarlanmis ?? null} />
             </div>
-          )}
-
-          {hisseSonuc && hisseSonuc.toplamOran > 1.000001 && (
-            <p className="flex items-center gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
-              <TriangleAlert className="h-4 w-4 shrink-0" />
-              Toplam hisse oranı {yuzde(hisseSonuc.toplamOran)}; %100&apos;ü aşıyor, pay / payda değerlerini kontrol
-              edin.
+            <p className="text-xs text-slate-400">
+              Net Fiyat = Yasal ve Mevcut Alan × Birim Fiyat. Yuvarlanmış Fiyat, Net Fiyatın en yakın 5.000 katıdır.
             </p>
-          )}
+          </AltBlok>
 
-          <SatirListesiBaslik>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() =>
-                  onChange({
-                    ...value,
-                    hisseli: {
-                      ...hisseli,
-                      satirlar: [...hisseli.satirlar, { id: newRowId(), malik: "", pay: "", payda: "" }],
-                    },
-                  })
-                }
-                className={ekleButtonClass}
-              >
-                <Plus className="h-3.5 w-3.5" />
-                Hisse Ekle
-              </button>
-              {mulkiyetKayitlari.length > 0 && (
-                <button type="button" onClick={tapudanGetir} className={ekleButtonClass}>
-                  <Download className="h-3.5 w-3.5" />
-                  Tapu Kaydından Getir
+          <AltBlok baslik="Hissedarlar">
+            {hisseli.satirlar.length > 0 && (
+              <div className="-mx-4 overflow-x-auto px-4">
+                <table className="w-full min-w-[640px] text-left text-sm">
+                  <thead>
+                    <tr>
+                      <Th>Hissedar Adı / Soyadı</Th>
+                      <Th>Pay</Th>
+                      <Th>Payda</Th>
+                      <Th right>Hisse Değeri (₺)</Th>
+                      <th className="w-8" />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {hisseli.satirlar.map((s) => {
+                      const sonuc = hisseSonuc.satirlar[s.id] ?? null;
+                      return (
+                        <tr key={s.id} className="border-t border-slate-100">
+                          <td className="py-2 pr-2">
+                            <input
+                              className={tableInputClass}
+                              value={s.malik}
+                              onChange={(e) => updateHisse(s.id, { malik: e.target.value })}
+                            />
+                          </td>
+                          <td className="py-2 pr-2">
+                            <input
+                              className={`${tableInputClass} max-w-[6rem]`}
+                              value={s.pay}
+                              onChange={(e) => updateHisse(s.id, { pay: e.target.value })}
+                            />
+                          </td>
+                          <td className="py-2 pr-2">
+                            <input
+                              className={`${tableInputClass} max-w-[6rem]`}
+                              value={s.payda}
+                              onChange={(e) => updateHisse(s.id, { payda: e.target.value })}
+                            />
+                          </td>
+                          <td className="whitespace-nowrap py-2 pr-2 text-right font-medium tabular-nums text-slate-800">
+                            {sonuc ? para(sonuc.deger) : <span className="text-slate-300">—</span>}
+                          </td>
+                          <td className="py-2 text-right">
+                            <button
+                              type="button"
+                              aria-label="Hissedarı sil"
+                              onClick={() =>
+                                onChange({
+                                  ...value,
+                                  hisseli: { ...hisseli, satirlar: hisseli.satirlar.filter((x) => x.id !== s.id) },
+                                })
+                              }
+                              className="rounded-full p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {hisseSonuc.toplamOran > 1.000001 && (
+              <p className="flex items-center gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+                <TriangleAlert className="h-4 w-4 shrink-0" />
+                Toplam hisse oranı {yuzde(hisseSonuc.toplamOran)}; %100&apos;ü aşıyor, pay / payda değerlerini kontrol
+                edin.
+              </p>
+            )}
+
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() =>
+                    onChange({
+                      ...value,
+                      hisseli: {
+                        ...hisseli,
+                        satirlar: [...hisseli.satirlar, { id: newRowId(), malik: "", pay: "", payda: "" }],
+                      },
+                    })
+                  }
+                  className={ekleButtonClass}
+                >
+                  <Plus className="h-3.5 w-3.5" />
+                  Hissedar Ekle
                 </button>
+                {mulkiyetKayitlari.length > 0 && (
+                  <button type="button" onClick={tapudanGetir} className={ekleButtonClass}>
+                    <Download className="h-3.5 w-3.5" />
+                    Tapu Kaydından Getir
+                  </button>
+                )}
+              </div>
+              {mulkiyetKayitlari.length > 0 && hisseli.satirlar.length > 0 && (
+                <span className="text-xs text-slate-400">
+                  &quot;Tapu Kaydından Getir&quot; mevcut satırların yerine geçer.
+                </span>
               )}
             </div>
-            {mulkiyetKayitlari.length > 0 && hisseli.satirlar.length > 0 && (
-              <span className="text-xs text-slate-400">
-                &quot;Tapu Kaydından Getir&quot; mevcut satırların yerine geçer.
-              </span>
-            )}
-          </SatirListesiBaslik>
+            <p className="text-xs text-slate-400">Hisse Değeri = Yuvarlanmış Fiyat × Pay / Payda.</p>
+          </AltBlok>
+
+          <AkiciMetin metin={hisseliMetni(hisseli, hisseSonuc)} />
         </CalcCard>
       )}
     </div>
