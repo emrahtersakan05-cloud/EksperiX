@@ -71,10 +71,18 @@ export default function TalepTable({
                 </td>
                 <td className="whitespace-nowrap py-3 pr-4 text-slate-600">{talep.tapular.length}</td>
                 <td className="whitespace-nowrap py-3 pr-4">
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-50 px-2.5 py-1 text-xs font-medium text-slate-700">
-                    <span className={`h-1.5 w-1.5 rounded-full ${talepDurumDotStyles[durum]}`} />
-                    {durum} &middot; %{completion.pct}
-                  </span>
+                  <div className="flex flex-col gap-1.5">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-slate-700">
+                      <span className={`h-1.5 w-1.5 rounded-full ${talepDurumDotStyles[durum]}`} />
+                      {durum} &middot; %{completion.pct}
+                    </span>
+                    <span className="h-1 w-28 overflow-hidden rounded-full bg-slate-100" aria-hidden="true">
+                      <span
+                        className={`block h-full rounded-full ${talepDurumDotStyles[durum]}`}
+                        style={{ width: `${completion.pct}%` }}
+                      />
+                    </span>
+                  </div>
                 </td>
                 <td className="whitespace-nowrap py-3 pr-4 text-slate-600">
                   {new Date(talep.olusturmaTarihi).toLocaleDateString("tr-TR")}
