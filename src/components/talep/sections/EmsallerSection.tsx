@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { acknowledgeBridge, readBridgeDetail } from "@/lib/bridge/event-detail";
-import { Check, RotateCw } from "lucide-react";
+import { Check, ChevronRight, RotateCw } from "lucide-react";
 import {
   ComboboxField,
   helperTextClass,
@@ -14,7 +14,7 @@ import {
 } from "@/components/talep/form-fields";
 import { olusturEmsalMetni, type EmsalTuru } from "@/lib/emsal/akici-metin";
 import { addTanim, getTanimlar, removeTanim } from "@/lib/emsal/tanim-referans";
-import { HESAP_GIRDI_ALANLARI, hesaplaEmsalDegerleri } from "@/lib/emsal/hesaplama";
+import { formatTrNumber, HESAP_GIRDI_ALANLARI, hesaplaEmsalDegerleri, parseTrNumber } from "@/lib/emsal/hesaplama";
 import { parseEmsalBridgeText } from "@/lib/emsal/listing-extract";
 import type { EmsalKaydi, EmsallerData, KmlKonumu } from "@/lib/talep/types";
 import DigerAciklamalarCard from "@/components/talep/sections/DigerAciklamalarCard";
@@ -50,50 +50,181 @@ type EmsalKaydiKey = Exclude<EmsallerTabKey, "liste">;
 const SATILIK_KEYS: EmsalKaydiKey[] = ["satilik1", "satilik2", "satilik3", "satilik4", "satilik5"];
 const KIRALIK_KEYS: EmsalKaydiKey[] = ["kiralik1", "kiralik2"];
 
-const LISTE_COLUMNS = [
-  "Sıra No",
-  "İl",
-  "İlçe",
-  "Emlak Tipi",
-  "m² (Net)",
-  "Gerçekçi Alan(m²)",
-  "İlan Fiyatı",
-  "Pazarlıklı Fiyat",
-  "Konum Şerefiyesi",
-  "Yapı Şerefiyesi",
-  "Kat Şerefiyesi",
+type ListeColumn = { label: string; numeric?: boolean; highlight?: boolean };
+
+const LISTE_COLUMNS: ListeColumn[] = [
+  { label: "Sıra No" },
+  { label: "İl" },
+  { label: "İlçe" },
+  { label: "Emlak Tipi" },
+  { label: "m² (Net)", numeric: true },
+  { label: "Gerçekçi Alan(m²)", numeric: true },
+  { label: "İlan Fiyatı", numeric: true },
+  { label: "Pazarlıklı Fiyat", numeric: true },
+  { label: "Birim Fiyat (₺/m²)", numeric: true, highlight: true },
+  { label: "Konum Şerefiyesi", numeric: true },
+  { label: "Yapı Şerefiyesi", numeric: true },
+  { label: "Kat Şerefiyesi", numeric: true },
+  { label: "Net Birim Fiyat (₺/m²)", numeric: true, highlight: true },
 ];
 
-function EmsallerListTable({ title, keys, data }: { title: string; keys: EmsalKaydiKey[]; data: EmsallerData }) {
+function isEmsalGirildi(k: EmsalKaydi): boolean {
+  return [k.il, k.ilce, k.emlakTipi, k.m2Net, k.gercekAlan, k.istenenFiyat, k.pazarlikliFiyat].some(
+    (v) => v.trim() !== "",
+  );
+}
+
+function ortalama(values: number[]): number | null {
+  return values.length ? values.reduce((sum, v) => sum + v, 0) / values.length : null;
+}
+
+function StatTile({
+  label,
+  value,
+  hint,
+  accent = false,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  accent?: boolean;
+}) {
+  return (
+    <div className={`rounded-xl border px-4 py-3 ${accent ? "border-lime-200 bg-lime-50" : "border-slate-100 bg-slate-50/70"}`}>
+      <p className={`text-[11px] font-medium uppercase tracking-wider ${accent ? "text-lime-800" : "text-slate-400"}`}>
+        {label}
+      </p>
+      <p className="mt-1 text-xl font-semibold tabular-nums text-slate-900">{value}</p>
+      {hint && <p className="mt-0.5 text-xs text-slate-500">{hint}</p>}
+    </div>
+  );
+}
+
+function EmsallerListTable({
+  title,
+  keys,
+  data,
+  tone,
+  onOpen,
+}: {
+  title: string;
+  keys: EmsalKaydiKey[];
+  data: EmsallerData;
+  tone: EmsalTuru;
+  onOpen: (key: EmsalKaydiKey) => void;
+}) {
+  const rows = keys.map((key) => {
+    const kaydi = data[key];
+    return { key, kaydi, hesap: hesaplaEmsalDegerleri(kaydi), girildi: isEmsalGirildi(kaydi) };
+  });
+  const girilenSayisi = rows.filter((r) => r.girildi).length;
+  const birimler = rows.map((r) => parseTrNumber(r.hesap.birimFiyat)).filter((v): v is number => v !== null);
+  const netBirimler = rows.map((r) => parseTrNumber(r.hesap.netBirimFiyat)).filter((v): v is number => v !== null);
+  const ortBirim = ortalama(birimler);
+  const ortNet = ortalama(netBirimler);
+  const money = (v: number | null) => (v === null ? "—" : `${formatTrNumber(v)} ₺`);
+  const aralik =
+    birimler.length > 1 ? `${formatTrNumber(Math.min(...birimler))} – ${formatTrNumber(Math.max(...birimler))} ₺` : undefined;
+
   return (
     <SectionCard title={title}>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <span
+          className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
+            tone === "satilik" ? "bg-lime-100 text-lime-800" : "bg-sky-100 text-sky-800"
+          }`}
+        >
+          <span className={`h-1.5 w-1.5 rounded-full ${tone === "satilik" ? "bg-lime-600" : "bg-sky-600"}`} />
+          {girilenSayisi} / {keys.length} emsal girildi
+        </span>
+        <span className="text-xs text-slate-400">Bir satıra tıklayarak ilgili emsalin formunu açabilirsiniz.</span>
+      </div>
+
+      <div className="mb-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <StatTile
+          accent
+          label="Ortalama Birim Fiyat"
+          value={money(ortBirim)}
+          hint={
+            ortBirim === null
+              ? "Pazarlıklı fiyat ve gerçekçi alan girildikçe hesaplanır"
+              : `${birimler.length} emsal üzerinden${aralik ? ` · ${aralik}` : ""}`
+          }
+        />
+        <StatTile
+          label="Ortalama Net Birim Fiyat"
+          value={money(ortNet)}
+          hint={ortNet === null ? "Şerefiye düzeltmeli birim fiyat ortalaması" : "Şerefiye düzeltmeleri sonrası"}
+        />
+        <StatTile label="Hesaba Giren Emsal" value={`${birimler.length} / ${keys.length}`} hint="Birim fiyatı hesaplanabilen emsaller" />
+      </div>
+
       <div className="-mx-4 overflow-x-auto">
-        <table className="w-full min-w-[1080px] text-left text-sm">
+        <table className="w-full min-w-[1240px] text-left text-sm">
           <thead>
             <tr className="text-[11px] whitespace-nowrap uppercase tracking-wider text-slate-400">
-              {LISTE_COLUMNS.map((col) => (
-                <th key={col} className="py-2 pl-4 pr-4 font-medium">
-                  {col}
+              {LISTE_COLUMNS.map((col, i) => (
+                <th
+                  key={col.label}
+                  className={`py-2 pr-4 font-medium ${i === 0 ? "sticky left-0 z-10 bg-white pl-4" : "pl-0"} ${
+                    col.numeric ? "text-right" : ""
+                  } ${col.highlight ? "bg-lime-50/70 pl-4 text-lime-800" : ""}`}
+                >
+                  {col.label}
                 </th>
               ))}
+              <th className="w-8" aria-hidden="true" />
             </tr>
           </thead>
           <tbody>
-            {keys.map((key, index) => {
-              const kaydi = data[key];
+            {rows.map(({ key, kaydi, hesap, girildi }, index) => {
+              const cell = (value: string, opts?: { numeric?: boolean; highlight?: boolean }) => (
+                <td
+                  className={`py-3 pr-4 ${opts?.numeric ? "text-right tabular-nums" : ""} ${
+                    opts?.highlight ? "bg-lime-50/60 pl-4 font-semibold text-slate-900" : ""
+                  } ${value ? "text-slate-700" : "text-slate-300"}`}
+                >
+                  {value || "—"}
+                </td>
+              );
               return (
-                <tr key={key} className="border-t border-slate-50">
-                  <td className="whitespace-nowrap py-2.5 pl-4 pr-4 text-slate-500">{index + 1}</td>
-                  <td className="py-2.5 pr-4 text-slate-700">{kaydi.il || "—"}</td>
-                  <td className="py-2.5 pr-4 text-slate-700">{kaydi.ilce || "—"}</td>
-                  <td className="py-2.5 pr-4 text-slate-700">{kaydi.emlakTipi || "—"}</td>
-                  <td className="py-2.5 pr-4 text-slate-700">{kaydi.m2Net || "—"}</td>
-                  <td className="py-2.5 pr-4 text-slate-700">{kaydi.gercekAlan || "—"}</td>
-                  <td className="py-2.5 pr-4 text-slate-700">{kaydi.istenenFiyat || "—"}</td>
-                  <td className="py-2.5 pr-4 text-slate-700">{kaydi.pazarlikliFiyat || "—"}</td>
-                  <td className="py-2.5 pr-4 text-slate-700">{kaydi.konumSerefiyesi || "—"}</td>
-                  <td className="py-2.5 pr-4 text-slate-700">{kaydi.yapiSerefiyesi || "—"}</td>
-                  <td className="py-2.5 pr-4 text-slate-700">{kaydi.katSerefiyesi || "—"}</td>
+                <tr
+                  key={key}
+                  tabIndex={0}
+                  onClick={() => onOpen(key)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onOpen(key);
+                    }
+                  }}
+                  aria-label={`${title} ${index + 1}. emsali aç`}
+                  className="group cursor-pointer border-t border-slate-100 transition-colors hover:bg-slate-50/80 focus-visible:bg-slate-50 focus-visible:outline-none"
+                >
+                  <td className="sticky left-0 z-10 whitespace-nowrap bg-white py-3 pl-4 pr-4 group-hover:bg-slate-50">
+                    <span
+                      className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold ${
+                        girildi ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-400"
+                      }`}
+                    >
+                      {index + 1}
+                    </span>
+                  </td>
+                  {cell(kaydi.il)}
+                  {cell(kaydi.ilce)}
+                  {cell(kaydi.emlakTipi)}
+                  {cell(kaydi.m2Net, { numeric: true })}
+                  {cell(kaydi.gercekAlan, { numeric: true })}
+                  {cell(kaydi.istenenFiyat, { numeric: true })}
+                  {cell(kaydi.pazarlikliFiyat, { numeric: true })}
+                  {cell(hesap.birimFiyat, { numeric: true, highlight: true })}
+                  {cell(kaydi.konumSerefiyesi, { numeric: true })}
+                  {cell(kaydi.yapiSerefiyesi, { numeric: true })}
+                  {cell(kaydi.katSerefiyesi, { numeric: true })}
+                  {cell(hesap.netBirimFiyat, { numeric: true, highlight: true })}
+                  <td className="pr-3 text-slate-300 group-hover:text-slate-500" aria-hidden="true">
+                    <ChevronRight className="h-4 w-4" />
+                  </td>
                 </tr>
               );
             })}
@@ -388,8 +519,20 @@ export default function EmsallerSection({
 
       {activeTab === "liste" && (
         <div className="space-y-4">
-          <EmsallerListTable title="Satılık Emsaller Listesi" keys={SATILIK_KEYS} data={data} />
-          <EmsallerListTable title="Kiralık Emsaller Listesi" keys={KIRALIK_KEYS} data={data} />
+          <EmsallerListTable
+            title="Satılık Emsaller Listesi"
+            keys={SATILIK_KEYS}
+            data={data}
+            tone="satilik"
+            onOpen={setActiveTab}
+          />
+          <EmsallerListTable
+            title="Kiralık Emsaller Listesi"
+            keys={KIRALIK_KEYS}
+            data={data}
+            tone="kiralik"
+            onOpen={setActiveTab}
+          />
           <DigerAciklamalarCard
             value={data.digerAciklamalar}
             onChange={(v) => onChange({ digerAciklamalar: v })}
