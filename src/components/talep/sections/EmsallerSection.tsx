@@ -17,6 +17,7 @@ import { addTanim, getTanimlar, removeTanim } from "@/lib/emsal/tanim-referans";
 import { HESAP_GIRDI_ALANLARI, hesaplaEmsalDegerleri } from "@/lib/emsal/hesaplama";
 import { parseEmsalBridgeText } from "@/lib/emsal/listing-extract";
 import type { EmsalKaydi, EmsallerData, KmlKonumu } from "@/lib/talep/types";
+import DigerAciklamalarCard from "@/components/talep/sections/DigerAciklamalarCard";
 import MiniLocationMap from "@/components/talep/sections/MiniLocationMap";
 
 const EMSALLER_TABS = [
@@ -389,14 +390,10 @@ export default function EmsallerSection({
         <div className="space-y-4">
           <EmsallerListTable title="Satılık Emsaller Listesi" keys={SATILIK_KEYS} data={data} />
           <EmsallerListTable title="Kiralık Emsaller Listesi" keys={KIRALIK_KEYS} data={data} />
-          <SectionCard title="Emsaller ile İlgili Diğer Açıklamalar">
-            <TextAreaField
-              label="Açıklamalar"
-              value={data.digerAciklamalar}
-              onChange={(v) => onChange({ digerAciklamalar: v })}
-              rows={5}
-            />
-          </SectionCard>
+          <DigerAciklamalarCard
+            value={data.digerAciklamalar}
+            onChange={(v) => onChange({ digerAciklamalar: v })}
+          />
         </div>
       )}
 
