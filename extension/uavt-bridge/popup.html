@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Eksperix Bridge</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: Inter, Arial, sans-serif;
+      }
+
+      body {
+        margin: 0;
+        width: 360px;
+        background: #f8fafc;
+        color: #0f172a;
+      }
+
+      .panel {
+        padding: 16px;
+      }
+
+      .card {
+        border: 1px solid #e2e8f0;
+        border-radius: 16px;
+        background: #ffffff;
+        padding: 16px;
+        box-shadow: 0 8px 24px -16px rgba(15, 23, 42, 0.16);
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 16px;
+      }
+
+      p {
+        margin: 8px 0 0;
+        font-size: 12px;
+        line-height: 1.6;
+        color: #475569;
+      }
+
+      .actions {
+        display: flex;
+        gap: 8px;
+        margin-top: 16px;
+      }
+
+      button {
+        border: 0;
+        border-radius: 999px;
+        padding: 10px 14px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      button.primary {
+        background: #0f172a;
+        color: #bef264;
+        flex: 1;
+      }
+
+      button.secondary {
+        background: #ffffff;
+        color: #475569;
+        border: 1px solid #e2e8f0;
+      }
+
+      button:disabled {
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
+
+      .status {
+        margin-top: 14px;
+        border-radius: 12px;
+        padding: 10px 12px;
+        font-size: 12px;
+        line-height: 1.5;
+        display: none;
+      }
+
+      .status[data-visible="true"] {
+        display: block;
+      }
+
+      .status.info {
+        background: #eff6ff;
+        color: #1d4ed8;
+      }
+
+      .status.success {
+        background: #ecfdf5;
+        color: #047857;
+      }
+
+      .status.warning {
+        background: #fffbeb;
+        color: #b45309;
+      }
+
+      .status.error {
+        background: #fff1f2;
+        color: #be123c;
+      }
+
+      .kind {
+        display: block;
+        margin-top: 14px;
+        font-size: 11px;
+        font-weight: 600;
+        color: #475569;
+      }
+
+      .kind select {
+        display: block;
+        width: 100%;
+        margin-top: 4px;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        background: #ffffff;
+        padding: 8px 10px;
+        font-size: 12px;
+        color: #0f172a;
+      }
+
+      ol {
+        margin: 12px 0 0;
+        padding-left: 18px;
+        color: #475569;
+        font-size: 12px;
+        line-height: 1.6;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="panel">
+      <div class="card">
+        <h1>Eksperix Bridge</h1>
+        <p>UAVT, belediye e-imar ya da emsal ilan sayfasındayken bu pencereden <strong>Bilgileri Getir</strong> butonuna basın.</p>
+        <ol>
+          <li>UAVT / e-imar sorgusunu tamamlayın ya da emsal ilan sayfasını (sahibinden, hepsiemlak, emlakjet vb.) açın.</li>
+          <li>Eksperix tarafında <strong>Adres / Konum</strong>, <strong>İmar Durumu</strong> ya da ilgili <strong>Emsal (Satılık / Kiralık)</strong> sekmesi açık olsun.</li>
+          <li>Aşağıdaki butona basın.</li>
+        </ol>
+        <label class="kind">
+          <span>Aktarım türü</span>
+          <select id="kind-select">
+            <option value="auto">Otomatik (sayfadan algıla)</option>
+            <option value="imar">İmar Durumu</option>
+            <option value="uavt">Adres / Konum (UAVT)</option>
+            <option value="emsal">Emsal (Satılık / Kiralık)</option>
+          </select>
+        </label>
+        <div class="actions">
+          <button id="fetch-button" class="primary">Bilgileri Getir</button>
+          <button id="open-app-button" class="secondary">Eksperix</button>
+        </div>
+        <div id="status" class="status info" data-visible="false"></div>
+      </div>
+    </div>
+    <script src="popup.js"></script>
+  </body>
+  </html>
