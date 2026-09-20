@@ -127,8 +127,31 @@ function sayi(n: number): string {
 }
 
 export const formatTL = (n: number) => `${sayi(n)}-TL`;
-const formatBirim = (n: number) => `${sayi(n)}-TL/m2`;
-const formatAlan = (n: number) => `${sayi(n)} m2`;
+export const formatBirim = (n: number) => `${sayi(n)}-TL/m2`;
+export const formatAlan = (n: number) => `${sayi(n)} m2`;
+
+export function normalMetni(d: NormalDegerlemeData): string {
+  const deger = hesaplaNormal(d);
+  const alan = parseTrNumber(d.alanM2);
+  const birim = parseTrNumber(d.birimDeger);
+  if (deger === null || alan === null || birim === null) return "";
+  return `Normal değerleme yöntemiyle ${formatAlan(alan)} x ${formatBirim(birim)} = ${formatTL(deger)} değer hesaplanmıştır.`;
+}
+
+export function alanFarkiMetni(d: AlanFarkiDegerlemeData): string {
+  const s = hesaplaAlanFarki(d);
+  const resmi = parseTrNumber(d.resmiAlanM2);
+  const fiili = parseTrNumber(d.fiiliAlanM2);
+  const birim = parseTrNumber(d.birimDeger);
+  if (!s || resmi === null || fiili === null || birim === null) return "";
+  const katsayi = d.farkKatsayisi.trim() ? `%${d.farkKatsayisi.trim()}` : "%100";
+  const fark = `${s.alanFarki > 0 ? "+" : ""}${sayi(s.alanFarki)} m2`;
+  return (
+    `Alan farkı değerlemesinde resmi alan ${formatAlan(resmi)}, fiili alan ${formatAlan(fiili)} ` +
+    `(${fark} fark, ${katsayi} katsayı) ve birim değer ${formatBirim(birim)} esas alınarak ` +
+    `toplam ${formatTL(s.toplam)} değer hesaplanmıştır.`
+  );
+}
 
 // "Alan x Birim = Yuvarlanmış" line of the Yasal ve Mevcut Durum block.
 function durumSatiri(d: DurumDegeri): string {

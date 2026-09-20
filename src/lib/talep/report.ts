@@ -1,7 +1,21 @@
-import type { KurumIncelemesi, RuhsatIncelemeData, Talep, Tapu } from "./types";
+import { ortalamaEmsalBirimFiyatlari } from "@/lib/emsal/hesaplama";
+import {
+  alanFarkiMetni,
+  formatTL,
+  hesaplaAlanFarki,
+  hesaplaHisseli,
+  hesaplaNormal,
+  hesaplaSeviyeli,
+  hisseliMetni,
+  normalMetni,
+  seviyeliMetni,
+} from "./deger-hesaplama";
+import type { KurumIncelemesi, NotKaydi, RuhsatIncelemeData, Talep, Tapu } from "./types";
 
 export interface ValuationReportSection {
   title: string;
+  // The tab (menu path) the text is built from; shown in the on-screen report view only.
+  source?: string;
   paragraphs: string[];
 }
 
@@ -11,7 +25,10 @@ export interface GeneratedValuationReport {
   executiveSummary: string;
   valuationConclusion: string;
   fullReport: string;
+  // Sections that have text — used for the exported Word / PDF report.
   sections: ValuationReportSection[];
+  // Every tab in menu order, including those without data yet — used for the on-screen view.
+  tumSekmeler: ValuationReportSection[];
 }
 
 function compact(parts: Array<string | null | undefined | false>): string[] {
@@ -41,39 +58,8 @@ function formatDate(value: string): string {
   }).format(date);
 }
 
-function parseNumeric(value: string): number | null {
-  const normalized = value.trim();
-  if (!normalized) return null;
-
-  const noSpaces = normalized.replace(/\s/g, "");
-  const commaCount = (noSpaces.match(/,/g) ?? []).length;
-  const dotCount = (noSpaces.match(/\./g) ?? []).length;
-
-  let candidate = noSpaces;
-  if (commaCount > 0 && dotCount > 0) {
-    candidate = candidate.replace(/\./g, "").replace(",", ".");
-  } else if (commaCount > 0) {
-    candidate = candidate.replace(/\./g, "").replace(",", ".");
-  } else {
-    candidate = candidate.replace(/,/g, "");
-  }
-
-  const parsed = Number(candidate);
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
 function formatArea(value: string): string {
   return value ? `${value} m2` : "";
-}
-
-function formatCurrency(value: string): string {
-  const parsed = parseNumeric(value);
-  if (parsed === null) return value;
-  return new Intl.NumberFormat("tr-TR", {
-    style: "currency",
-    currency: "TRY",
-    maximumFractionDigits: 0,
-  }).format(parsed);
 }
 
 function makeFileName(value: string): string {
@@ -358,22 +344,87 @@ function buildIndependentSectionParagraph(tapu: Tapu): string {
   ]);
 }
 
-function buildValuationParagraph(tapu: Tapu): string {
+function buildAraziParagraph(tapu: Tapu): string {
+  const a = tapu.araziOzellikleri;
+  const sekil = a.araziSekli === "Diğer" ? a.araziSekliDiger : a.araziSekli;
+  const yapi = a.araziYapisi === "Diğer" ? a.araziYapisiDiger : a.araziYapisi;
+  const sulama = a.sulamaImkani === "Diğer" ? a.sulamaImkaniDiger : a.sulamaImkani;
   return joinSentence([
-    tapu.degerleme.emsalYaklasimiDegeri
-      ? `Emsal yaklaşımı değeri ${formatCurrency(tapu.degerleme.emsalYaklasimiDegeri)} olarak hesaplanmıştır.`
-      : "",
-    tapu.degerleme.gelirYaklasimiDegeri
-      ? `Gelir yaklaşımı değeri ${formatCurrency(tapu.degerleme.gelirYaklasimiDegeri)} seviyesindedir.`
-      : "",
-    tapu.degerleme.maliyetYaklasimiDegeri
-      ? `Maliyet yaklaşımı değeri ${formatCurrency(tapu.degerleme.maliyetYaklasimiDegeri)} olarak görülmektedir.`
-      : "",
-    tapu.degerleme.nihaiDeger ? `Nihai değer ${formatCurrency(tapu.degerleme.nihaiDeger)} olarak takdir edilmiştir.` : "",
-    tapu.degerleme.finalDegerKaynagi ? `Nihai değer kaynağı ${tapu.degerleme.finalDegerKaynagi}.` : "",
-    tapu.degerleme.varyansYuzdesi ? `Varyans oranı %${tapu.degerleme.varyansYuzdesi} düzeyindedir.` : "",
-    tapu.degerleme.mutabakatNotu ? `Mutabakat notu: ${tapu.degerleme.mutabakatNotu}.` : "",
+    sekil ? `Arazi şekli ${sekil.toLocaleLowerCase("tr-TR")} olarak tespit edilmiştir.` : "",
+    yapi ? `Arazi yapısı ${yapi.toLocaleLowerCase("tr-TR")} niteliktedir.` : "",
+    sulama ? `Sulama imkânı: ${sulama.toLocaleLowerCase("tr-TR")}.` : "",
   ]);
+}
+
+const isArazi = (tapu: Tapu) => tapu.talepDetayi.tasinmazNiteligi === "TARLA, BAĞ, BAHÇE VB.";
+
+const EMSAL_ANAHTARLARI = {
+  satilik: ["satilik1", "satilik2", "satilik3", "satilik4", "satilik5"],
+  kiralik: ["kiralik1", "kiralik2"],
+} as const;
+
+function buildEmsalParagraphs(tapu: Tapu): string[] {
+  const paragraphs: string[] = [];
+
+  for (const tur of ["satilik", "kiralik"] as const) {
+    const kayitlar = EMSAL_ANAHTARLARI[tur].map((key) => tapu.emsaller[key]);
+    paragraphs.push(...kayitlar.map((k) => k.akiciMetinAciklama.trim()).filter(Boolean));
+
+    const ort = ortalamaEmsalBirimFiyatlari(kayitlar);
+    if (ort.birim !== null && ort.net !== null) {
+      paragraphs.push(
+        `${tur === "satilik" ? "Satılık" : "Kiralık"} emsallerin ortalama birim fiyatı ${formatTL(ort.birim)}/m2, ` +
+          `şerefiye düzeltmeleri sonrası ortalama net birim fiyatı ${formatTL(ort.net)}/m2 olarak hesaplanmıştır (${ort.adet} emsal).`,
+      );
+    }
+  }
+
+  if (tapu.emsaller.digerAciklamalar.trim()) paragraphs.push(tapu.emsaller.digerAciklamalar.trim());
+  return paragraphs;
+}
+
+function buildNotParagraphs(notlar: NotKaydi[]): string[] {
+  return notlar
+    .filter((n) => n.baslik.trim() || n.detay.trim())
+    .map((n) => `${n.baslik.trim()}: ${n.detay.trim().replace(/\s*\n+\s*/g, " ")}`);
+}
+
+function metinSatirlari(metin: string): string[] {
+  return metin.split("\n").filter(Boolean);
+}
+
+// Every value the Değer Hesaplaması cards have produced so far.
+function degerSonuclari(tapu: Tapu): { ad: string; deger: number }[] {
+  const h = tapu.degerleme.hesaplamalar;
+  const sonuclar: { ad: string; deger: number | null }[] = [
+    { ad: "Normal değerleme", deger: hesaplaNormal(h.normal) },
+    { ad: "Alan farkı değerleme", deger: hesaplaAlanFarki(h.alanFarki)?.toplam ?? null },
+    { ad: "Seviyeli değerleme (güncel satış değeri)", deger: hesaplaSeviyeli(h.seviyeli).guncel },
+    { ad: "Hisseli değerleme (yasal ve mevcut durum değeri)", deger: hesaplaHisseli(h.hisseli).durum?.yuvarlanmis ?? null },
+  ];
+  return sonuclar.filter((s): s is { ad: string; deger: number } => s.deger !== null);
+}
+
+function buildDegerHesaplamaParagraphs(tapu: Tapu): string[] {
+  const h = tapu.degerleme.hesaplamalar;
+  return [
+    normalMetni(h.normal),
+    alanFarkiMetni(h.alanFarki),
+    ...metinSatirlari(seviyeliMetni(hesaplaSeviyeli(h.seviyeli))),
+    ...metinSatirlari(hisseliMetni(h.hisseli, hesaplaHisseli(h.hisseli))),
+  ].filter(Boolean);
+}
+
+// The single figure the report can put forward: the result of the only calculation filled in.
+function oneCikanDeger(tapu: Tapu): string | null {
+  const sonuclar = degerSonuclari(tapu);
+  return sonuclar.length === 1 ? formatTL(sonuclar[0].deger) : null;
+}
+
+function buildCokluDegerCumlesi(tapu: Tapu): string {
+  const sonuclar = degerSonuclari(tapu);
+  if (sonuclar.length < 2) return "";
+  return `Değer hesaplamaları: ${sonuclar.map((s) => `${s.ad} ${formatTL(s.deger)}`).join("; ")}.`;
 }
 
 export function generateValuationReport(params: {
@@ -388,9 +439,14 @@ export function generateValuationReport(params: {
     tapu.ad,
   ]);
 
-  const sections: ValuationReportSection[] = [
+  const deger = oneCikanDeger(tapu);
+  const cokluDeger = buildCokluDegerCumlesi(tapu);
+
+  // One entry per tab of the talep, in menu order; `source` names the tab(s) the text comes from.
+  const hamSekmeler: ValuationReportSection[] = [
     {
-      title: "1. Talep ve Taşınmaz Özeti",
+      title: "Talep ve Taşınmaz Özeti",
+      source: "Genel Bilgiler → Talep Detayı",
       paragraphs: [
         joinSentence([
           talep.musteriUnvani ? `${talep.musteriUnvani} için hazırlanan bu çalışma` : "Bu çalışma",
@@ -407,29 +463,58 @@ export function generateValuationReport(params: {
       ].filter(Boolean),
     },
     {
-      title: "2. Konum ve Çevre Özellikleri",
+      title: "Konum ve Çevre Özellikleri",
+      source: "Genel Bilgiler → Adres / Konum",
       paragraphs: [isArsaNiteligi(talep, tapu) ? buildArsaLocationParagraph(tapu) : buildLocationParagraph(tapu)].filter(Boolean),
     },
     {
-      title: "3. Tapu ve Hukuki İnceleme",
+      title: "Tapu ve Hukuki İnceleme",
+      source: "Genel Bilgiler → Tapu Kaydı",
       paragraphs: buildOwnershipParagraphs(tapu).filter(Boolean),
     },
     {
-      title: "4. Ruhsat ve Proje İncelemeleri",
+      title: "Ruhsat ve Proje İncelemeleri",
+      source: "Kurum İncelemeleri → Ruhsat / Proje İncelemeleri",
       paragraphs: [buildRuhsatParagraph(sharedRuhsat ?? tapu.kurumIncelemeleri), buildProjectParagraph(tapu.projeIncelemeleri)].filter(
         Boolean,
       ),
     },
     {
-      title: "5. İmar, Yapı ve Bağımsız Bölüm Özellikleri",
-      paragraphs: [buildPlanningParagraph(tapu), buildBuildingParagraph(tapu), buildIndependentSectionParagraph(tapu)].filter(Boolean),
+      title: "İmar Durumu",
+      source: "Kurum İncelemeleri → İmar Durumu",
+      paragraphs: [buildPlanningParagraph(tapu)].filter(Boolean),
     },
     {
-      title: "6. Değerleme Analizi",
-      paragraphs: [buildValuationParagraph(tapu)].filter(Boolean),
+      title: isArazi(tapu) ? "Arazi Özellikleri" : "Yapı ve Bağımsız Bölüm Özellikleri",
+      source: isArazi(tapu) ? "Özellikler → Ana Gayrimenkul (Arazi)" : "Özellikler → Ana Gayrimenkul / Bağımsız Bölüm",
+      paragraphs: (isArazi(tapu)
+        ? [buildAraziParagraph(tapu), buildIndependentSectionParagraph(tapu)]
+        : [buildBuildingParagraph(tapu), buildIndependentSectionParagraph(tapu)]
+      ).filter(Boolean),
     },
     {
-      title: "7. Genel Sonuç ve Kanaat",
+      title: "Satış Kabiliyeti",
+      source: "Değerleme → Satış Kabiliyeti Açıklaması",
+      paragraphs: buildNotParagraphs(tapu.degerleme.satisKabiliyetiNotlari),
+    },
+    {
+      title: "Değerleme Açıklamaları",
+      source: "Değerleme → Değerleme Açıklaması",
+      paragraphs: buildNotParagraphs(tapu.degerleme.degerlemeAciklamaNotlari),
+    },
+    {
+      title: "Değerleme Analizi",
+      source: "Değerleme → Değer Hesaplaması",
+      paragraphs: buildDegerHesaplamaParagraphs(tapu),
+    },
+    {
+      title: "Emsal Analizi",
+      source: "Araştırma → Emsal Girişleri",
+      paragraphs: buildEmsalParagraphs(tapu),
+    },
+    {
+      title: "Genel Sonuç ve Kanaat",
+      source: "Rapor Sonucu",
       paragraphs: [
         joinSentence([
           tapu.raporSonucu.yoneticiOzeti ||
@@ -437,27 +522,31 @@ export function generateValuationReport(params: {
         ]),
         joinSentence([
           tapu.raporSonucu.degerTakdirSonucu ||
-            (tapu.degerleme.nihaiDeger
-              ? `Taşınmaz için takdir edilen nihai değer ${formatCurrency(tapu.degerleme.nihaiDeger)} seviyesindedir.`
-              : "Nihai değer takdir sonucu henüz girilmemiştir."),
+            (deger
+              ? `Taşınmaz için değer hesaplaması sonucunda ${deger} değerine ulaşılmıştır.`
+              : cokluDeger || "Değer takdir sonucu henüz girilmemiştir."),
           tapu.raporSonucu.teslimTarihi ? `Teslim tarihi ${formatDate(tapu.raporSonucu.teslimTarihi)} olarak planlanmıştır.` : "",
         ]),
       ].filter(Boolean),
     },
-  ].filter((section) => section.paragraphs.length > 0);
+  ];
+
+  const numarala = (list: ValuationReportSection[]) =>
+    list.map((section, index) => ({ ...section, title: `${index + 1}. ${section.title}` }));
+  const tumSekmeler = numarala(hamSekmeler);
+  // The exported report skips empty tabs and numbers the remaining sections consecutively.
+  const sections = numarala(hamSekmeler.filter((section) => section.paragraphs.length > 0));
 
   const executiveSummary = joinSentence([
     buildLocationParagraph(tapu),
-    buildBuildingParagraph(tapu),
-    tapu.degerleme.nihaiDeger ? `Rapor kapsamında nihai değer ${formatCurrency(tapu.degerleme.nihaiDeger)} olarak öne çıkmaktadır.` : "",
+    isArazi(tapu) ? buildAraziParagraph(tapu) : buildBuildingParagraph(tapu),
+    deger ? `Rapor kapsamında ${deger} değer öne çıkmaktadır.` : cokluDeger,
   ]);
 
   const valuationConclusion = joinSentence([
-    tapu.degerleme.nihaiDeger
-      ? `Mevcut veriler ışığında taşınmazın nihai değeri ${formatCurrency(tapu.degerleme.nihaiDeger)} olarak değerlendirilmektedir.`
-      : "Mevcut veriler ışığında değerleme kanaati oluşturulmuş, ancak nihai değer alanı henüz doldurulmamıştır.",
-    tapu.degerleme.durum ? `Değerleme durumu ${tapu.degerleme.durum.toLocaleLowerCase("tr-TR")} aşamasındadır.` : "",
-    tapu.degerleme.mutabakatNotu ? `Uzman notu: ${tapu.degerleme.mutabakatNotu}.` : "",
+    deger
+      ? `Mevcut veriler ışığında taşınmazın değeri ${deger} olarak değerlendirilmektedir.`
+      : cokluDeger || "Mevcut veriler ışığında değerleme kanaati oluşturulmuş, ancak değer hesaplaması henüz yapılmamıştır.",
   ]);
 
   const fullReport = [
@@ -474,5 +563,6 @@ export function generateValuationReport(params: {
     valuationConclusion,
     fullReport,
     sections,
+    tumSekmeler,
   };
 }

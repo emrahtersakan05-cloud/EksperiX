@@ -172,22 +172,31 @@ export default function RaporSonucuSection({
         <div className="space-y-1">
           <p className="text-sm font-semibold text-slate-900">Sekme Bazlı Rapor Görünümü</p>
           <p className="text-sm text-slate-500">
-            Her bölüm ayrı gösterilir; böylece raporun hangi sekmeden üretildiği daha net takip edilir.
+            Tüm sekmeler menü sırasıyla gösterilir; her bölümün hangi sekmeden üretildiği belirtilir. Verisi henüz
+            girilmemiş sekmeler rapora eklenmez.
           </p>
         </div>
 
         <div className="space-y-3">
-          {generatedReport.sections.map((section) => (
-            <SectionCard key={section.title} title={section.title} className="h-full">
-              <div className="space-y-3">
-                {section.paragraphs.map((paragraph, index) => (
-                  <p key={`${section.title}-${index}`} className="text-sm leading-6 text-slate-600">
-                    {paragraph}
-                  </p>
-                ))}
-              </div>
-            </SectionCard>
-          ))}
+          {generatedReport.tumSekmeler.map((section) => {
+            const bos = section.paragraphs.length === 0;
+            return (
+              <SectionCard key={section.title} title={section.title} className="h-full">
+                {section.source && <p className="-mt-1 mb-3 text-xs text-slate-400">Kaynak: {section.source}</p>}
+                {bos ? (
+                  <p className="text-sm text-slate-400">Bu sekmede henüz veri girilmedi.</p>
+                ) : (
+                  <div className="space-y-3">
+                    {section.paragraphs.map((paragraph, index) => (
+                      <p key={`${section.title}-${index}`} className="text-sm leading-6 text-slate-600">
+                        {paragraph}
+                      </p>
+                    ))}
+                  </div>
+                )}
+              </SectionCard>
+            );
+          })}
         </div>
       </div>
     </div>
