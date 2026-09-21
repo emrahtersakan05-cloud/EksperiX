@@ -25,7 +25,13 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
     return { error: "Kullanıcı adı ve şifre gereklidir." };
   }
 
-  const user = await verifyCredentials(username, password);
+  let user: Awaited<ReturnType<typeof verifyCredentials>>;
+  try {
+    user = await verifyCredentials(username, password);
+  } catch (err) {
+    console.error("[giris] Kullanıcı veritabanına erişilemedi:", err);
+    return { error: "Kullanıcı veritabanına ulaşılamadı. Sunucu ayarları (Redis / ortam değişkenleri) kontrol edilmeli." };
+  }
   if (!user) {
     return { error: "Kullanıcı adı veya şifre hatalı." };
   }
