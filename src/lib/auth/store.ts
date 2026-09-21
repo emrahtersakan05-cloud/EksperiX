@@ -22,7 +22,16 @@ export function teshisEt(err: unknown): string {
   if (!redisUrl) return "UPSTASH_REDIS_REST_URL tanımlı değil";
   if (!redisToken) return "UPSTASH_REDIS_REST_TOKEN tanımlı değil";
   if (!/^https:\/\/[^\s/]+\.[^\s/]+/.test(redisUrl) || redisUrl.includes("...")) {
-    return "UPSTASH_REDIS_REST_URL geçersiz: https:// ile başlayan REST URL olmalı (Redis bağlantı adresi değil)";
+    const kaynak = cleanEnv(process.env.UPSTASH_REDIS_REST_URL) ? "UPSTASH_REDIS_REST_URL" : "KV_REST_API_URL";
+    const sema = redisUrl.match(/^[a-z]+:\/\//i)?.[0] ?? "şema yok";
+    const ozellikler = [
+      `başlangıç: ${sema}`,
+      `uzunluk: ${redisUrl.length}`,
+      redisUrl.includes("...") ? "'...' içeriyor" : "",
+      /:\d+/.test(redisUrl.replace(/^[a-z]+:\/\//i, "")) ? "port içeriyor" : "",
+      redisUrl.includes("upstash.io") ? "upstash.io içeriyor" : "upstash.io içermiyor",
+    ].filter(Boolean);
+    return `${kaynak} geçersiz: https:// ile başlayan REST URL olmalı (Redis bağlantı adresi değil) [${ozellikler.join(", ")}]`;
   }
   const message = err instanceof Error ? err.message : String(err);
   if (/ADMIN_PASSWORD/.test(message)) return "ADMIN_PASSWORD tanımlı değil";
