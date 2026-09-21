@@ -10,8 +10,28 @@ const REDIS_KEY = "eksperix:users";
 const DATA_DIR = path.join(process.cwd(), "data");
 const DATA_FILE = path.join(DATA_DIR, "users.json");
 
-const redisUrl = process.env.UPSTASH_REDIS_REST_URL ?? process.env.KV_REST_API_URL;
-const redisToken = process.env.UPSTASH_REDIS_REST_TOKEN ?? process.env.KV_REST_API_TOKEN;
+// Values pasted into a hosting dashboard often carry stray spaces, newlines or quotes.
+const cleanEnv = (value: string | undefined): string | undefined =>
+  value?.trim().replace(/^["']+|["']+$/g, "").trim() || undefined;
+
+const redisUrl = cleanEnv(process.env.UPSTASH_REDIS_REST_URL) ?? cleanEnv(process.env.KV_REST_API_URL);
+const redisToken = cleanEnv(process.env.UPSTASH_REDIS_REST_TOKEN) ?? cleanEnv(process.env.KV_REST_API_TOKEN);
+
+// Short, secret-free hint about why the user store cannot be used (safe to show on the login page).
+export function teshisEt(err: unknown): string {
+  if (!redisUrl) return "UPSTASH_REDIS_REST_URL tanımlı değil";
+  if (!redisToken) return "UPSTASH_REDIS_REST_TOKEN tanımlı değil";
+  if (!/^https:\/\/[^\s/]+\.[^\s/]+/.test(redisUrl) || redisUrl.includes("...")) {
+    return "UPSTASH_REDIS_REST_URL geçersiz: https:// ile başlayan REST URL olmalı (Redis bağlantı adresi değil)";
+  }
+  const message = err instanceof Error ? err.message : String(err);
+  if (/ADMIN_PASSWORD/.test(message)) return "ADMIN_PASSWORD tanımlı değil";
+  if (/NOPERM|not allowed|read.?only/i.test(message)) return "Redis token'ı yazma iznine sahip değil (Read-Only olmayan token gerekli)";
+  if (/WRONGPASS|unauthorized|invalid token|401/i.test(message)) return "Redis token'ı reddedildi (yanlış ya da yenilenmiş token)";
+  if (/ENOTFOUND|fetch failed|ECONNREFUSED|ETIMEDOUT/i.test(message)) return "Redis adresine ulaşılamadı (URL yanlış ya da veritabanı silinmiş)";
+  return `Bağlantı hatası (${err instanceof Error ? err.name : "bilinmeyen"})`;
+}
+
 let redisClient: Redis | null | undefined;
 function getRedis(): Redis | null {
   if (redisClient === undefined) {

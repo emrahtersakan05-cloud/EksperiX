@@ -8,6 +8,7 @@ import {
   createUser,
   deleteUser,
   resetPassword,
+  teshisEt,
   updateUser,
   verifyCredentials,
 } from "./store";
@@ -30,7 +31,9 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
     user = await verifyCredentials(username, password);
   } catch (err) {
     console.error("[giris] Kullanıcı veritabanına erişilemedi:", err);
-    return { error: "Kullanıcı veritabanına ulaşılamadı. Sunucu ayarları (Redis / ortam değişkenleri) kontrol edilmeli." };
+    return {
+      error: `Kullanıcı veritabanına ulaşılamadı. Sunucu ayarları (Redis / ortam değişkenleri) kontrol edilmeli. Teşhis: ${teshisEt(err)}.`,
+    };
   }
   if (!user) {
     return { error: "Kullanıcı adı veya şifre hatalı." };
