@@ -19,9 +19,11 @@ import { parseEmsalBridgeText } from "@/lib/emsal/listing-extract";
 import type { EmsalKaydi, EmsallerData, KmlKonumu } from "@/lib/talep/types";
 import DigerAciklamalarCard from "@/components/talep/sections/DigerAciklamalarCard";
 import MiniLocationMap from "@/components/talep/sections/MiniLocationMap";
+import YakinEmsalListesi from "@/components/talep/sections/YakinEmsalListesi";
 
 const EMSALLER_TABS = [
   { key: "liste", label: "Emsaller Listesi" },
+  { key: "yakin", label: "Yakın Emsal Listesi" },
   { key: "satilik1", label: "Satılık-1" },
   { key: "satilik2", label: "Satılık-2" },
   { key: "satilik3", label: "Satılık-3" },
@@ -45,7 +47,7 @@ type EmsalBridgePayload = {
 type BridgeMessage = { tone: "success" | "warning"; text: string } | null;
 
 type EmsallerTabKey = (typeof EMSALLER_TABS)[number]["key"];
-type EmsalKaydiKey = Exclude<EmsallerTabKey, "liste">;
+type EmsalKaydiKey = Exclude<EmsallerTabKey, "liste" | "yakin">;
 
 const SATILIK_KEYS: EmsalKaydiKey[] = ["satilik1", "satilik2", "satilik3", "satilik4", "satilik5"];
 const KIRALIK_KEYS: EmsalKaydiKey[] = ["kiralik1", "kiralik2"];
@@ -495,7 +497,21 @@ export default function EmsallerSection({
     onChange({ [key]: next });
   }
 
-  const activeKaydiTab = EMSALLER_TABS.find((tab) => tab.key === activeTab && tab.key !== "liste");
+  // Emsaller picked in "Yakın Emsal Listesi": each target slot is replaced
+  // whole, then gets its derived Birim / Net Birim Fiyat and akıcı metin.
+  function yakinEmsalleriAktar(atamalar: { slot: EmsalKaydiKey; kaydi: EmsalKaydi }[]) {
+    const patch: Partial<EmsallerData> = {};
+    for (const { slot, kaydi } of atamalar) {
+      const tur: EmsalTuru = slot.startsWith("satilik") ? "satilik" : "kiralik";
+      const hesapli = { ...kaydi, ...hesaplaEmsalDegerleri(kaydi) };
+      patch[slot] = { ...hesapli, akiciMetinAciklama: olusturEmsalMetni(hesapli, tur) };
+    }
+    onChange(patch);
+  }
+
+  const activeKaydiTab = EMSALLER_TABS.find(
+    (tab) => tab.key === activeTab && tab.key !== "liste" && tab.key !== "yakin",
+  );
 
   return (
     <div className="space-y-4">
@@ -538,6 +554,15 @@ export default function EmsallerSection({
             onChange={(v) => onChange({ digerAciklamalar: v })}
           />
         </div>
+      )}
+
+      {activeTab === "yakin" && (
+        <YakinEmsalListesi
+          konular={konuKonumlari}
+          data={data}
+          onAktar={yakinEmsalleriAktar}
+          onSekmeAc={setActiveTab}
+        />
       )}
 
       {activeKaydiTab && (

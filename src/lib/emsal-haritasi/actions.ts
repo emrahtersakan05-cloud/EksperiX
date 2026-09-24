@@ -8,6 +8,7 @@ import {
   createEmsalKaydi,
   deleteEmsalKaydi,
   getEmsalKaydi,
+  listEmsalKayitlari,
   teshisEt,
   updateEmsalKaydi,
   type EmsalKaydiGuncelleme,
@@ -154,6 +155,18 @@ export async function updateEmsalKaydiAction(
 
   revalidatePath(PAGE_PATH);
   redirect(`${PAGE_PATH}?odak=${encodeURIComponent(id)}`);
+}
+
+// The shared Emsal Haritası records, for client screens that pick from them
+// (the talep's "Yakın Emsal Listesi").
+export async function listEmsalKayitlariAction(): Promise<{ records?: EmsalHaritaKaydi[]; error?: string }> {
+  const user = await getCurrentUser();
+  if (!user) return { error: "Oturum bulunamadı." };
+  try {
+    return { records: await listEmsalKayitlari() };
+  } catch (err) {
+    return { error: `Emsal Haritası kayıtları yüklenemedi. Teşhis: ${teshisEt(err)}.` };
+  }
 }
 
 export async function deleteEmsalKaydiAction(formData: FormData): Promise<void> {

@@ -414,7 +414,7 @@ export interface TalepDetayiDefaults {
   tasinmazNiteligi: string;
 }
 
-function createEmptyEmsalKaydi(): EmsalKaydi {
+export function createEmptyEmsalKaydi(): EmsalKaydi {
   return {
     gorselUrl: "",
     webAdresi: "",
