@@ -33,6 +33,18 @@ const fmt = (v: number | null) => (v === null ? "—" : formatTrNumber(v));
 
 type Durum = "" | "satilik" | "kiralik";
 
+// "3 + 1" and "3+1" are the same room count; only the spaces around a
+// digit-to-digit "+" go, so "Stüdyo (1+0)" and "7+ üzeri" keep their wording.
+const odaAnahtari = (oda: string) => oda.replace(/(\d)\s*\+\s*(\d)/g, "$1+$2").trim();
+
+// 1+1, 2+1, 2+2, 3+1 … 10+1 in numeric order; non-numeric values ("Stüdyo") last.
+function odaSirala(a: string, b: string): number {
+  const sayilar = (v: string) => v.match(/\d+(?:[.,]\d+)?/g)?.map((n) => Number(n.replace(",", "."))) ?? [];
+  const [a1 = Infinity, a2 = 0] = sayilar(a);
+  const [b1 = Infinity, b2 = 0] = sayilar(b);
+  return a1 - b1 || a2 - b2 || a.localeCompare(b, "tr");
+}
+
 // Resolve each selected emsal's target slot: explicit choices first, then the
 // next empty slot of its durum that nobody else has taken; null = no room.
 function hedefleriHesapla(
@@ -72,6 +84,7 @@ export default function YakinEmsalListesi({
   const [yaricap, setYaricap] = useState<number | null>(2000);
   const [durum, setDurum] = useState<Durum>("");
   const [emlakTipi, setEmlakTipi] = useState("");
+  const [odaSayisi, setOdaSayisi] = useState("");
   // Selection keeps click order, which is the order slots are filled in.
   const [seciliSira, setSeciliSira] = useState<string[]>([]);
   const [hedefSecimleri, setHedefSecimleri] = useState<Map<string, EmsalSlotKey>>(new Map());
@@ -109,6 +122,10 @@ export default function YakinEmsalListesi({
     () => [...new Set((records ?? []).map((r) => r.emlakTipi).filter(Boolean))].sort((a, b) => a.localeCompare(b, "tr")),
     [records],
   );
+  const odalar = useMemo(
+    () => [...new Set((records ?? []).map((r) => odaAnahtari(r.odaSayisi)).filter(Boolean))].sort(odaSirala),
+    [records],
+  );
 
   const yakinlar = useMemo(() => {
     if (!records || konular.length === 0) return [];
@@ -119,10 +136,11 @@ export default function YakinEmsalListesi({
         if (yaricap !== null && m > yaricap) return false;
         if (durum && (r.durum === "kiralik" ? "kiralik" : "satilik") !== durum) return false;
         if (emlakTipi && r.emlakTipi !== emlakTipi) return false;
+        if (odaSayisi && odaAnahtari(r.odaSayisi) !== odaSayisi) return false;
         return true;
       })
       .sort((a, b) => (mesafeler.get(a.id) ?? 0) - (mesafeler.get(b.id) ?? 0));
-  }, [records, konular.length, mesafeler, yaricap, durum, emlakTipi]);
+  }, [records, konular.length, mesafeler, yaricap, durum, emlakTipi, odaSayisi]);
 
   const seciliIds = useMemo(() => new Set(seciliSira), [seciliSira]);
   const secilenler = useMemo(() => {
@@ -237,6 +255,19 @@ export default function YakinEmsalListesi({
               <option value="">Tümü</option>
               {tipler.map((t) => (
                 <option key={t}>{t}</option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-[11px] font-medium text-slate-500">Oda sayısı</span>
+            <select
+              value={odaSayisi}
+              onChange={(e) => setOdaSayisi(e.target.value)}
+              className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-xs text-slate-700"
+            >
+              <option value="">Tümü</option>
+              {odalar.map((o) => (
+                <option key={o}>{o}</option>
               ))}
             </select>
           </label>
