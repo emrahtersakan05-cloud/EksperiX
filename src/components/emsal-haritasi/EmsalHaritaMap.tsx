@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import "leaflet/dist/leaflet.css";
+import { formatTrNumber, parseTrNumber } from "@/lib/emsal/hesaplama";
 import type { EmsalHaritaKaydi } from "@/lib/emsal-haritasi/types";
 
 const DEFAULT_CENTER: [number, number] = [39, 35];
@@ -30,19 +31,37 @@ function escapeHtml(value: string): string {
 }
 
 function formatPrice(value: string): string {
-  const n = Number(value.replace(/[.\s]/g, "").replace(",", "."));
-  return Number.isFinite(n) && n > 0 ? `${n.toLocaleString("tr-TR")} ₺` : "—";
+  const n = parseTrNumber(value);
+  return n !== null && n > 0 ? `${formatTrNumber(n)} ₺` : "—";
+}
+
+// Only http(s) sources are ever rendered as a link — a stored javascript:/data:
+// URI must not become clickable just because it passed through webAdresi.
+function safeHref(value: string | undefined): string | null {
+  if (!value || !/^https?:\/\//i.test(value)) return null;
+  return escapeHtml(value);
 }
 
 function popupContent(kaydi: EmsalHaritaKaydi): string {
   const baslik = escapeHtml(`${kaydi.emlakTipi || "Emsal"} · ${kaydi.durum === "kiralik" ? "Kiralık" : "Satılık"}`);
   const konum = escapeHtml([kaydi.mahalle, kaydi.ilce, kaydi.il].filter(Boolean).join(", "));
-  const m2 = kaydi.m2Net || kaydi.m2Brut || "—";
+  // Free-text user input — must be escaped before going into innerHTML below.
+  const m2 = escapeHtml(kaydi.m2Net || kaydi.m2Brut || "—");
   const fiyat = formatPrice(kaydi.pazarlikliFiyat || kaydi.istenenFiyat);
+  const gorselUrl = safeHref(kaydi.gorselUrl);
+  const webAdresi = safeHref(kaydi.webAdresi);
+  const gorsel = gorselUrl
+    ? `<img src="${gorselUrl}" alt="" style="width:100%;height:96px;object-fit:cover;border-radius:8px;margin-bottom:6px" onerror="this.remove()" />`
+    : "";
+  const link = webAdresi
+    ? `<a href="${webAdresi}" target="_blank" rel="noopener noreferrer" style="display:block;margin-top:6px;font-size:12px;color:#4d7c0f;font-weight:600">İlana git →</a>`
+    : "";
   return `<div style="min-width:180px;font-family:inherit">
+    ${gorsel}
     <p style="margin:0 0 2px;font-weight:600;color:#0f172a">${baslik}</p>
     <p style="margin:0 0 6px;font-size:12px;color:#64748b">${konum || "Konum bilgisi yok"}</p>
     <p style="margin:0;font-size:13px;color:#334155">${m2} m² · <strong>${fiyat}</strong></p>
+    ${link}
   </div>`;
 }
 

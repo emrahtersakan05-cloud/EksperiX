@@ -32,6 +32,9 @@ export async function createEmsalKaydiAction(
   if (!latRaw || !lngRaw || !Number.isFinite(lat) || !Number.isFinite(lng)) {
     return { error: "Haritada bir konum seçmelisiniz." };
   }
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) {
+    return { error: "Geçersiz koordinat." };
+  }
 
   const il = str(formData, "il");
   const emlakTipi = str(formData, "emlakTipi");

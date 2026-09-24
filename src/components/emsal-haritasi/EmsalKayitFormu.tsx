@@ -130,7 +130,7 @@ export default function EmsalKayitFormu({
         pazarlikliFiyat: fields.pazarlikliFiyat ?? prev.pazarlikliFiyat,
         gorselUrl: body.gorselUrl ?? prev.gorselUrl,
       }));
-      setKaynak("url-bridge");
+      if (filledCount > 0) setKaynak("url-bridge");
       setFetchMessage(
         filledCount > 0
           ? { tone: "success", text: `${filledCount} alan sayfadan dolduruldu. Koordinatı haritadan işaretlemeyi unutmayın.` }
