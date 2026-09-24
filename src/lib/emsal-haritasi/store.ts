@@ -87,3 +87,23 @@ export async function createEmsalKaydi(
 export async function deleteEmsalKaydi(id: string): Promise<void> {
   await writeAll((await readAll()).filter((r) => r.id !== id));
 }
+
+export async function getEmsalKaydi(id: string): Promise<EmsalHaritaKaydi | null> {
+  return (await readAll()).find((r) => r.id === id) ?? null;
+}
+
+// Ownership, provenance and creation fields are never overwritten by an edit.
+export type EmsalKaydiGuncelleme = Omit<
+  EmsalHaritaKaydi,
+  "id" | "kaynak" | "kaynakTalepId" | "kaynakTapuId" | "kaynakSlot" | "ekleyenKullaniciId" | "ekleyenAdSoyad" | "olusturmaTarihi" | "guncellemeTarihi"
+>;
+
+export async function updateEmsalKaydi(id: string, changes: EmsalKaydiGuncelleme): Promise<EmsalHaritaKaydi | null> {
+  const all = await readAll();
+  const index = all.findIndex((r) => r.id === id);
+  if (index === -1) return null;
+  const updated: EmsalHaritaKaydi = { ...all[index], ...changes, guncellemeTarihi: new Date().toISOString() };
+  all[index] = updated;
+  await writeAll(all);
+  return updated;
+}

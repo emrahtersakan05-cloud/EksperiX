@@ -12,8 +12,8 @@ import {
   secondaryButtonClass,
 } from "@/components/talep/form-fields";
 import { addIl, addIlce, addMahalle, getIlceler, getIller, getMahalleler } from "@/lib/talep/adres-referans";
-import { createEmsalKaydiAction, type EmsalFormState } from "@/lib/emsal-haritasi/actions";
-import { EMLAK_TIPI_OPTIONS, type EmsalDurum } from "@/lib/emsal-haritasi/types";
+import { createEmsalKaydiAction, updateEmsalKaydiAction, type EmsalFormState } from "@/lib/emsal-haritasi/actions";
+import { EMLAK_TIPI_OPTIONS, type EmsalDurum, type EmsalHaritaKaydi } from "@/lib/emsal-haritasi/types";
 
 interface FormData {
   durum: EmsalDurum;
@@ -53,23 +53,50 @@ const EMPTY_FORM: FormData = {
 
 const initialActionState: EmsalFormState = {};
 
+function formFromKaydi(kaydi: EmsalHaritaKaydi): FormData {
+  return {
+    durum: kaydi.durum === "kiralik" ? "kiralik" : "satilik",
+    emlakTipi: kaydi.emlakTipi,
+    il: kaydi.il,
+    ilce: kaydi.ilce,
+    mahalle: kaydi.mahalle,
+    m2Brut: kaydi.m2Brut,
+    m2Net: kaydi.m2Net,
+    odaSayisi: kaydi.odaSayisi,
+    binaYasi: kaydi.binaYasi,
+    kat: kaydi.kat,
+    ilanTarihi: kaydi.ilanTarihi,
+    istenenFiyat: kaydi.istenenFiyat,
+    pazarlikliFiyat: kaydi.pazarlikliFiyat,
+    webAdresi: kaydi.webAdresi ?? "",
+    gorselUrl: kaydi.gorselUrl ?? "",
+  };
+}
+
+// With `kaydi` the form edits that record (mount it with key={kaydi.id} so
+// switching records starts from fresh state); without it, it creates one.
 export default function EmsalKayitFormu({
+  kaydi,
   pickedPoint,
   onSuccess,
   onCancel,
 }: {
+  kaydi?: EmsalHaritaKaydi;
   pickedPoint: { lat: number; lng: number } | null;
   onSuccess: () => void;
   onCancel: () => void;
 }) {
-  const [data, setData] = useState<FormData>(EMPTY_FORM);
+  const [data, setData] = useState<FormData>(() => (kaydi ? formFromKaydi(kaydi) : EMPTY_FORM));
   const [kaynak, setKaynak] = useState<"manuel" | "url-bridge">("manuel");
   const [ilOptions, setIlOptions] = useState<string[]>([]);
   const [ilceOptions, setIlceOptions] = useState<string[]>([]);
   const [mahalleOptions, setMahalleOptions] = useState<string[]>([]);
   const [fetching, setFetching] = useState(false);
   const [fetchMessage, setFetchMessage] = useState<{ tone: "success" | "error"; text: string } | null>(null);
-  const [state, formAction, pending] = useActionState(createEmsalKaydiAction, initialActionState);
+  const [state, formAction, pending] = useActionState(
+    kaydi ? updateEmsalKaydiAction : createEmsalKaydiAction,
+    initialActionState,
+  );
 
   function patch(next: Partial<FormData>) {
     setData((prev) => ({ ...prev, ...next }));
@@ -146,7 +173,7 @@ export default function EmsalKayitFormu({
   return (
     <div className="flex h-full flex-col">
       <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-5 py-4">
-        <h2 className="text-base font-semibold text-slate-900">Yeni Emsal Ekle</h2>
+        <h2 className="text-base font-semibold text-slate-900">{kaydi ? "Emsali Düzenle" : "Yeni Emsal Ekle"}</h2>
         <button
           type="button"
           onClick={onCancel}
@@ -161,6 +188,7 @@ export default function EmsalKayitFormu({
         <input type="hidden" name="lat" value={pickedPoint?.lat ?? ""} />
         <input type="hidden" name="lng" value={pickedPoint?.lng ?? ""} />
         <input type="hidden" name="kaynak" value={kaynak} />
+        {kaydi && <input type="hidden" name="id" value={kaydi.id} />}
         {(["durum", "emlakTipi", "il", "ilce", "mahalle", "m2Brut", "m2Net", "odaSayisi", "binaYasi", "kat", "ilanTarihi", "istenenFiyat", "pazarlikliFiyat", "webAdresi", "gorselUrl"] as const).map(
           (key) => (
             <input key={key} type="hidden" name={key} value={data[key]} />
@@ -175,7 +203,7 @@ export default function EmsalKayitFormu({
           >
             <MapPin className="h-3.5 w-3.5 shrink-0" />
             {pickedPoint
-              ? `Konum seçildi: ${pickedPoint.lat.toFixed(5)}, ${pickedPoint.lng.toFixed(5)}`
+              ? `Konum: ${pickedPoint.lat.toFixed(5)}, ${pickedPoint.lng.toFixed(5)}${kaydi ? " · değiştirmek için haritaya tıklayın" : ""}`
               : "Haritada bir noktaya tıklayarak konum seçin."}
           </div>
 
@@ -291,7 +319,7 @@ export default function EmsalKayitFormu({
           Vazgeç
         </button>
         <button type="submit" form="emsal-kayit-formu" disabled={pending} className={primaryButtonClass}>
-          {pending ? "Kaydediliyor..." : "Kaydet"}
+          {pending ? "Kaydediliyor..." : kaydi ? "Güncelle" : "Kaydet"}
         </button>
       </div>
     </div>

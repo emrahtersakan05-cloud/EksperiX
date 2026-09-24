@@ -2,8 +2,16 @@
 
 import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth/dal";
-import { createEmsalKaydi, deleteEmsalKaydi, teshisEt } from "./store";
-import type { EmsalDurum, EmsalKaynak } from "./types";
+import type { PublicUser } from "@/lib/auth/types";
+import {
+  createEmsalKaydi,
+  deleteEmsalKaydi,
+  getEmsalKaydi,
+  teshisEt,
+  updateEmsalKaydi,
+  type EmsalKaydiGuncelleme,
+} from "./store";
+import type { EmsalDurum, EmsalHaritaKaydi, EmsalKaynak } from "./types";
 
 const PAGE_PATH = "/deger-haritasi/emsal-haritasi";
 
@@ -16,13 +24,14 @@ function str(formData: FormData, key: string): string {
   return String(formData.get(key) ?? "").trim();
 }
 
-export async function createEmsalKaydiAction(
-  _prevState: EmsalFormState,
-  formData: FormData,
-): Promise<EmsalFormState> {
-  const user = await getCurrentUser();
-  if (!user) return { error: "Oturum bulunamadı." };
+// Ownership is checked against the stored record — never against an id the
+// client sent along, which any signed-in user could set to their own.
+function canModify(user: PublicUser, kaydi: EmsalHaritaKaydi): boolean {
+  return user.role === "admin" || user.id === kaydi.ekleyenKullaniciId;
+}
 
+// Parses and validates the editable fields shared by create and update.
+function parseFields(formData: FormData): { error: string } | { fields: EmsalKaydiGuncelleme } {
   // Number("") is 0, not NaN — an unpicked coordinate must be rejected by the
   // empty-string check, not by Number.isFinite, or it silently saves as (0,0).
   const latRaw = str(formData, "lat");
@@ -42,14 +51,10 @@ export async function createEmsalKaydiAction(
     return { error: "İl ve emlak tipi zorunludur." };
   }
 
-  const durumRaw = str(formData, "durum");
-  const durum: EmsalDurum = durumRaw === "kiralik" ? "kiralik" : "satilik";
-  const kaynakRaw = str(formData, "kaynak");
-  const kaynak: EmsalKaynak = kaynakRaw === "url-bridge" ? "url-bridge" : "manuel";
+  const durum: EmsalDurum = str(formData, "durum") === "kiralik" ? "kiralik" : "satilik";
 
-  try {
-    await createEmsalKaydi({
-      kaynak,
+  return {
+    fields: {
       webAdresi: str(formData, "webAdresi") || undefined,
       gorselUrl: str(formData, "gorselUrl") || undefined,
       durum,
@@ -67,6 +72,26 @@ export async function createEmsalKaydiAction(
       ilanTarihi: str(formData, "ilanTarihi"),
       istenenFiyat: str(formData, "istenenFiyat"),
       pazarlikliFiyat: str(formData, "pazarlikliFiyat"),
+    },
+  };
+}
+
+export async function createEmsalKaydiAction(
+  _prevState: EmsalFormState,
+  formData: FormData,
+): Promise<EmsalFormState> {
+  const user = await getCurrentUser();
+  if (!user) return { error: "Oturum bulunamadı." };
+
+  const parsed = parseFields(formData);
+  if ("error" in parsed) return parsed;
+
+  const kaynak: EmsalKaynak = str(formData, "kaynak") === "url-bridge" ? "url-bridge" : "manuel";
+
+  try {
+    await createEmsalKaydi({
+      ...parsed.fields,
+      kaynak,
       ekleyenKullaniciId: user.id,
       ekleyenAdSoyad: user.fullName,
     });
@@ -78,14 +103,41 @@ export async function createEmsalKaydiAction(
   return { success: true };
 }
 
+export async function updateEmsalKaydiAction(
+  _prevState: EmsalFormState,
+  formData: FormData,
+): Promise<EmsalFormState> {
+  const user = await getCurrentUser();
+  if (!user) return { error: "Oturum bulunamadı." };
+
+  const id = str(formData, "id");
+  if (!id) return { error: "Kayıt bulunamadı." };
+
+  const parsed = parseFields(formData);
+  if ("error" in parsed) return parsed;
+
+  try {
+    const existing = await getEmsalKaydi(id);
+    if (!existing) return { error: "Kayıt bulunamadı; silinmiş olabilir." };
+    if (!canModify(user, existing)) return { error: "Bu kaydı düzenleme yetkiniz yok." };
+    await updateEmsalKaydi(id, parsed.fields);
+  } catch (err) {
+    return { error: `Kayıt güncellenemedi. Teşhis: ${teshisEt(err)}.` };
+  }
+
+  revalidatePath(PAGE_PATH);
+  return { success: true };
+}
+
 export async function deleteEmsalKaydiAction(formData: FormData): Promise<void> {
   const user = await getCurrentUser();
   if (!user) return;
 
   const id = str(formData, "id");
-  const ekleyenKullaniciId = str(formData, "ekleyenKullaniciId");
   if (!id) return;
-  if (user.role !== "admin" && user.id !== ekleyenKullaniciId) return;
+
+  const existing = await getEmsalKaydi(id);
+  if (!existing || !canModify(user, existing)) return;
 
   await deleteEmsalKaydi(id);
   revalidatePath(PAGE_PATH);
