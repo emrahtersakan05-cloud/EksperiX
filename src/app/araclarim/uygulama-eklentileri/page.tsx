@@ -5,7 +5,7 @@ import { AppWindow, CheckCircle2, Download, ExternalLink, Puzzle, ShieldCheck, X
 
 // Built from extension/uavt-bridge on every install (scripts/zip-bridge-extension.mjs).
 const ZIP_URL = "/indir/eksperix-bridge.zip";
-const EKLENTI_SURUMU = "0.6.0";
+const EKLENTI_SURUMU = "0.6.1";
 
 function StepCard({ index, title, description }: { index: string; title: string; description: string }) {
   return (

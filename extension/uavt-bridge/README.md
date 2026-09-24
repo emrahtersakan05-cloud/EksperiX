@@ -51,6 +51,11 @@ Teknik: `app-bridge.js` sayfaya `eksperix:bridge-ready` ile kendini bildirir (`e
 
 Eklenti canli sitede (`https://eksperi-x.vercel.app`) ve yerelde (`localhost` / `127.0.0.1`, her port) calisir. Canli sitedeki `Araclarim > Uygulama Eklentileri` sayfasindan zip olarak indirilebilir; zip her kurulumda `scripts/zip-bridge-extension.mjs` ile bu klasorden uretilir.
 
+### hepsiemlak (v0.6.1)
+
+- hepsiemlak ilan adresleri (`.../daire/171189-3`) artik ilan sekmesi olarak taninir; `Ilan sekmesinden getir` bu sekmeleri de bulur.
+- hepsiemlak'ta veri sayfanin kendi kaydindan (`window.__NUXT__` icindeki `detailData`, sayfanin ana dunyasinda okunur) alinir: ilanin gercek koordinati (metin taramasi en yakin otobus duragini buluyordu), ilan tarihi, danisman telefonu, isinma + yakit, balkon/otopark, ada/parsel, imar durumu vb. Bu okuma basarisiz olursa sayfa metninden okuma devreye girer.
+
 ### Aktarim turu secici (v0.5.0)
 
 Popup'taki `Aktarim turu` listesi varsayilan olarak `Otomatik`tir: sayfa adresine (UAVT, adresinde `imar` gecen e-imar portallari, emsal ilan siteleri) ve gerekirse sayfa icerigine bakarak turu kendisi belirler. Bilinmeyen bir belediye portali yanlis taninirsa listeden `Imar Durumu` (ya da ilgili turu) secin; secim hatirlanir.

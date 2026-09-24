@@ -93,9 +93,135 @@ const EksperixBridge = (() => {
 
   function looksLikeListing(urlStr) {
     try {
-      return LISTING_PATH_HINTS.some((hint) => new URL(urlStr).pathname.toLowerCase().includes(hint));
+      const path = new URL(urlStr).pathname.toLowerCase();
+      // hepsiemlak detail pages carry no path hint, only the listing id at the
+      // end: /ankara-cankaya-bahcelievler-satilik/daire/171189-3
+      return LISTING_PATH_HINTS.some((hint) => path.includes(hint)) || /\/\d{3,}-\d+\/?$/.test(path);
     } catch {
       return false;
+    }
+  }
+
+  function isHepsiemlakUrl(urlStr) {
+    try {
+      return /(^|\.)hepsiemlak\.com$/.test(new URL(urlStr).hostname);
+    } catch {
+      return false;
+    }
+  }
+
+  // Runs in the hepsiemlak page's MAIN world (it needs the page's own
+  // window.__NUXT__, invisible to content scripts), so it must be fully
+  // self-contained. The listing's structured record there is far more reliable
+  // than the rendered text: exact coordinates (the text/script scan otherwise
+  // picks up the nearest bus stop), listing date, phone, and every attribute.
+  // Returns values under the Eksperix form's own field labels.
+  function readHepsiemlakData() {
+    const data = window.__NUXT__?.data;
+    const d = Array.isArray(data) ? data.find((x) => x?.detailData)?.detailData : null;
+    if (!d) return null;
+
+    const ad = (x) => (x && typeof x === "object" ? (x.name ?? x.typeName ?? "") : "");
+    const sayi = (n) => (typeof n === "number" && n > 0 ? String(n) : "");
+    const telefon = (p) => {
+      const n = String(p?.phoneNumber ?? "").replace(/\D/g, "");
+      if (!p?.areaCode || n.length !== 7) return "";
+      return `0${p.areaCode} ${n.slice(0, 3)} ${n.slice(3, 5)} ${n.slice(5)}`;
+    };
+    const firmUser = d.firmUser ?? d.firm?.firmUser;
+    const tel = [d.whatsAppNumber, ...(firmUser?.phones ?? []), ...(d.contact?.phones ?? [])].map(telefon).find(Boolean) ?? "";
+
+    const ozellikler = Object.values(d.attributes ?? {})
+      .filter(Array.isArray)
+      .flat()
+      .map((a) => String(a?.name ?? ""));
+    const varMi = (pattern) => (ozellikler.some((n) => pattern.test(n)) ? "Var" : "");
+    const otopark = ozellikler.find((n) => /otopark/i.test(n)) ?? "";
+
+    const isitma = ad(d.heating);
+    const yakit = ad(d.fuel);
+    const sqm = d.sqm ?? {};
+    const alt = ad(d.subCategory);
+    const ana = ad(d.mainCategory);
+    // "İmarlı - Konut": the /i flag does not fold Turkish İ to i, so spell it out.
+    const imarli = /^[İIi]marl/.test(alt);
+
+    const alanlar = {
+      Kategori: ana,
+      "Emlak Tipi": imarli ? "Arsa" : alt || ad(d.residence),
+      Durumu: ad(d.category),
+      "İlan No": d.listingId ?? "",
+      "İlan Tarihi": String(d.startDate || d.createdDate || "").slice(0, 10),
+      "İlan Tel No": tel,
+      Fiyat: sayi(d.price),
+      İl: ad(d.city),
+      İlçe: ad(d.county),
+      Mahalle: ad(d.district),
+      Kimden: d.firm || d.authorizedRealtor ? "Emlak Ofisinden" : "Sahibinden",
+      "m² (Brüt)": sayi(Array.isArray(sqm.grossSqm) ? sqm.grossSqm[0] : sqm.grossSqm),
+      "m² (Net)": sayi(sqm.netSqm),
+      "Açık Alan (m²)": sayi(sqm.openAreaSqm),
+      "Kapalı Alan (m²)": sayi(sqm.closedAreaSqm),
+      // Only meaningful for housing; land listings carry filler values here.
+      "Oda Sayısı":
+        ana === "Konut" && Array.isArray(d.roomAndLivingRoom) ? String(d.roomAndLivingRoom[0] ?? "") : "",
+      "Banyo Sayısı": sayi(d.bathRoom),
+      "Bina Yaşı": typeof d.age === "number" ? String(d.age) : "",
+      "Kat Sayısı": sayi(d.floor?.count),
+      "Bulunduğu Kat": d.floor?.name ?? "",
+      Isıtma: isitma && yakit && isitma !== yakit ? `${isitma} (${yakit})` : isitma || yakit,
+      "Krediye Uygunluk": ad(d.credit),
+      "Tapu Durumu": d.registerState || d.landRegisterName || "",
+      Eşyalı: typeof d.furnished === "boolean" ? (d.furnished ? "Evet" : "Hayır") : "",
+      "Kullanım Durumu": ad(d.usage),
+      "Yapının Durumu": ad(d.buildState),
+      "Site Adı": d.housingEstate?.name ?? ad(d.housingComplex),
+      "Aidat (TL)": sayi(d.fee?.amount),
+      "Bir Kattaki Daire": sayi(d.apartmentsOnFloor),
+      "Bina Adedi": sayi(d.numberOfBuilding),
+      "Giriş Yüksekliği (m)": sayi(d.entranceHeight),
+      "İmar Durumu": imarli ? alt.replace(/^[İIi]marl[ıi]\s*-\s*/, "") : "",
+      "Ada No": d.land?.island ?? "",
+      "Parsel No": d.land?.parcel ?? "",
+      "Kaks (Emsal)": sayi(d.floorAreaRatio),
+      Gabari: d.gabarite ? String(d.gabarite) : "",
+      "Zemin Etüdü": ad(d.groundStudies),
+      Balkon: d.balcony ? "Var" : varMi(/balkon/i),
+      Asansör: varMi(/asans[öo]r/i),
+      Otopark: /kapal/i.test(otopark) && /a[çc][ıi]k/i.test(otopark)
+        ? "Açık & Kapalı Otopark"
+        : /kapal/i.test(otopark)
+          ? "Kapalı Otopark"
+          : otopark
+            ? "Açık Otopark"
+            : "",
+    };
+    for (const key of Object.keys(alanlar)) {
+      if (!alanlar[key]) delete alanlar[key];
+    }
+
+    const loc = d.mapLocation;
+    const konumVar = !d.isMapHidden && typeof loc?.lat === "number" && typeof loc?.lon === "number";
+    return {
+      alanlar,
+      lat: konumVar ? String(Number(loc.lat.toFixed(6))) : "",
+      lng: konumVar ? String(Number(loc.lon.toFixed(6))) : "",
+    };
+  }
+
+  // Site-specific structured data, merged over the generic text read.
+  async function readStructuredData(tabId, url) {
+    if (!isHepsiemlakUrl(url)) return null;
+    try {
+      const [injection] = await chrome.scripting.executeScript({
+        target: { tabId },
+        world: "MAIN",
+        func: readHepsiemlakData,
+      });
+      return injection?.result ?? null;
+    } catch {
+      // Page not ready or blocked: the generic text read still applies.
+      return null;
     }
   }
 
@@ -244,7 +370,17 @@ const EksperixBridge = (() => {
 
     const results = (injection ?? []).filter((entry) => entry?.result);
     const main = results.find((entry) => entry.frameId === 0)?.result ?? results[0]?.result ?? { text: "" };
-    if (!includeFrames || results.length <= 1) return main;
+    if (!includeFrames || results.length <= 1) {
+      // Listing pages: prefer the site's own structured record where we know it.
+      const structured = main.url ? await readStructuredData(tabId, main.url) : null;
+      if (!structured) return main;
+      return {
+        ...main,
+        alanlar: structured.alanlar,
+        lat: structured.lat || main.lat,
+        lng: structured.lng || main.lng,
+      };
+    }
 
     const text = results
       .map((entry) => entry.result.text ?? "")
