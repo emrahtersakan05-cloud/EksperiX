@@ -23,9 +23,13 @@ export async function createEmsalKaydiAction(
   const user = await getCurrentUser();
   if (!user) return { error: "Oturum bulunamadı." };
 
-  const lat = Number(str(formData, "lat").replace(",", "."));
-  const lng = Number(str(formData, "lng").replace(",", "."));
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+  // Number("") is 0, not NaN — an unpicked coordinate must be rejected by the
+  // empty-string check, not by Number.isFinite, or it silently saves as (0,0).
+  const latRaw = str(formData, "lat");
+  const lngRaw = str(formData, "lng");
+  const lat = Number(latRaw.replace(",", "."));
+  const lng = Number(lngRaw.replace(",", "."));
+  if (!latRaw || !lngRaw || !Number.isFinite(lat) || !Number.isFinite(lng)) {
     return { error: "Haritada bir konum seçmelisiniz." };
   }
 
