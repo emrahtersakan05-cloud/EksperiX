@@ -31,6 +31,11 @@ export function isNavGroup(item: NavItem): item is NavGroup {
   return "children" in item;
 }
 
+const extraPageTitles: Record<string, string> = {
+  "/deger-haritasi/emsal-haritasi": "Emsal Haritası",
+  "/deger-haritasi/deger-haritasi": "Değer Haritası",
+};
+
 export function getPageTitle(pathname: string): string {
   for (const item of navItems) {
     if (isNavGroup(item)) {
@@ -40,7 +45,7 @@ export function getPageTitle(pathname: string): string {
       return item.label;
     }
   }
-  return "Eksperix";
+  return extraPageTitles[pathname] ?? "Eksperix";
 }
 
 export const navItems: NavItem[] = [
