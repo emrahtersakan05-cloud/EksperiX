@@ -6,7 +6,9 @@ import { formatTrNumber, parseTrNumber } from "@/lib/emsal/hesaplama";
 import {
   birimFiyat,
   durumMedyanlari,
+  eskiIlanMi,
   fiyatSeviyesi,
+  istatistik,
   kisaFiyat,
   type CevreAnalizi,
   type FiyatSeviye,
@@ -17,8 +19,34 @@ import type { EmsalHaritaKaydi } from "@/lib/emsal-haritasi/types";
 const DEFAULT_CENTER: [number, number] = [39, 35];
 const DEFAULT_ZOOM = 6;
 const POINT_ZOOM = 15;
+// From this zoom level on, clustering is off and every record gets its own pin.
+const KUMELEME_BITIS = 16;
+const KUMELEME_HUCRE = 64;
 
 export type PinModu = "durum" | "fiyat";
+export type HaritaKatmani = "sokak" | "uydu";
+
+// A place to jump to (address search result); `key` makes repeat jumps to the
+// same spot still fire.
+export interface HaritaHedefi {
+  lat: number;
+  lng: number;
+  zoom: number;
+  key: number;
+}
+
+const KATMANLAR: Record<HaritaKatmani, { url: string; attribution: string; maxZoom: number }> = {
+  sokak: {
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    attribution: "© OpenStreetMap",
+    maxZoom: 19,
+  },
+  uydu: {
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    attribution: "Görüntü © Esri, Maxar, Earthstar Geographics",
+    maxZoom: 19,
+  },
+};
 
 // Inline SVG pins — Leaflet's stock marker resolves its PNGs relative to the
 // CSS file, which breaks under bundlers (renders as a broken image).
@@ -53,6 +81,13 @@ function fiyatEtiketiHtml(label: string, color: string, kiralik: boolean): strin
     <span style="position:absolute;left:50%;bottom:-6px;transform:translateX(-50%);width:0;height:0;
       border-left:5px solid transparent;border-right:5px solid transparent;border-top:6px solid ${color}"></span>
   </div>`;
+}
+
+function kumeHtml(adet: number): string {
+  const boyut = adet < 10 ? 34 : adet < 50 ? 40 : 48;
+  return `<div style="position:absolute;left:0;top:0;transform:translate(-50%,-50%);width:${boyut}px;height:${boyut}px;
+      border-radius:999px;background:rgba(15,23,42,.88);color:#bef264;display:flex;align-items:center;justify-content:center;
+      font:700 12px/1 system-ui,sans-serif;box-shadow:0 0 0 4px rgba(15,23,42,.18),0 2px 6px rgba(15,23,42,.35)">${adet}</div>`;
 }
 
 function escapeHtml(value: string): string {
@@ -112,6 +147,9 @@ export default function EmsalHaritaMap({
   cevre,
   fitSignal = 0,
   onBoundsChange,
+  katman = "sokak",
+  kumele = false,
+  hedef,
 }: {
   records: EmsalHaritaKaydi[];
   pinModu?: PinModu;
@@ -123,6 +161,9 @@ export default function EmsalHaritaMap({
   // Bumping this number re-fits the view to the current records.
   fitSignal?: number;
   onBoundsChange?: (bounds: HaritaSinirlari) => void;
+  katman?: HaritaKatmani;
+  kumele?: boolean;
+  hedef?: HaritaHedefi | null;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const leafletRef = useRef<typeof import("leaflet") | null>(null);
@@ -137,7 +178,10 @@ export default function EmsalHaritaMap({
   const onPickRef = useRef(onPick);
   const pickingRef = useRef(picking);
   const onBoundsChangeRef = useRef(onBoundsChange);
+  const tileLayerRef = useRef<import("leaflet").TileLayer | null>(null);
+  const pendingFocusRef = useRef<string | null>(null);
   const [mapReady, setMapReady] = useState(false);
+  const [zoom, setZoom] = useState(DEFAULT_ZOOM);
 
   const medyanlar = useMemo(() => durumMedyanlari(records), [records]);
 
@@ -163,8 +207,7 @@ export default function EmsalHaritaMap({
       });
       // Bottom-right keeps the top corners free for the page's own toolbar.
       L.control.zoom({ position: "bottomright" }).addTo(map);
-      L.control.attribution({ prefix: false }).addAttribution("© OpenStreetMap").addTo(map);
-      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(map);
+      L.control.attribution({ prefix: false }).addTo(map);
       cevreLayerRef.current = L.layerGroup().addTo(map);
       markersLayerRef.current = L.layerGroup().addTo(map);
       mapRef.current = map;
@@ -174,6 +217,7 @@ export default function EmsalHaritaMap({
         onBoundsChangeRef.current?.({ south: b.getSouth(), west: b.getWest(), north: b.getNorth(), east: b.getEast() });
       };
       map.on("moveend", reportBounds);
+      map.on("zoomend", () => setZoom(map.getZoom()));
       reportBounds();
 
       resizeObserver = new ResizeObserver(() => map.invalidateSize());
@@ -188,12 +232,31 @@ export default function EmsalHaritaMap({
       mapRef.current = null;
       markersLayerRef.current = null;
       cevreLayerRef.current = null;
+      tileLayerRef.current = null;
       markerByIdRef.current = new Map();
       pickMarkerRef.current = null;
       initialFitDoneRef.current = false;
       setMapReady(false);
     };
   }, []);
+
+  // Base map: street (OSM) or satellite (Esri World Imagery).
+  useEffect(() => {
+    const L = leafletRef.current;
+    const map = mapRef.current;
+    if (!mapReady || !L || !map) return;
+    const ayar = KATMANLAR[katman];
+    tileLayerRef.current?.remove();
+    tileLayerRef.current = L.tileLayer(ayar.url, { maxZoom: ayar.maxZoom, attribution: ayar.attribution }).addTo(map);
+    tileLayerRef.current.bringToBack();
+  }, [katman, mapReady]);
+
+  // Jump to an address search result.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!mapReady || !map || !hedef) return;
+    map.setView([hedef.lat, hedef.lng], hedef.zoom);
+  }, [hedef, mapReady]);
 
   // Click-to-pick a coordinate (new/edited record's location, or the centre of
   // a çevre analizi — the parent decides what the point is for).
@@ -218,9 +281,49 @@ export default function EmsalHaritaMap({
 
     layer.clearLayers();
     markerByIdRef.current = new Map();
+    const map = mapRef.current!;
 
-    records.forEach((kaydi) => {
-      if (!Number.isFinite(kaydi.lat) || !Number.isFinite(kaydi.lng)) return;
+    const gecerli = records.filter((k) => Number.isFinite(k.lat) && Number.isFinite(k.lng));
+    let tekil = gecerli;
+    // Grid clustering in screen space: records whose pins would land in the
+    // same 64 px cell at the current zoom collapse into one counted bubble.
+    if (kumele && zoom < KUMELEME_BITIS) {
+      const hucreler = new Map<string, EmsalHaritaKaydi[]>();
+      gecerli.forEach((k) => {
+        const p = map.project([k.lat, k.lng], zoom);
+        const anahtar = `${Math.floor(p.x / KUMELEME_HUCRE)}:${Math.floor(p.y / KUMELEME_HUCRE)}`;
+        hucreler.set(anahtar, [...(hucreler.get(anahtar) ?? []), k]);
+      });
+      tekil = [];
+      hucreler.forEach((grup) => {
+        if (grup.length === 1) {
+          tekil.push(grup[0]);
+          return;
+        }
+        const lat = grup.reduce((t, k) => t + k.lat, 0) / grup.length;
+        const lng = grup.reduce((t, k) => t + k.lng, 0) / grup.length;
+        const satilikMedyan = istatistik(grup.filter((k) => k.durum !== "kiralik")).medyan;
+        const kiralikMedyan = istatistik(grup.filter((k) => k.durum === "kiralik")).medyan;
+        const ozet = [
+          `${grup.length} emsal`,
+          satilikMedyan !== null ? `satılık medyan ${kisaFiyat(satilikMedyan)} ₺/m²` : "",
+          kiralikMedyan !== null ? `kiralık medyan ${kisaFiyat(kiralikMedyan)} ₺/m²` : "",
+        ]
+          .filter(Boolean)
+          .join(" · ");
+        const kume = L.marker([lat, lng], {
+          icon: L.divIcon({ className: "", html: kumeHtml(grup.length), iconSize: [0, 0] }),
+          zIndexOffset: 500,
+        }).bindTooltip(ozet, { direction: "top", offset: [0, -20] });
+        kume.on("click", () => {
+          const b = L.latLngBounds(grup.map((k) => [k.lat, k.lng] as [number, number]));
+          map.fitBounds(b, { padding: [48, 48], maxZoom: KUMELEME_BITIS });
+        });
+        kume.addTo(layer);
+      });
+    }
+
+    tekil.forEach((kaydi) => {
       const kiralik = kaydi.durum === "kiralik";
       let icon: import("leaflet").DivIcon;
       const birim = pinModu === "fiyat" ? birimFiyat(kaydi) : null;
@@ -237,7 +340,8 @@ export default function EmsalHaritaMap({
       } else {
         icon = L.divIcon({ className: "", html: kiralik ? KIRALIK_PIN : SATILIK_PIN, iconSize: [28, 36], iconAnchor: [14, 36] });
       }
-      const marker = L.marker([kaydi.lat, kaydi.lng], { icon }).bindPopup(popupContent(kaydi), {
+      // Listings over a year old are faded: still shown, but visibly dated.
+      const marker = L.marker([kaydi.lat, kaydi.lng], { icon, opacity: eskiIlanMi(kaydi) ? 0.5 : 1 }).bindPopup(popupContent(kaydi), {
         offset: pinModu === "fiyat" && birim !== null ? [0, -26] : [0, -30],
       });
       // While picking, a click on an existing pin picks that pin's spot (e.g. a
@@ -250,7 +354,13 @@ export default function EmsalHaritaMap({
       marker.addTo(layer);
       markerByIdRef.current.set(kaydi.id, marker);
     });
-  }, [records, mapReady, pinModu, medyanlar]);
+
+    const bekleyen = pendingFocusRef.current && markerByIdRef.current.get(pendingFocusRef.current);
+    if (bekleyen) {
+      pendingFocusRef.current = null;
+      bekleyen.openPopup();
+    }
+  }, [records, mapReady, pinModu, medyanlar, kumele, zoom]);
 
   // Fit to the records once on first load and again whenever the parent asks
   // (fitSignal) — not on every filter change, which would keep yanking the view.
@@ -319,9 +429,17 @@ export default function EmsalHaritaMap({
     const map = mapRef.current;
     if (!mapReady || !map || !focusId) return;
     const marker = markerByIdRef.current.get(focusId);
-    if (!marker) return;
-    map.setView(marker.getLatLng(), Math.max(map.getZoom(), POINT_ZOOM));
-    marker.openPopup();
+    if (marker) {
+      map.setView(marker.getLatLng(), Math.max(map.getZoom(), POINT_ZOOM));
+      marker.openPopup();
+      return;
+    }
+    // Hidden inside a cluster: zoom past the clustering threshold and open the
+    // popup once the markers have been rebuilt at that zoom.
+    const kaydi = recordsRef.current.find((r) => r.id === focusId);
+    if (!kaydi) return;
+    pendingFocusRef.current = focusId;
+    map.setView([kaydi.lat, kaydi.lng], Math.max(map.getZoom(), KUMELEME_BITIS));
   }, [focusId, mapReady]);
 
   // Leaflet adds its own classes (leaflet-container, leaflet-grab…) to the

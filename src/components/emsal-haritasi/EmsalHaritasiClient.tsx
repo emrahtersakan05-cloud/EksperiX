@@ -3,10 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
+  Boxes,
   CircleDot,
   Download,
   Maximize2,
   MapPin,
+  Layers,
   Pencil,
   Plus,
   Search,
@@ -24,6 +26,7 @@ import {
   csvOlustur,
   durumMedyanlari,
   filtrele,
+  eskiIlanMi,
   formatMesafe,
   istatistik,
   mesafeMetre,
@@ -36,7 +39,13 @@ import {
 } from "@/lib/emsal-haritasi/analiz";
 import type { EmsalHaritaKaydi } from "@/lib/emsal-haritasi/types";
 import type { PublicUser } from "@/lib/auth/types";
-import EmsalHaritaMap, { SEVIYE_RENK, type PinModu } from "@/components/emsal-haritasi/EmsalHaritaMap";
+import EmsalHaritaMap, {
+  SEVIYE_RENK,
+  type HaritaHedefi,
+  type HaritaKatmani,
+  type PinModu,
+} from "@/components/emsal-haritasi/EmsalHaritaMap";
+import AdresArama from "@/components/emsal-haritasi/AdresArama";
 import EmsalKayitFormu from "@/components/emsal-haritasi/EmsalKayitFormu";
 import EmsalAnalizSekmeleri from "@/components/emsal-haritasi/EmsalAnalizSekmeleri";
 
@@ -95,6 +104,14 @@ function EmsalCard({
               {kaydi.durum === "kiralik" ? "Kiralık" : "Satılık"}
             </span>
             <span className="truncate text-sm font-medium text-slate-900">{kaydi.emlakTipi || "—"}</span>
+            {eskiIlanMi(kaydi) && (
+              <span
+                className="shrink-0 rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700"
+                title="İlan tarihi bir yıldan eski"
+              >
+                eski
+              </span>
+            )}
           </div>
           <p className="mt-1 truncate text-xs text-slate-500">
             {[kaydi.mahalle, kaydi.ilce, kaydi.il].filter(Boolean).join(", ") || "Konum bilgisi yok"}
@@ -219,6 +236,10 @@ export default function EmsalHaritasiClient({
   const [cevre, setCevre] = useState<CevreAnalizi | null>(null);
   const [yaricap, setYaricap] = useState<number>(1000);
 
+  const [katman, setKatman] = useState<HaritaKatmani>("sokak");
+  const [kumele, setKumele] = useState(true);
+  const [hedef, setHedef] = useState<HaritaHedefi | null>(null);
+
   // On narrow screens the form stacks below the map, out of view — bring it in.
   const formPanelRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -292,6 +313,11 @@ export default function EmsalHaritasiClient({
       setCevreSeciliyor(false);
       setSiralama("yakin");
     }
+  }
+
+  function adresSecildi({ lat, lng }: { lat: number; lng: number }) {
+    setHedef((prev) => ({ lat, lng, zoom: 17, key: (prev?.key ?? 0) + 1 }));
+    if (formOpen || cevreSeciliyor) handlePick(Number(lat.toFixed(6)), Number(lng.toFixed(6)));
   }
 
   function changeYaricap(value: number) {
@@ -586,6 +612,9 @@ export default function EmsalHaritasiClient({
             cevre={cevre}
             fitSignal={fitSignal}
             onBoundsChange={setSinirlar}
+            katman={katman}
+            kumele={kumele}
+            hedef={hedef}
           />
 
           {/* Map toolbar */}
@@ -612,6 +641,35 @@ export default function EmsalHaritasiClient({
                 ₺/m²
               </button>
             </div>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setKatman((k) => (k === "sokak" ? "uydu" : "sokak"))}
+                title={katman === "sokak" ? "Uydu görüntüsüne geç" : "Sokak haritasına geç"}
+                className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium shadow-sm ${
+                  katman === "uydu"
+                    ? "border-slate-900 bg-slate-900 text-lime-300"
+                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                <Layers className="h-3.5 w-3.5" />
+                Uydu
+              </button>
+              <button
+                type="button"
+                onClick={() => setKumele((v) => !v)}
+                aria-pressed={kumele}
+                title="Yakın pinleri sayılı kümelerde topla"
+                className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium shadow-sm ${
+                  kumele
+                    ? "border-slate-900 bg-slate-900 text-lime-300"
+                    : "border-slate-200 bg-white text-slate-700 hover:bg-slate-50"
+                }`}
+              >
+                <Boxes className="h-3.5 w-3.5" />
+                Kümele
+              </button>
+            </div>
             <button
               type="button"
               onClick={() => (cevre || cevreSeciliyor ? clearCevre() : setCevreSeciliyor(true))}
@@ -636,8 +694,21 @@ export default function EmsalHaritasiClient({
             </button>
           </div>
 
+          <div className="absolute left-3 top-3 z-[600] w-[min(18rem,calc(100%-13rem))]">
+            <AdresArama
+              onSelect={adresSecildi}
+              ipucu={
+                formOpen
+                  ? "Seçtiğiniz sonuç emsalin konumu olarak işaretlenir."
+                  : cevreSeciliyor
+                    ? "Seçtiğiniz sonuç çevre analizinin merkezi olur."
+                    : undefined
+              }
+            />
+          </div>
+
           {(cevreSeciliyor || cevre) && (
-            <div className="absolute left-3 top-3 z-[500] w-64 rounded-xl border border-violet-200 bg-white p-3 shadow-lg">
+            <div className="absolute left-3 top-14 z-[500] w-64 rounded-xl border border-violet-200 bg-white p-3 shadow-lg">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold text-violet-700">Çevre Analizi</p>
                 <button
@@ -722,6 +793,7 @@ export default function EmsalHaritasiClient({
             className="order-1 max-h-[85vh] overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-lg lg:order-none lg:max-h-none lg:w-96 lg:shrink-0"
           >
             <EmsalKayitFormu
+            records={records}
               key={editing?.id ?? "yeni"}
               kaydi={editing ?? undefined}
               pickedPoint={pickedPoint}

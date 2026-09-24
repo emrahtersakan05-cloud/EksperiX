@@ -16,11 +16,22 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-import { ArrowDown, ArrowUp, BarChart3, ChevronLeft, ChevronRight, MapPinned, Pencil, Table2 } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  BarChart3,
+  Calculator,
+  ChevronLeft,
+  ChevronRight,
+  MapPinned,
+  Pencil,
+  Table2,
+} from "lucide-react";
 import { formatTrNumber, parseTrNumber } from "@/lib/emsal/hesaplama";
 import {
   alan,
   birimFiyat,
+  eskiIlanMi,
   formatMesafe,
   istatistik,
   kisaFiyat,
@@ -28,8 +39,9 @@ import {
   type CevreAnalizi,
 } from "@/lib/emsal-haritasi/analiz";
 import type { EmsalDurum, EmsalHaritaKaydi } from "@/lib/emsal-haritasi/types";
+import DegerTahminiPaneli from "@/components/emsal-haritasi/DegerTahminiPaneli";
 
-type Sekme = "tablo" | "grafik" | "bolge";
+type Sekme = "tablo" | "grafik" | "bolge" | "deger";
 
 // Every chart here is a single series (one durum at a time), so one hue and
 // no legend; ink and chrome stay in the app's slate text tokens.
@@ -71,12 +83,13 @@ export default function EmsalAnalizSekmeleri({
     { id: "tablo", label: "Tablo", icon: <Table2 className="h-4 w-4" /> },
     { id: "grafik", label: "Grafikler", icon: <BarChart3 className="h-4 w-4" /> },
     { id: "bolge", label: "Bölge Özeti", icon: <MapPinned className="h-4 w-4" /> },
+    { id: "deger", label: "Değer Tahmini", icon: <Calculator className="h-4 w-4" /> },
   ];
 
   return (
     <section className="rounded-2xl border border-slate-100 bg-white">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 pt-3">
-        <div role="tablist" className="flex gap-1">
+        <div role="tablist" className="-mx-1 flex gap-1 overflow-x-auto">
           {sekmeler.map((s) => (
             <button
               key={s.id}
@@ -84,7 +97,7 @@ export default function EmsalAnalizSekmeleri({
               role="tab"
               aria-selected={sekme === s.id}
               onClick={() => setSekme(s.id)}
-              className={`-mb-px inline-flex items-center gap-1.5 border-b-2 px-3 pb-2.5 pt-1 text-sm font-medium transition-colors ${
+              className={`-mb-px inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap border-b-2 px-3 pb-2.5 pt-1 text-sm font-medium transition-colors ${
                 sekme === s.id
                   ? "border-slate-900 text-slate-900"
                   : "border-transparent text-slate-500 hover:text-slate-800"
@@ -116,8 +129,10 @@ export default function EmsalAnalizSekmeleri({
           />
         ) : sekme === "grafik" ? (
           <EmsalGrafikleri records={records} />
-        ) : (
+        ) : sekme === "bolge" ? (
           <BolgeOzeti records={records} />
+        ) : (
+          <DegerTahminiPaneli records={records} cevre={cevre} />
         )}
       </div>
     </section>
@@ -270,6 +285,11 @@ function EmsalTablosu({
                   <td className="px-3 py-2 text-right tabular-nums">{r.binaYasi || "—"}</td>
                   <td className="px-3 py-2 tabular-nums">
                     {r.ilanTarihi ? new Date(r.ilanTarihi).toLocaleDateString("tr-TR") : "—"}
+                    {eskiIlanMi(r) && (
+                      <span className="ml-1.5 rounded-full bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700">
+                        eski
+                      </span>
+                    )}
                   </td>
                   <td className="px-3 py-2 text-right tabular-nums">{fmtTam(fiyat(r))}</td>
                   <td className="px-3 py-2 text-right font-semibold tabular-nums text-slate-900">{fmt(birimFiyat(r))}</td>

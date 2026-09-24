@@ -1,7 +1,7 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
-import { Loader2, MapPin, Search, X } from "lucide-react";
+import { useActionState, useEffect, useMemo, useState } from "react";
+import { AlertTriangle, Loader2, MapPin, Search, X } from "lucide-react";
 import {
   ComboboxField,
   Field,
@@ -13,6 +13,7 @@ import {
 } from "@/components/talep/form-fields";
 import { addIl, addIlce, addMahalle, getIlceler, getIller, getMahalleler } from "@/lib/talep/adres-referans";
 import { createEmsalKaydiAction, updateEmsalKaydiAction, type EmsalFormState } from "@/lib/emsal-haritasi/actions";
+import { mukerrerAdaylari } from "@/lib/emsal-haritasi/analiz";
 import { EMLAK_TIPI_OPTIONS, type EmsalDurum, type EmsalHaritaKaydi } from "@/lib/emsal-haritasi/types";
 
 interface FormData {
@@ -76,11 +77,14 @@ function formFromKaydi(kaydi: EmsalHaritaKaydi): FormData {
 // With `kaydi` the form edits that record (mount it with key={kaydi.id} so
 // switching records starts from fresh state); without it, it creates one.
 export default function EmsalKayitFormu({
+  records = [],
   kaydi,
   pickedPoint,
   onSuccess,
   onCancel,
 }: {
+  // Every stored record, for the possible-duplicate warning.
+  records?: EmsalHaritaKaydi[];
   kaydi?: EmsalHaritaKaydi;
   pickedPoint: { lat: number; lng: number } | null;
   onSuccess: () => void;
@@ -96,6 +100,23 @@ export default function EmsalKayitFormu({
   const [state, formAction, pending] = useActionState(
     kaydi ? updateEmsalKaydiAction : createEmsalKaydiAction,
     initialActionState,
+  );
+
+  const mukerrer = useMemo(
+    () =>
+      mukerrerAdaylari(
+        {
+          id: kaydi?.id,
+          webAdresi: data.webAdresi,
+          durum: data.durum,
+          lat: pickedPoint?.lat,
+          lng: pickedPoint?.lng,
+          m2Net: data.m2Net,
+          m2Brut: data.m2Brut,
+        },
+        records,
+      ),
+    [kaydi?.id, data.webAdresi, data.durum, data.m2Net, data.m2Brut, pickedPoint, records],
   );
 
   function patch(next: Partial<FormData>) {
@@ -308,6 +329,24 @@ export default function EmsalKayitFormu({
               onChange={(v) => patch({ pazarlikliFiyat: v })}
             />
           </div>
+
+          {mukerrer.length > 0 && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              <p className="flex items-center gap-1.5 font-semibold">
+                <AlertTriangle className="h-3.5 w-3.5" />
+                Bu emsal daha önce eklenmiş olabilir
+              </p>
+              <ul className="mt-1 space-y-0.5">
+                {mukerrer.slice(0, 3).map(({ kaydi: k, neden }) => (
+                  <li key={k.id}>
+                    {neden} · {k.emlakTipi || "Emsal"}, {[k.mahalle, k.ilce].filter(Boolean).join(", ") || k.il} ·{" "}
+                    {k.ekleyenAdSoyad}, {new Date(k.olusturmaTarihi).toLocaleDateString("tr-TR")}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-1 text-[11px] text-amber-700">Farklı bir ilansa yine de kaydedebilirsiniz.</p>
+            </div>
+          )}
 
           {state.error && <p className="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-700">{state.error}</p>}
           <p className={helperTextClass}>İl ve emlak tipi zorunludur; koordinat haritadan seçilmelidir.</p>

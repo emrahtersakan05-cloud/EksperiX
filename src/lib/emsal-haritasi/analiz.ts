@@ -274,3 +274,141 @@ export function csvOlustur(records: EmsalHaritaKaydi[]): string {
   );
   return "﻿" + [basliklar.join(";"), ...satirlar].join("\r\n");
 }
+
+// Linear-interpolated percentile (p in 0..1) of an ascending-sorted list.
+export function yuzdelik(sorted: number[], p: number): number | null {
+  if (sorted.length === 0) return null;
+  const idx = (sorted.length - 1) * p;
+  const lo = Math.floor(idx);
+  const hi = Math.ceil(idx);
+  return sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
+}
+
+// A listing whose ilan (or, failing that, entry) date is over a year old no
+// longer reflects the market well; the UI fades and badges it.
+export const ESKI_ILAN_GUN = 365;
+
+export function ilanYasiGun(kaydi: EmsalHaritaKaydi, simdi = Date.now()): number | null {
+  const tarih = Date.parse(kaydi.ilanTarihi || kaydi.olusturmaTarihi);
+  return Number.isFinite(tarih) ? Math.floor((simdi - tarih) / 86_400_000) : null;
+}
+
+export function eskiIlanMi(kaydi: EmsalHaritaKaydi, simdi = Date.now()): boolean {
+  const gun = ilanYasiGun(kaydi, simdi);
+  return gun !== null && gun > ESKI_ILAN_GUN;
+}
+
+function normalizeUrl(value: string | undefined): string {
+  if (!value) return "";
+  return value.trim().toLowerCase().replace(/^https?:\/\/(www\.)?/, "").replace(/[?#].*$/, "").replace(/\/+$/, "");
+}
+
+export interface MukerrerAday {
+  kaydi: EmsalHaritaKaydi;
+  neden: string;
+}
+
+// Possible duplicates of a record being entered: the same listing URL, or a
+// pin within 30 m with the same durum and area. Advisory only — two flats in
+// one building can legitimately match.
+export function mukerrerAdaylari(
+  aday: {
+    id?: string;
+    webAdresi?: string;
+    durum: string;
+    lat?: number;
+    lng?: number;
+    m2Net: string;
+    m2Brut: string;
+  },
+  records: EmsalHaritaKaydi[],
+): MukerrerAday[] {
+  const url = normalizeUrl(aday.webAdresi);
+  const adayAlan = parseTrNumber(aday.m2Net) ?? parseTrNumber(aday.m2Brut);
+  const sonuc: MukerrerAday[] = [];
+  for (const r of records) {
+    if (r.id === aday.id) continue;
+    if (url && normalizeUrl(r.webAdresi) === url) {
+      sonuc.push({ kaydi: r, neden: "Aynı ilan adresi" });
+      continue;
+    }
+    if (aday.lat === undefined || aday.lng === undefined || adayAlan === null) continue;
+    if ((r.durum || "satilik") !== (aday.durum || "satilik")) continue;
+    const rAlan = alan(r);
+    if (rAlan === null || Math.abs(rAlan - adayAlan) > 1) continue;
+    const d = mesafeMetre(aday.lat, aday.lng, r.lat, r.lng);
+    if (d <= 30) sonuc.push({ kaydi: r, neden: `${Math.round(d)} m yakında, aynı m²` });
+  }
+  return sonuc;
+}
+
+export type GuvenSeviyesi = "yuksek" | "orta" | "dusuk";
+
+export interface DegerTahmini {
+  kullanilan: EmsalHaritaKaydi[];
+  aykiri: EmsalHaritaKaydi[];
+  medyan: number;
+  ortalama: number;
+  p25: number;
+  p75: number;
+  // Inverse-distance weighted mean ₺/m²; only when a çevre centre is known.
+  agirlikli: number | null;
+  degisimKatsayisi: number;
+  guven: GuvenSeviyesi;
+}
+
+// Unit-price estimate from a set of comparables. Outliers are dropped with
+// the 1.5×IQR rule (only once there are enough points for quartiles to mean
+// anything); confidence depends on sample size and dispersion.
+export function degerTahmini(
+  records: EmsalHaritaKaydi[],
+  opts: { aykiriTemizle: boolean; merkez?: { lat: number; lng: number } | null },
+): DegerTahmini | null {
+  const fiyatli = records
+    .map((r) => ({ r, b: birimFiyat(r) }))
+    .filter((x): x is { r: EmsalHaritaKaydi; b: number } => x.b !== null);
+  if (fiyatli.length === 0) return null;
+
+  let kullanilan = fiyatli;
+  let aykiri: typeof fiyatli = [];
+  if (opts.aykiriTemizle && fiyatli.length >= 5) {
+    const s = fiyatli.map((x) => x.b).sort((a, b) => a - b);
+    const q1 = yuzdelik(s, 0.25)!;
+    const q3 = yuzdelik(s, 0.75)!;
+    const iqr = q3 - q1;
+    const alt = q1 - 1.5 * iqr;
+    const ust = q3 + 1.5 * iqr;
+    kullanilan = fiyatli.filter((x) => x.b >= alt && x.b <= ust);
+    aykiri = fiyatli.filter((x) => x.b < alt || x.b > ust);
+  }
+
+  const s = kullanilan.map((x) => x.b).sort((a, b) => a - b);
+  const n = s.length;
+  const ortalama = s.reduce((t, v) => t + v, 0) / n;
+  const sapma = Math.sqrt(s.reduce((t, v) => t + (v - ortalama) ** 2, 0) / n);
+  const degisimKatsayisi = ortalama > 0 ? sapma / ortalama : 0;
+
+  let agirlikli: number | null = null;
+  if (opts.merkez) {
+    const m = opts.merkez;
+    // 50 m floor so a comparable sitting on the centre doesn't take all the weight.
+    const agirliklar = kullanilan.map((x) => 1 / Math.max(50, mesafeMetre(m.lat, m.lng, x.r.lat, x.r.lng)));
+    const toplam = agirliklar.reduce((t, w) => t + w, 0);
+    agirlikli = kullanilan.reduce((t, x, i) => t + x.b * agirliklar[i], 0) / toplam;
+  }
+
+  const guven: GuvenSeviyesi =
+    n >= 8 && degisimKatsayisi <= 0.2 ? "yuksek" : n >= 4 && degisimKatsayisi <= 0.35 ? "orta" : "dusuk";
+
+  return {
+    kullanilan: kullanilan.map((x) => x.r),
+    aykiri: aykiri.map((x) => x.r),
+    medyan: yuzdelik(s, 0.5)!,
+    ortalama,
+    p25: yuzdelik(s, 0.25)!,
+    p75: yuzdelik(s, 0.75)!,
+    agirlikli,
+    degisimKatsayisi,
+    guven,
+  };
+}
