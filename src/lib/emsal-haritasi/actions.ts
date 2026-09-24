@@ -108,7 +108,9 @@ export async function createEmsalKaydiAction(
   const parsed = parseFields(formData);
   if ("error" in parsed) return parsed;
 
-  const kaynak: EmsalKaynak = str(formData, "kaynak") === "url-bridge" ? "url-bridge" : "manuel";
+  const kaynakRaw = str(formData, "kaynak");
+  const kaynak: EmsalKaynak =
+    kaynakRaw === "url-bridge" || kaynakRaw === "eklenti-bridge" ? kaynakRaw : "manuel";
 
   let id: string;
   try {

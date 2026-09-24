@@ -40,6 +40,17 @@ extension/uavt-bridge
 3. Tarayici toolbar'indaki `Eksperix Bridge` eklentisini acin ve `Bilgileri Getir` butonuna basin.
 4. Ilan Tarihi, Emlak Tipi, Kimden, m² (Brut/Net), Oda Sayisi, Bina Yasi, Bulundugu Kat, Fiyat, Il/Ilce/Mahalle, Enlem/Boylam (sayfadaki harita verisinden), Web Adresi ve ilan gorseli **yalnizca o an acik olan** emsal sekmesine aktarilir. Bulunamayan alanlara dokunulmaz.
 
+### Yeni Emsal Ekle sayfasi (v0.6.0)
+
+1. Eksperix'te `Deger Haritasi > Emsal Haritasi > Yeni Emsal Ekle` sayfasini acin. Ustteki `Eksperix Bridge` panelinde `Bagli` yazmalidir.
+2. Ilani baska bir sekmede acin (sahibinden, hepsiemlak, emlakjet, zingat, remax, turyap).
+3. Paneldeki `Ilan sekmesinden getir` dugmesine basin — popup'i acmaya gerek yoktur. Diger sitelerde ilan sayfasindayken popup'taki `Bilgileri Getir` ayni sekilde calisir.
+4. Kategori (Konut, Isyeri, Bina, Ciftlik, Fabrika, Arsa/Tarla), satilik/kiralik, ilan no/tel/tarih, fiyat, konum ve kategoriye ozel tum ozellikler (Isitma, Tapu Durumu, Ada/Parsel, KAKS...) forma yazilir.
+
+Teknik: `app-bridge.js` sayfaya `eksperix:bridge-ready` ile kendini bildirir (`eksperix:bridge-ping`e de cevap verir). Sayfa `eksperix:bridge-request` gonderdiginde istek `background.js`e iletilir; o, en son kullanilan ilan sekmesini okuyup veriyi yalnizca isteyen Eksperix sekmesine `eksperix:emsal-import` olarak gonderir ve sonucu `eksperix:bridge-response` ile bildirir. Popup ve arka plan ayni `shared.js` kodunu kullanir.
+
+Eklenti canli sitede (`https://eksperi-x.vercel.app`) ve yerelde (`localhost` / `127.0.0.1`, her port) calisir. Canli sitedeki `Araclarim > Uygulama Eklentileri` sayfasindan zip olarak indirilebilir; zip her kurulumda `scripts/zip-bridge-extension.mjs` ile bu klasorden uretilir.
+
 ### Aktarim turu secici (v0.5.0)
 
 Popup'taki `Aktarim turu` listesi varsayilan olarak `Otomatik`tir: sayfa adresine (UAVT, adresinde `imar` gecen e-imar portallari, emsal ilan siteleri) ve gerekirse sayfa icerigine bakarak turu kendisi belirler. Bilinmeyen bir belediye portali yanlis taninirsa listeden `Imar Durumu` (ya da ilgili turu) secin; secim hatirlanir.
@@ -50,7 +61,7 @@ Popup'taki `Aktarim turu` listesi varsayilan olarak `Otomatik`tir: sayfa adresin
 
 ## Notlar
 
-- Eksperix `localhost` / `127.0.0.1` uzerinde herhangi bir portta (3000, 3001, ...) calisir. Eklenti yenilendikten sonra zaten acik olan Eksperix sekmeleri icin betik otomatik yuklenir.
+- Eksperix `https://eksperi-x.vercel.app` ile `localhost` / `127.0.0.1` uzerinde herhangi bir portta (3000, 3001, ...) calisir. Eklenti yenilendikten sonra zaten acik olan Eksperix sekmeleri icin betik otomatik yuklenir.
 - Eklenti sayfa verisini Chrome content-script izolasyonu nedeniyle JSON metni olarak iletir; uygulama tarafinda `src/lib/bridge/event-detail.ts` bunu cozer.
 - Eklenti, aktif sekmenin UAVT mi yoksa `*.bel.tr/imardurumu/*` adresine uyan bir e-imar sayfasi mi oldugunu otomatik ayirt eder; hicbiri acik degilse en son erisilen uygun sekmeyi kullanir.
 - Eksperix sekmesi acik degilse veya ilgili bolum (Adres/Konum ya da İmar Durumu) yuklu degilse aktarim yapilamaz.

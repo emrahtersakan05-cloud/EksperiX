@@ -43,3 +43,6 @@ next-env.d.ts
 
 # local user database (production uses Redis)
 /data/
+
+# generated on install from extension/uavt-bridge (scripts/zip-bridge-extension.mjs)
+/public/indir/

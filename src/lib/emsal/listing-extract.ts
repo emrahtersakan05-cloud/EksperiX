@@ -227,7 +227,7 @@ function parseLongDate(value: string): string | undefined {
 // "Label: Value" on one). Pairing them by label is far more reliable than the
 // free-text heuristics above, so we use it first and let the heuristics fill
 // whatever the labelled pass could not find.
-function readLabeledValues(rawText: string): Map<string, string> {
+export function readLabeledValues(rawText: string): Map<string, string> {
   const lines = rawText
     .split(/\r?\n/)
     .map((line) => line.trim())

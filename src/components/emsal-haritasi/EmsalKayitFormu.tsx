@@ -28,6 +28,7 @@ import { addIl, addIlce, addMahalle, getIlceler, getIller, getMahalleler } from 
 import { formatTrNumber, parseTrNumber } from "@/lib/emsal/hesaplama";
 import { createEmsalKaydiAction, updateEmsalKaydiAction, type EmsalFormState } from "@/lib/emsal-haritasi/actions";
 import { mukerrerAdaylari } from "@/lib/emsal-haritasi/analiz";
+import { bridgeVerisiniAyristir, type BridgePayload } from "@/lib/emsal-haritasi/bridge-ayristir";
 import {
   KATEGORILER,
   KATEGORI_SIRASI,
@@ -38,6 +39,7 @@ import {
 import type { EmsalDurum, EmsalHaritaKaydi } from "@/lib/emsal-haritasi/types";
 import EmsalHaritaMap, { type HaritaHedefi, type HaritaKatmani } from "@/components/emsal-haritasi/EmsalHaritaMap";
 import AdresArama from "@/components/emsal-haritasi/AdresArama";
+import EksperixBridgePaneli from "@/components/emsal-haritasi/EksperixBridgePaneli";
 
 const HARITA_SAYFASI = "/deger-haritasi/emsal-haritasi";
 
@@ -159,7 +161,7 @@ export default function EmsalKayitFormu({
   const [degerler, setDegerler] = useState<Record<string, string>>(() => (kaydi ? degerlerFromKaydi(kaydi) : {}));
   const [enlem, setEnlem] = useState(kaydi ? String(kaydi.lat) : "");
   const [boylam, setBoylam] = useState(kaydi ? String(kaydi.lng) : "");
-  const [kaynak, setKaynak] = useState<"manuel" | "url-bridge">("manuel");
+  const [kaynak, setKaynak] = useState<"manuel" | "url-bridge" | "eklenti-bridge">("manuel");
   const [katman, setKatman] = useState<HaritaKatmani>("sokak");
   const [hedef, setHedef] = useState<HaritaHedefi | null>(null);
 
@@ -200,6 +202,40 @@ export default function EmsalKayitFormu({
     setKategori(yeni);
     // Keep the emlak tipi only if the new category offers it.
     if (!KATEGORILER[yeni].tipSecenekleri.includes(ortak.emlakTipi)) patch({ emlakTipi: "" });
+  }
+
+  // A listing pushed in by the Eksperix Bridge extension. Only fields the page
+  // actually had are written; everything else keeps what the user typed.
+  function bridgeUygula(payload: BridgePayload): string[] {
+    const s = bridgeVerisiniAyristir(payload, kategori);
+    const kategoriDegisti = !!s.kategori && s.kategori !== kategori;
+    if (s.kategori) setKategori(s.kategori);
+    setOrtak((prev) => ({
+      ...prev,
+      durum: s.durum ?? prev.durum,
+      // A different category's emlak tipi would be invalid there.
+      emlakTipi: s.emlakTipi ?? (kategoriDegisti ? "" : prev.emlakTipi),
+      il: s.il ?? prev.il,
+      ilce: s.il ? (s.ilce ?? "") : (s.ilce ?? prev.ilce),
+      mahalle: s.il || s.ilce ? (s.mahalle ?? "") : (s.mahalle ?? prev.mahalle),
+      webAdresi: s.webAdresi ?? prev.webAdresi,
+      gorselUrl: s.gorselUrl ?? prev.gorselUrl,
+      ilanNo: s.ilanNo ?? prev.ilanNo,
+      ilanTelNo: s.ilanTelNo ?? prev.ilanTelNo,
+      ilanTarihi: s.ilanTarihi ?? prev.ilanTarihi,
+      istenenFiyat: s.istenenFiyat ?? prev.istenenFiyat,
+    }));
+    setDegerler((prev) => ({ ...prev, ...s.degerler }));
+    if (s.lat && s.lng) {
+      const lat = Number(s.lat);
+      const lng = Number(s.lng);
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        konumSec(lat, lng);
+        setHedef((prev) => ({ lat, lng, zoom: 17, key: (prev?.key ?? 0) + 1 }));
+      }
+    }
+    if (s.doldurulanlar.length > 0) setKaynak("eklenti-bridge");
+    return s.doldurulanlar;
   }
 
   useEffect(() => {
@@ -337,6 +373,10 @@ export default function EmsalKayitFormu({
           </Link>
           <h1 className="mt-1 text-xl font-semibold text-slate-900">{kaydi ? "Emsali Düzenle" : "Yeni Emsal Ekle"}</h1>
         </div>
+      </div>
+
+      <div className="mb-4">
+        <EksperixBridgePaneli onVeri={bridgeUygula} />
       </div>
 
       <form id="emsal-kayit-formu" action={formAction} className="space-y-4">

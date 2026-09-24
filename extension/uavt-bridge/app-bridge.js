@@ -2,7 +2,7 @@
 
 (() => {
   // The popup may inject this script into an already-open app tab, so guard
-  // against registering the listener twice.
+  // against registering the listeners twice.
   if (window.__eksperixBridgeLoaded) return;
   window.__eksperixBridgeLoaded = true;
 
@@ -15,6 +15,44 @@
   // matching form section is open and took the data.
   const ACK_EVENT = "eksperix:bridge-ack";
   const ACK_TIMEOUT_MS = 400;
+
+  // Page ↔ extension handshake: the page asks "is the extension here?" with a
+  // ping; we announce ourselves on load and on every ping.
+  const PING_EVENT = "eksperix:bridge-ping";
+  const READY_EVENT = "eksperix:bridge-ready";
+  // The page asks the extension to read an open listing tab…
+  const REQUEST_EVENT = "eksperix:bridge-request";
+  // …and hears back here (ok / error), after the data itself arrived as an import event.
+  const RESPONSE_EVENT = "eksperix:bridge-response";
+
+  const version = chrome.runtime.getManifest().version;
+  // Chrome hides object `detail`s created in a content script from the page
+  // (they arrive as null), so every detail is shipped as JSON.
+  const emit = (name, detail) => window.dispatchEvent(new CustomEvent(name, { detail: JSON.stringify(detail) }));
+  const announce = () => emit(READY_EVENT, { version });
+
+  window.addEventListener(PING_EVENT, announce);
+  announce();
+
+  window.addEventListener(REQUEST_EVENT, (event) => {
+    let request = {};
+    try {
+      request = typeof event.detail === "string" ? JSON.parse(event.detail) : (event.detail ?? {});
+    } catch {
+      // Malformed request: answered as an error below.
+    }
+    const requestId = request.requestId ?? null;
+    chrome.runtime
+      .sendMessage({ type: "EKSPERIX_FETCH_REQUEST", kind: request.kind })
+      .then((response) => emit(RESPONSE_EVENT, { requestId, ...(response ?? { ok: false }) }))
+      .catch(() =>
+        emit(RESPONSE_EVENT, {
+          requestId,
+          ok: false,
+          error: "Eklentiye ulaşılamadı. Eklentiyi yeniden yükleyip sayfayı yenileyin.",
+        }),
+      );
+  });
 
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     const eventName = message?.type ? EVENT_NAMES[message.type] : undefined;
@@ -36,13 +74,7 @@
     const timer = setTimeout(() => finish(false), ACK_TIMEOUT_MS);
     window.addEventListener(ACK_EVENT, onAck);
 
-    // Chrome hides object `detail`s created in a content script from the page
-    // (they arrive as null), so ship it as JSON; the app parses it back.
-    window.dispatchEvent(
-      new CustomEvent(eventName, {
-        detail: JSON.stringify(message.payload),
-      }),
-    );
+    emit(eventName, message.payload);
 
     // Keep the message channel open for the asynchronous response.
     return true;

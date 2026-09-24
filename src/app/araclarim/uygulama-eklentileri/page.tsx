@@ -1,9 +1,11 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AppWindow, CheckCircle2, Copy, ExternalLink, Puzzle, ShieldCheck, X } from "lucide-react";
+import { AppWindow, CheckCircle2, Download, ExternalLink, Puzzle, ShieldCheck, X } from "lucide-react";
 
-const EXTENSION_PATH = String.raw`c:\Users\Lenovo\Documents\Web Dizayn\extension\uavt-bridge`;
+// Built from extension/uavt-bridge on every install (scripts/zip-bridge-extension.mjs).
+const ZIP_URL = "/indir/eksperix-bridge.zip";
+const EKLENTI_SURUMU = "0.6.0";
 
 function StepCard({ index, title, description }: { index: string; title: string; description: string }) {
   return (
@@ -21,15 +23,7 @@ function StepCard({ index, title, description }: { index: string; title: string;
   );
 }
 
-function InstallModal({
-  onClose,
-  onCopyPath,
-  copied,
-}: {
-  onClose: () => void;
-  onCopyPath: () => void;
-  copied: boolean;
-}) {
+function InstallModal({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/50 px-4 py-8" onClick={onClose}>
       <div
@@ -39,7 +33,7 @@ function InstallModal({
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-blue-500">Chrome Kurulumu</p>
-            <h2 className="mt-1 text-xl font-semibold text-slate-900">Eksperix UAVT Bridge eklentisini ekle</h2>
+            <h2 className="mt-1 text-xl font-semibold text-slate-900">Eksperix Bridge eklentisini ekle</h2>
             <p className="mt-2 text-sm leading-6 text-slate-500">
               Chrome politikaları nedeniyle mağaza dışı eklentiler doğrudan tek tıkla kurulamaz. Aşağıdaki adımlarla
               hızlıca ekleyebilirsiniz.
@@ -56,29 +50,28 @@ function InstallModal({
         </div>
 
         <div className="mt-6 grid gap-3">
-          <StepCard index="1" title="Chrome Extensions sayfasını aç" description="Chrome adres çubuğuna `chrome://extensions` yazın." />
-          <StepCard index="2" title="Geliştirici modunu aç" description="Sayfanın sağ üst bölümündeki `Geliştirici modu` anahtarını aktif edin." />
           <StepCard
-            index="3"
-            title="Paketlenmemiş öğe yükle"
-            description="`Paketlenmemiş öğe yükle` butonuna tıklayıp aşağıdaki klasörü seçin."
+            index="1"
+            title="Eklentiyi indirip klasöre çıkarın"
+            description="Aşağıdaki düğmeyle `eksperix-bridge.zip` dosyasını indirin, sağ tıklayıp `Tümünü ayıkla` ile kalıcı bir klasöre çıkarın (silmeyin; eklenti oradan çalışır)."
+          />
+          <StepCard index="2" title="Chrome Extensions sayfasını açın" description="Chrome adres çubuğuna `chrome://extensions` yazın (Edge: `edge://extensions`)." />
+          <StepCard index="3" title="Geliştirici modunu açın" description="Sayfanın sağ üst bölümündeki `Geliştirici modu` anahtarını aktif edin." />
+          <StepCard
+            index="4"
+            title="Paketlenmemiş öğe yükleyin"
+            description="`Paketlenmemiş öğe yükle` butonuna tıklayıp çıkardığınız `eksperix-bridge` klasörünü seçin. Güncellemede aynı klasörün üzerine yeni zip'i çıkarıp eklenti kartındaki yenile simgesine basın."
           />
         </div>
 
-        <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Eklenti Klasörü</p>
-          <div className="mt-2 rounded-lg bg-white px-3 py-3 font-mono text-xs text-slate-700">{EXTENSION_PATH}</div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={onCopyPath}
-              className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
-            >
-              <Copy className="h-4 w-4" />
-              {copied ? "Kopyalandı" : "Klasör Yolunu Kopyala"}
-            </button>
-          </div>
-        </div>
+        <a
+          href={ZIP_URL}
+          download
+          className="mt-5 inline-flex items-center gap-2 rounded-full bg-slate-900 px-4 py-2.5 text-sm font-semibold text-lime-300"
+        >
+          <Download className="h-4 w-4" />
+          eksperix-bridge.zip indir (v{EKLENTI_SURUMU})
+        </a>
 
         <div className="mt-6 flex justify-end">
           <button
@@ -96,22 +89,15 @@ function InstallModal({
 
 export default function UygulamaEklentileriPage() {
   const [installOpen, setInstallOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   const features = useMemo(
     () => [
-      "UAVT sonucunu okuyup Adres / Konum formuna otomatik aktarır",
-      "Aktif veya son kullanılan UAVT sekmesini bularak veri çeker",
-      "Mevcut yapıştırma yedeği akışı ile birlikte çalışır",
+      "Emsal ilanını (sahibinden, hepsiemlak, emlakjet…) Yeni Emsal Ekle sayfasına tek tıkla aktarır",
+      "Kategoriye göre tüm ilan özelliklerini, konumu ve ilan bilgilerini doldurur",
+      "UAVT sonucunu Adres / Konum, belediye e-imar sonucunu İmar Durumu formuna aktarır",
     ],
     [],
   );
-
-  async function handleCopyPath() {
-    await navigator.clipboard.writeText(EXTENSION_PATH);
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 2000);
-  }
 
   return (
     <div className="space-y-6">
@@ -132,9 +118,10 @@ export default function UygulamaEklentileriPage() {
                 <Puzzle className="h-7 w-7" />
               </div>
               <div>
-                <h2 className="text-xl font-semibold text-slate-900">Eksperix UAVT Bridge</h2>
+                <h2 className="text-xl font-semibold text-slate-900">Eksperix Bridge</h2>
                 <p className="mt-2 text-sm leading-6 text-slate-500">
-                  UAVT sonuc sayfasindaki verileri okuyup `Adres / Konum` formuna otomatik aktarir.
+                  İlan, UAVT ve e-imar sayfalarındaki bilgileri okuyup Eksperix formlarına otomatik aktarır. Güncel
+                  sürüm: v{EKLENTI_SURUMU}.
                 </p>
               </div>
             </div>
@@ -152,7 +139,7 @@ export default function UygulamaEklentileriPage() {
           <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Kurulum</p>
             <p className="mt-2 text-sm leading-6 text-slate-500">
-              Chrome icin hizli kurulum akisini baslatin. Eklenti magazadan degil, yerel klasorden yuklenir.
+              Eklentiyi indirip Chrome veya Edge&apos;e ekleyin. Mağazadan değil, indirdiğiniz klasörden yüklenir.
             </p>
             <div className="mt-4 space-y-2">
               <button
@@ -163,14 +150,14 @@ export default function UygulamaEklentileriPage() {
                 <AppWindow className="h-4 w-4" />
                 Google Chrome&apos;a Ekle
               </button>
-              <button
-                type="button"
-                onClick={handleCopyPath}
+              <a
+                href={ZIP_URL}
+                download
                 className="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 hover:bg-slate-50"
               >
-                <Copy className="h-4 w-4" />
-                {copied ? "Klasör Yolu Kopyalandı" : "Eklenti Klasör Yolunu Kopyala"}
-              </button>
+                <Download className="h-4 w-4" />
+                Eklentiyi İndir (.zip)
+              </a>
               <a
                 href="https://developer.chrome.com/docs/extensions/get-started/tutorial/hello-world"
                 target="_blank"
@@ -185,7 +172,7 @@ export default function UygulamaEklentileriPage() {
         </div>
       </div>
 
-      {installOpen && <InstallModal onClose={() => setInstallOpen(false)} onCopyPath={handleCopyPath} copied={copied} />}
+      {installOpen && <InstallModal onClose={() => setInstallOpen(false)} />}
     </div>
   );
 }
