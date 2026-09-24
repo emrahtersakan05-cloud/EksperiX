@@ -5,7 +5,8 @@ import { Loader2, MapPin, Search, X } from "lucide-react";
 import type { KonumSonucu } from "@/app/api/konum-ara/route";
 
 // Address / place search over the map. Searches only on submit (Enter or the
-// button) — Nominatim's usage policy forbids search-as-you-type.
+// button) — Nominatim's usage policy forbids search-as-you-type. Deliberately
+// not a <form>: it sits inside the Yeni Emsal form, and forms can't nest.
 export default function AdresArama({
   onSelect,
   ipucu,
@@ -19,8 +20,7 @@ export default function AdresArama({
   const [sonuclar, setSonuclar] = useState<KonumSonucu[] | null>(null);
   const [hata, setHata] = useState<string | null>(null);
 
-  async function ara(e: React.FormEvent) {
-    e.preventDefault();
+  async function ara() {
     const metin = q.trim();
     if (metin.length < 3) {
       setHata("En az 3 karakter girin.");
@@ -54,12 +54,19 @@ export default function AdresArama({
 
   return (
     <div className="w-full">
-      <form onSubmit={ara} className="relative">
+      <div className="relative">
         <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
         <input
           type="text"
           value={q}
           onChange={(e) => setQ(e.target.value)}
+          onKeyDown={(e) => {
+            // Enter searches here and must not submit an enclosing form.
+            if (e.key === "Enter") {
+              e.preventDefault();
+              ara();
+            }
+          }}
           placeholder="Adres veya yer ara"
           aria-label="Adres ara"
           className="h-9 w-full rounded-lg border border-slate-200 bg-white pl-8 pr-16 text-xs text-slate-800 shadow-sm placeholder:text-slate-400 focus:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-200"
@@ -76,7 +83,8 @@ export default function AdresArama({
             </button>
           )}
           <button
-            type="submit"
+            type="button"
+            onClick={ara}
             disabled={yukleniyor}
             className="rounded-md p-1 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
             aria-label="Ara"
@@ -84,7 +92,7 @@ export default function AdresArama({
             {yukleniyor ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
           </button>
         </div>
-      </form>
+      </div>
 
       {(hata || sonuclar) && (
         <div className="mt-1 max-h-64 overflow-y-auto rounded-lg border border-slate-200 bg-white text-xs shadow-lg">

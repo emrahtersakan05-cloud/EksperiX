@@ -1,4 +1,5 @@
 import { parseTrNumber } from "@/lib/emsal/hesaplama";
+import { KATEGORILER, detaySatirlari, kategoriOf, type EmsalKategori } from "./kategoriler";
 import type { EmsalDurum, EmsalHaritaKaydi } from "./types";
 
 // Client-safe helpers for the map page: unit price, filtering, sorting,
@@ -102,6 +103,7 @@ export type EmsalSiralama = "yeni" | "eski" | "birim-artan" | "birim-azalan" | "
 export interface EmsalFiltre {
   arama: string;
   durum: EmsalDurum | "";
+  kategori: EmsalKategori | "";
   emlakTipi: string;
   il: string;
   ilce: string;
@@ -117,6 +119,7 @@ export interface EmsalFiltre {
 export const BOS_FILTRE: EmsalFiltre = {
   arama: "",
   durum: "",
+  kategori: "",
   emlakTipi: "",
   il: "",
   ilce: "",
@@ -133,6 +136,7 @@ export const BOS_FILTRE: EmsalFiltre = {
 // durum controls — shown as a badge on the "Filtreler" toggle.
 export function aktifFiltreSayisi(f: EmsalFiltre): number {
   return [
+    f.kategori,
     f.emlakTipi,
     f.il,
     f.ilce,
@@ -162,6 +166,7 @@ export function filtrele(
   const arama = trLower(f.arama.trim());
   return records.filter((r) => {
     if (f.durum && (r.durum || "satilik") !== f.durum) return false;
+    if (f.kategori && kategoriOf(r) !== f.kategori) return false;
     if (f.emlakTipi && r.emlakTipi !== f.emlakTipi) return false;
     if (f.il && r.il !== f.il) return false;
     if (f.ilce && r.ilce !== f.ilce) return false;
@@ -176,7 +181,7 @@ export function filtrele(
     if (ctx.cevre && mesafeMetre(ctx.cevre.lat, ctx.cevre.lng, r.lat, r.lng) > ctx.cevre.yaricap) return false;
     if (arama) {
       const metin = trLower(
-        [r.emlakTipi, r.il, r.ilce, r.mahalle, r.odaSayisi, r.ekleyenAdSoyad, r.webAdresi].filter(Boolean).join(" "),
+        [r.emlakTipi, r.il, r.ilce, r.mahalle, r.odaSayisi, r.ekleyenAdSoyad, r.webAdresi, r.ilanNo, r.detaylar?.siteAdi].filter(Boolean).join(" "),
       );
       if (!metin.includes(arama)) return false;
     }
@@ -227,6 +232,7 @@ export function csvOlustur(records: EmsalHaritaKaydi[]): string {
     v === null ? "" : v.toLocaleString("tr-TR", { useGrouping: false, maximumFractionDigits: digits });
   const hucre = (v: string) => (/[";\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
   const basliklar = [
+    "Kategori",
     "Durum",
     "Emlak Tipi",
     "İl",
@@ -243,12 +249,16 @@ export function csvOlustur(records: EmsalHaritaKaydi[]): string {
     "İlan Fiyatı",
     "Pazarlıklı Fiyat",
     "Birim Fiyat (₺/m²)",
+    "İlan No",
+    "İlan Tel No",
+    "Diğer Özellikler",
     "İlan Adresi",
     "Ekleyen",
     "Eklenme Tarihi",
   ];
   const satirlar = records.map((r) =>
     [
+      KATEGORILER[kategoriOf(r)].label,
       r.durum === "kiralik" ? "Kiralık" : "Satılık",
       r.emlakTipi,
       r.il,
@@ -265,6 +275,11 @@ export function csvOlustur(records: EmsalHaritaKaydi[]): string {
       r.istenenFiyat,
       r.pazarlikliFiyat,
       sayi(birimFiyat(r)),
+      r.ilanNo ?? "",
+      r.ilanTelNo ?? "",
+      detaySatirlari(r)
+        .map(([k, v]) => `${k}: ${v}`)
+        .join(" | "),
       r.webAdresi ?? "",
       r.ekleyenAdSoyad,
       r.olusturmaTarihi.slice(0, 10),
@@ -308,13 +323,14 @@ export interface MukerrerAday {
   neden: string;
 }
 
-// Possible duplicates of a record being entered: the same listing URL, or a
+// Possible duplicates of a record being entered: the same listing URL or ilan no, or a
 // pin within 30 m with the same durum and area. Advisory only — two flats in
 // one building can legitimately match.
 export function mukerrerAdaylari(
   aday: {
     id?: string;
     webAdresi?: string;
+    ilanNo?: string;
     durum: string;
     lat?: number;
     lng?: number;
@@ -324,12 +340,17 @@ export function mukerrerAdaylari(
   records: EmsalHaritaKaydi[],
 ): MukerrerAday[] {
   const url = normalizeUrl(aday.webAdresi);
+  const ilanNo = aday.ilanNo?.replace(/\s+/g, "") ?? "";
   const adayAlan = parseTrNumber(aday.m2Net) ?? parseTrNumber(aday.m2Brut);
   const sonuc: MukerrerAday[] = [];
   for (const r of records) {
     if (r.id === aday.id) continue;
     if (url && normalizeUrl(r.webAdresi) === url) {
       sonuc.push({ kaydi: r, neden: "Aynı ilan adresi" });
+      continue;
+    }
+    if (ilanNo && r.ilanNo?.replace(/\s+/g, "") === ilanNo) {
+      sonuc.push({ kaydi: r, neden: "Aynı ilan no" });
       continue;
     }
     if (aday.lat === undefined || aday.lng === undefined || adayAlan === null) continue;

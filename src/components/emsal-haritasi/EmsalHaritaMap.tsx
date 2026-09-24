@@ -14,6 +14,7 @@ import {
   type FiyatSeviye,
   type HaritaSinirlari,
 } from "@/lib/emsal-haritasi/analiz";
+import { KATEGORILER, detaySatirlari, kategoriOf } from "@/lib/emsal-haritasi/kategoriler";
 import type { EmsalHaritaKaydi } from "@/lib/emsal-haritasi/types";
 
 const DEFAULT_CENTER: [number, number] = [39, 35];
@@ -115,6 +116,11 @@ function popupContent(kaydi: EmsalHaritaKaydi): string {
     [kaydi.odaSayisi, kaydi.kat && `${kaydi.kat}. kat`, kaydi.binaYasi && `${kaydi.binaYasi} yaş`].filter(Boolean).join(" · "),
   );
   const ekleyen = escapeHtml(kaydi.ekleyenAdSoyad || "");
+  const kategori = escapeHtml(KATEGORILER[kategoriOf(kaydi)].label);
+  const ozellikler = detaySatirlari(kaydi)
+    .slice(0, 6)
+    .map(([k, v]) => `<span style="color:#94a3b8">${escapeHtml(k)}:</span> ${escapeHtml(v)}`)
+    .join("<br/>");
   const fiyat = formatPrice(kaydi.pazarlikliFiyat || kaydi.istenenFiyat);
   const birim = birimFiyat(kaydi);
   const gorselUrl = safeHref(kaydi.gorselUrl);
@@ -127,11 +133,13 @@ function popupContent(kaydi: EmsalHaritaKaydi): string {
     : "";
   return `<div style="min-width:190px;font-family:inherit">
     ${gorsel}
+    <p style="margin:0 0 2px;font-size:10px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:#64748b">${kategori}</p>
     <p style="margin:0 0 2px;font-weight:600;color:#0f172a">${baslik}</p>
     <p style="margin:0 0 6px;font-size:12px;color:#64748b">${konum || "Konum bilgisi yok"}</p>
     <p style="margin:0;font-size:13px;color:#334155">${m2} m² · <strong>${fiyat}</strong></p>
     ${birim !== null ? `<p style="margin:2px 0 0;font-size:12px;color:#334155">${formatTrNumber(birim)} ₺/m²</p>` : ""}
     ${detay ? `<p style="margin:4px 0 0;font-size:11px;color:#64748b">${detay}</p>` : ""}
+    ${ozellikler ? `<p style="margin:6px 0 0;font-size:11px;line-height:1.5;color:#334155">${ozellikler}</p>` : ""}
     ${ekleyen ? `<p style="margin:4px 0 0;font-size:11px;color:#94a3b8">Ekleyen: ${ekleyen}</p>` : ""}
     ${link}
   </div>`;
@@ -180,6 +188,10 @@ export default function EmsalHaritaMap({
   const onBoundsChangeRef = useRef(onBoundsChange);
   const tileLayerRef = useRef<import("leaflet").TileLayer | null>(null);
   const pendingFocusRef = useRef<string | null>(null);
+  // The record whose popup is open, so a marker rebuild (every zoom step while
+  // clustering) can reopen it instead of silently closing it.
+  const acikPopupRef = useRef<string | null>(null);
+  const yenidenKuruluyorRef = useRef(false);
   const [mapReady, setMapReady] = useState(false);
   const [zoom, setZoom] = useState(DEFAULT_ZOOM);
 
@@ -279,7 +291,10 @@ export default function EmsalHaritaMap({
     const layer = markersLayerRef.current;
     if (!mapReady || !L || !layer) return;
 
+    // clearLayers() closes any open popup; don't let that count as the user closing it.
+    yenidenKuruluyorRef.current = true;
     layer.clearLayers();
+    yenidenKuruluyorRef.current = false;
     markerByIdRef.current = new Map();
     const map = mapRef.current!;
 
@@ -351,14 +366,21 @@ export default function EmsalHaritaMap({
         marker.closePopup();
         onPickRef.current?.(Number(e.latlng.lat.toFixed(6)), Number(e.latlng.lng.toFixed(6)));
       });
+      marker.on("popupopen", () => {
+        acikPopupRef.current = kaydi.id;
+      });
+      marker.on("popupclose", () => {
+        if (!yenidenKuruluyorRef.current && acikPopupRef.current === kaydi.id) acikPopupRef.current = null;
+      });
       marker.addTo(layer);
       markerByIdRef.current.set(kaydi.id, marker);
     });
 
-    const bekleyen = pendingFocusRef.current && markerByIdRef.current.get(pendingFocusRef.current);
-    if (bekleyen) {
+    const acilacakId = pendingFocusRef.current ?? acikPopupRef.current;
+    const acilacak = acilacakId ? markerByIdRef.current.get(acilacakId) : undefined;
+    if (acilacak) {
       pendingFocusRef.current = null;
-      bekleyen.openPopup();
+      acilacak.openPopup();
     }
   }, [records, mapReady, pinModu, medyanlar, kumele, zoom]);
 

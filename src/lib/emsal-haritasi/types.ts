@@ -1,9 +1,17 @@
+import type { EmsalKategori } from "./kategoriler";
+
 export type EmsalDurum = "satilik" | "kiralik";
 export type EmsalKaynak = "manuel" | "url-bridge" | "eklenti-bridge" | "talep-senkron";
 
 export interface EmsalHaritaKaydi {
   id: string;
   kaynak: EmsalKaynak;
+  // Absent on records saved before categories existed — read through kategoriOf().
+  kategori?: EmsalKategori;
+  ilanNo?: string;
+  ilanTelNo?: string;
+  // Category-specific fields (see KATEGORILER), keyed by field key.
+  detaylar?: Record<string, string>;
   // Bir talep/tapu'daki emsal slotundan senkronize edildiyse (Faz 2) dolu olur.
   kaynakTalepId?: string;
   kaynakTapuId?: string;

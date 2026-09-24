@@ -33,6 +33,7 @@ export function isNavGroup(item: NavItem): item is NavGroup {
 
 const extraPageTitles: Record<string, string> = {
   "/deger-haritasi/emsal-haritasi": "Emsal Haritası",
+  "/deger-haritasi/emsal-haritasi/yeni": "Yeni Emsal",
   "/deger-haritasi/deger-haritasi": "Değer Haritası",
 };
 
@@ -45,6 +46,7 @@ export function getPageTitle(pathname: string): string {
       return item.label;
     }
   }
+  if (/^\/deger-haritasi\/emsal-haritasi\/[^/]+\/duzenle$/.test(pathname)) return "Emsali Düzenle";
   return extraPageTitles[pathname] ?? "Eksperix";
 }
 

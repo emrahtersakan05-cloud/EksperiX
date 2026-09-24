@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useMemo, useRef, useState } from "react";
 import {
   AlertTriangle,
   Boxes,
@@ -37,6 +39,7 @@ import {
   type EmsalSiralama,
   type HaritaSinirlari,
 } from "@/lib/emsal-haritasi/analiz";
+import { KATEGORILER, KATEGORI_SIRASI, type EmsalKategori } from "@/lib/emsal-haritasi/kategoriler";
 import type { EmsalHaritaKaydi } from "@/lib/emsal-haritasi/types";
 import type { PublicUser } from "@/lib/auth/types";
 import EmsalHaritaMap, {
@@ -46,7 +49,6 @@ import EmsalHaritaMap, {
   type PinModu,
 } from "@/components/emsal-haritasi/EmsalHaritaMap";
 import AdresArama from "@/components/emsal-haritasi/AdresArama";
-import EmsalKayitFormu from "@/components/emsal-haritasi/EmsalKayitFormu";
 import EmsalAnalizSekmeleri from "@/components/emsal-haritasi/EmsalAnalizSekmeleri";
 
 const YARICAP_SECENEKLERI = [250, 500, 1000, 2000, 5000] as const;
@@ -215,15 +217,18 @@ export default function EmsalHaritasiClient({
   records,
   currentUser,
   storeError,
+  odakId,
 }: {
   records: EmsalHaritaKaydi[];
   currentUser: PublicUser | null;
   storeError?: string;
+  // Record to open on arrival (?odak=…), e.g. the one just saved.
+  odakId?: string;
 }) {
-  const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState<EmsalHaritaKaydi | null>(null);
-  const [pickedPoint, setPickedPoint] = useState<{ lat: number; lng: number } | null>(null);
-  const [focusId, setFocusId] = useState<string | null>(null);
+  const router = useRouter();
+  const [focusId, setFocusId] = useState<string | null>(
+    odakId && records.some((r) => r.id === odakId) ? odakId : null,
+  );
 
   const [filtre, setFiltre] = useState<EmsalFiltre>(BOS_FILTRE);
   const [filtrelerAcik, setFiltrelerAcik] = useState(false);
@@ -239,14 +244,6 @@ export default function EmsalHaritasiClient({
   const [katman, setKatman] = useState<HaritaKatmani>("sokak");
   const [kumele, setKumele] = useState(true);
   const [hedef, setHedef] = useState<HaritaHedefi | null>(null);
-
-  // On narrow screens the form stacks below the map, out of view — bring it in.
-  const formPanelRef = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (formOpen && window.matchMedia("(max-width: 1023px)").matches) {
-      formPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }
-  }, [formOpen, editing]);
 
   const patchFiltre = (next: Partial<EmsalFiltre>) => setFiltre((prev) => ({ ...prev, ...next }));
 
@@ -285,39 +282,21 @@ export default function EmsalHaritasiClient({
   const canModify = (kaydi: EmsalHaritaKaydi) =>
     currentUser?.role === "admin" || currentUser?.id === kaydi.ekleyenKullaniciId;
 
-  function openForm() {
-    setEditing(null);
-    setPickedPoint(null);
-    setCevreSeciliyor(false);
-    setFormOpen(true);
-  }
-
   function openEdit(kaydi: EmsalHaritaKaydi) {
-    setEditing(kaydi);
-    setPickedPoint({ lat: kaydi.lat, lng: kaydi.lng });
-    setCevreSeciliyor(false);
-    setFormOpen(true);
+    router.push(`/deger-haritasi/emsal-haritasi/${encodeURIComponent(kaydi.id)}/duzenle`);
   }
 
-  const closeForm = useCallback(() => {
-    setFormOpen(false);
-    setEditing(null);
-    setPickedPoint(null);
-  }, []);
-
+  // The map only picks points for the çevre analizi; records are placed on their own page.
   function handlePick(lat: number, lng: number) {
-    if (formOpen) {
-      setPickedPoint({ lat, lng });
-    } else if (cevreSeciliyor) {
-      setCevre({ lat, lng, yaricap });
-      setCevreSeciliyor(false);
-      setSiralama("yakin");
-    }
+    if (!cevreSeciliyor) return;
+    setCevre({ lat, lng, yaricap });
+    setCevreSeciliyor(false);
+    setSiralama("yakin");
   }
 
   function adresSecildi({ lat, lng }: { lat: number; lng: number }) {
     setHedef((prev) => ({ lat, lng, zoom: 17, key: (prev?.key ?? 0) + 1 }));
-    if (formOpen || cevreSeciliyor) handlePick(Number(lat.toFixed(6)), Number(lng.toFixed(6)));
+    if (cevreSeciliyor) handlePick(Number(lat.toFixed(6)), Number(lng.toFixed(6)));
   }
 
   function changeYaricap(value: number) {
@@ -371,14 +350,13 @@ export default function EmsalHaritasiClient({
                 Excel
               </button>
             </div>
-            <button
-              type="button"
-              onClick={openForm}
+            <Link
+              href="/deger-haritasi/emsal-haritasi/yeni"
               className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-slate-900 px-3 py-2 text-sm font-semibold text-lime-300 hover:bg-slate-800"
             >
               <Plus className="h-4 w-4" />
               Yeni Emsal Ekle
-            </button>
+            </Link>
 
             <div className="relative">
               <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-400" />
@@ -433,6 +411,21 @@ export default function EmsalHaritasiClient({
             {filtrelerAcik && (
               <div className="space-y-2.5 rounded-xl border border-slate-100 bg-slate-50/60 p-3">
                 <div className="grid grid-cols-2 gap-2">
+                  <label className="col-span-2 block">
+                    <span className="mb-0.5 block text-[10px] font-medium text-slate-500">Kategori</span>
+                    <select
+                      value={filtre.kategori}
+                      onChange={(e) => patchFiltre({ kategori: e.target.value as EmsalKategori | "" })}
+                      className={smallInputClass}
+                    >
+                      <option value="">Tümü</option>
+                      {KATEGORI_SIRASI.map((k) => (
+                        <option key={k} value={k}>
+                          {KATEGORILER[k].label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                   <label className="block">
                     <span className="mb-0.5 block text-[10px] font-medium text-slate-500">Emlak Tipi</span>
                     <select
@@ -605,8 +598,7 @@ export default function EmsalHaritasiClient({
           <EmsalHaritaMap
             records={haritaKayitlari}
             pinModu={pinModu}
-            picking={formOpen || cevreSeciliyor}
-            pickedPoint={pickedPoint}
+            picking={cevreSeciliyor}
             onPick={handlePick}
             focusId={focusId}
             cevre={cevre}
@@ -673,7 +665,6 @@ export default function EmsalHaritasiClient({
             <button
               type="button"
               onClick={() => (cevre || cevreSeciliyor ? clearCevre() : setCevreSeciliyor(true))}
-              disabled={formOpen}
               className={`inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium shadow-sm disabled:cursor-not-allowed disabled:opacity-50 ${
                 cevre || cevreSeciliyor
                   ? "border-violet-600 bg-violet-600 text-white"
@@ -697,13 +688,7 @@ export default function EmsalHaritasiClient({
           <div className="absolute left-3 top-3 z-[600] w-[min(18rem,calc(100%-13rem))]">
             <AdresArama
               onSelect={adresSecildi}
-              ipucu={
-                formOpen
-                  ? "Seçtiğiniz sonuç emsalin konumu olarak işaretlenir."
-                  : cevreSeciliyor
-                    ? "Seçtiğiniz sonuç çevre analizinin merkezi olur."
-                    : undefined
-              }
+              ipucu={cevreSeciliyor ? "Seçtiğiniz sonuç çevre analizinin merkezi olur." : undefined}
             />
           </div>
 
@@ -787,21 +772,6 @@ export default function EmsalHaritasiClient({
           )}
         </div>
 
-        {formOpen && (
-          <div
-            ref={formPanelRef}
-            className="order-1 max-h-[85vh] overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-lg lg:order-none lg:max-h-none lg:w-96 lg:shrink-0"
-          >
-            <EmsalKayitFormu
-            records={records}
-              key={editing?.id ?? "yeni"}
-              kaydi={editing ?? undefined}
-              pickedPoint={pickedPoint}
-              onSuccess={closeForm}
-              onCancel={closeForm}
-            />
-          </div>
-        )}
       </div>
 
       <EmsalAnalizSekmeleri

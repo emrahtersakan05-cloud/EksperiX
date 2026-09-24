@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/dal";
 import type { PublicUser } from "@/lib/auth/types";
 import {
@@ -11,17 +12,18 @@ import {
   updateEmsalKaydi,
   type EmsalKaydiGuncelleme,
 } from "./store";
+import { KATEGORILER, kategoriMi } from "./kategoriler";
 import type { EmsalDurum, EmsalHaritaKaydi, EmsalKaynak } from "./types";
 
 const PAGE_PATH = "/deger-haritasi/emsal-haritasi";
 
 export interface EmsalFormState {
   error?: string;
-  success?: boolean;
 }
 
+// Every free-text value is capped so a crafted request can't bloat the shared store.
 function str(formData: FormData, key: string): string {
-  return String(formData.get(key) ?? "").trim();
+  return String(formData.get(key) ?? "").trim().slice(0, 500);
 }
 
 // Ownership is checked against the stored record — never against an id the
@@ -39,22 +41,42 @@ function parseFields(formData: FormData): { error: string } | { fields: EmsalKay
   const lat = Number(latRaw.replace(",", "."));
   const lng = Number(lngRaw.replace(",", "."));
   if (!latRaw || !lngRaw || !Number.isFinite(lat) || !Number.isFinite(lng)) {
-    return { error: "Haritada bir konum seçmelisiniz." };
+    return { error: "Konum seçin: haritaya tıklayın ya da enlem/boylam girin." };
   }
   if (Math.abs(lat) > 90 || Math.abs(lng) > 180) {
     return { error: "Geçersiz koordinat." };
   }
 
+  const kategoriRaw = str(formData, "kategori");
+  if (!kategoriMi(kategoriRaw)) return { error: "Geçerli bir kategori seçin." };
+  const kategori = kategoriRaw;
+  const tanim = KATEGORILER[kategori];
+
   const il = str(formData, "il");
   const emlakTipi = str(formData, "emlakTipi");
   if (!il || !emlakTipi) {
-    return { error: "İl ve emlak tipi zorunludur." };
+    return { error: `İl ve ${tanim.tipEtiketi.toLocaleLowerCase("tr-TR")} zorunludur.` };
   }
+
+  // Only the selected category's own fields are kept; anything else posted is ignored.
+  const detaylar: Record<string, string> = {};
+  for (const alan of tanim.alanlar) {
+    if (alan.ust) continue;
+    const value = str(formData, `d_${alan.key}`).slice(0, 200);
+    if (value) detaylar[alan.key] = value;
+  }
+  const ustAlanlar = new Set(tanim.alanlar.map((a) => a.ust).filter(Boolean));
+  const ust = (key: "m2Brut" | "m2Net" | "odaSayisi" | "binaYasi" | "kat") =>
+    ustAlanlar.has(key) ? str(formData, key) : "";
 
   const durum: EmsalDurum = str(formData, "durum") === "kiralik" ? "kiralik" : "satilik";
 
   return {
     fields: {
+      kategori,
+      ilanNo: str(formData, "ilanNo") || undefined,
+      ilanTelNo: str(formData, "ilanTelNo") || undefined,
+      detaylar,
       webAdresi: str(formData, "webAdresi") || undefined,
       gorselUrl: str(formData, "gorselUrl") || undefined,
       durum,
@@ -64,11 +86,11 @@ function parseFields(formData: FormData): { error: string } | { fields: EmsalKay
       mahalle: str(formData, "mahalle"),
       lat,
       lng,
-      m2Brut: str(formData, "m2Brut"),
-      m2Net: str(formData, "m2Net"),
-      odaSayisi: str(formData, "odaSayisi"),
-      binaYasi: str(formData, "binaYasi"),
-      kat: str(formData, "kat"),
+      m2Brut: ust("m2Brut"),
+      m2Net: ust("m2Net"),
+      odaSayisi: ust("odaSayisi"),
+      binaYasi: ust("binaYasi"),
+      kat: ust("kat"),
       ilanTarihi: str(formData, "ilanTarihi"),
       istenenFiyat: str(formData, "istenenFiyat"),
       pazarlikliFiyat: str(formData, "pazarlikliFiyat"),
@@ -88,19 +110,22 @@ export async function createEmsalKaydiAction(
 
   const kaynak: EmsalKaynak = str(formData, "kaynak") === "url-bridge" ? "url-bridge" : "manuel";
 
+  let id: string;
   try {
-    await createEmsalKaydi({
+    const record = await createEmsalKaydi({
       ...parsed.fields,
       kaynak,
       ekleyenKullaniciId: user.id,
       ekleyenAdSoyad: user.fullName,
     });
+    id = record.id;
   } catch (err) {
     return { error: `Kayıt eklenemedi. Teşhis: ${teshisEt(err)}.` };
   }
 
   revalidatePath(PAGE_PATH);
-  return { success: true };
+  // redirect() throws to navigate, so it must stay outside the try/catch.
+  redirect(`${PAGE_PATH}?odak=${encodeURIComponent(id)}`);
 }
 
 export async function updateEmsalKaydiAction(
@@ -126,7 +151,7 @@ export async function updateEmsalKaydiAction(
   }
 
   revalidatePath(PAGE_PATH);
-  return { success: true };
+  redirect(`${PAGE_PATH}?odak=${encodeURIComponent(id)}`);
 }
 
 export async function deleteEmsalKaydiAction(formData: FormData): Promise<void> {
