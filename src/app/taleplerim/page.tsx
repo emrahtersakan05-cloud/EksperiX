@@ -112,6 +112,16 @@ export default function TaleplerimPage() {
         talep.degerlemeFirmasi,
         talep.degerlemeKurumBanka,
         talep.tasinmazNiteligi,
+        ...talep.tapular.flatMap((t) => [
+          t.talepDetayi.atananEksper,
+          t.tapuKaydi.il,
+          t.tapuKaydi.ilce,
+          t.tapuKaydi.mahalleKoyAdi,
+          t.adresKonum.il,
+          t.adresKonum.ilce,
+          t.adresKonum.mahalle,
+          t.tapuKaydi.ada && `${t.tapuKaydi.ada}/${t.tapuKaydi.parsel}`,
+        ]),
       ].some((field) => normalizeLabel(field ?? "").includes(q)),
     );
   }, [rows, query]);
@@ -256,7 +266,7 @@ export default function TaleplerimPage() {
                   setQuery(e.target.value);
                   setPage(1);
                 }}
-                placeholder="Talep no, müşteri, firma, banka veya nitelik ara..."
+                placeholder="Talep no, müşteri, banka, ada/parsel, il, eksper ara..."
                 aria-label="Talep ara"
                 className="w-full rounded-xl border-0 bg-slate-50 py-2.5 pl-10 pr-9 text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-lime-200 [&::-webkit-search-cancel-button]:hidden"
               />

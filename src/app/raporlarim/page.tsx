@@ -15,16 +15,19 @@ import {
   Loader2,
   Search,
   Send,
+  Trash2,
   X,
   type LucideIcon,
 } from "lucide-react";
 import Card from "@/components/card";
+import { EkipHucresi, KimlikHucresi, TasinmazHucresi, tarihYaz } from "@/components/talep/liste/ListeHucreleri";
+import SilmeOnayi from "@/components/talep/liste/SilmeOnayi";
 import { formatTrNumber, tamSayi } from "@/lib/emsal/hesaplama";
 import { getTapuCompletion } from "@/lib/talep/completion";
 import { oneCikanSonuc } from "@/lib/talep/deger-hesaplama";
 import { exportReportAsDocx, exportReportAsPdf } from "@/lib/talep/report-export";
 import { generateValuationReport } from "@/lib/talep/report";
-import { listTalepler } from "@/lib/talep/service";
+import { deleteTalep, listTalepler, removeTapu } from "@/lib/talep/service";
 import type { Talep, Tapu } from "@/lib/talep/types";
 import { normalizeLabel } from "@/lib/text/normalize-tr";
 
@@ -107,6 +110,94 @@ function satirlar(talepler: Talep[]): RaporSatiri[] {
   );
 }
 
+function RaporAltBaslik({ s }: { s: RaporSatiri }) {
+  const r = s.tapu.raporSonucu;
+  return (
+    <>
+      {s.tapu.ad}
+      {r.raporNo && (
+        <>
+          {" · "}
+          <span className="font-medium text-slate-600">Rapor {r.raporNo}</span>
+          {r.versiyon && ` v${r.versiyon}`}
+        </>
+      )}
+    </>
+  );
+}
+
+function RaporDurumu({ s }: { s: RaporSatiri }) {
+  const teslim = s.tapu.raporSonucu.teslimTarihi;
+  return (
+    <div className="space-y-1.5">
+      <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${DURUM_STILI[s.durum] ?? DURUM_STILI.Belirtilmedi}`}>
+        {s.durum}
+      </span>
+      <p className="text-sm tabular-nums">
+        {s.deger === null ? (
+          <span className="text-xs text-slate-400">{s.degerNotu}</span>
+        ) : (
+          <span className="font-semibold text-slate-900">{formatTrNumber(s.deger)} ₺</span>
+        )}
+      </p>
+      <div className="flex items-center gap-2">
+        <span className="h-1 w-16 overflow-hidden rounded-full bg-slate-100" aria-hidden="true">
+          <span className="block h-full rounded-full bg-lime-400" style={{ width: `${s.pct}%` }} />
+        </span>
+        <span className="text-[11px] tabular-nums text-slate-400">%{s.pct} dolu</span>
+      </div>
+      {teslim && <p className="text-[11px] text-emerald-700">Teslim: {tarihYaz(teslim)}</p>}
+    </div>
+  );
+}
+
+function RaporIslemleri({
+  s,
+  indiriliyor,
+  onIndir,
+  onSil,
+}: {
+  s: RaporSatiri;
+  indiriliyor: string | null;
+  onIndir: (s: RaporSatiri, tur: "docx" | "pdf") => void;
+  onSil: () => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-center justify-end gap-1">
+      {(["docx", "pdf"] as const).map((tur) => (
+        <button
+          key={tur}
+          type="button"
+          onClick={() => onIndir(s, tur)}
+          disabled={indiriliyor !== null}
+          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
+          title={tur === "docx" ? "Word olarak indir" : "PDF olarak indir"}
+        >
+          {indiriliyor === `${s.tapu.id}:${tur}` ? <Loader2 className="h-3 w-3 animate-spin" /> : <FileDown className="h-3 w-3" />}
+          {tur === "docx" ? "Word" : "PDF"}
+        </button>
+      ))}
+      <Link
+        href={`/taleplerim/${encodeURIComponent(s.talep.id)}?bolum=raporSonucu&tapu=${encodeURIComponent(s.tapu.id)}`}
+        className="inline-flex items-center gap-0.5 rounded-lg px-2 py-1 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+        title="Rapor Sonucu bölümünü aç"
+      >
+        Aç
+        <ArrowRight className="h-3 w-3" />
+      </Link>
+      <button
+        type="button"
+        onClick={onSil}
+        className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-rose-50 hover:text-rose-600"
+        title="Raporu sil"
+        aria-label={`${s.talep.talepNo} ${s.tapu.ad} raporunu sil`}
+      >
+        <Trash2 className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
+
 export default function RaporlarimPage() {
   const [talepler, setTalepler] = useState<Talep[] | null>(null);
   const [durum, setDurum] = useState<DurumFiltresi>("Tümü");
@@ -114,10 +205,13 @@ export default function RaporlarimPage() {
   const [siralama, setSiralama] = useState<Siralama>("yeni");
   const [indiriliyor, setIndiriliyor] = useState<string | null>(null);
   const [hata, setHata] = useState<string | null>(null);
+  const [silinecek, setSilinecek] = useState<RaporSatiri | null>(null);
 
-  useEffect(() => {
+  function yenile() {
     listTalepler().then(setTalepler);
-  }, []);
+  }
+
+  useEffect(yenile, []);
 
   const tumu = useMemo(() => (talepler ? satirlar(talepler) : []), [talepler]);
   const sayilar = useMemo(() => {
@@ -133,7 +227,19 @@ export default function RaporlarimPage() {
         (s) =>
           !q ||
           normalizeLabel(
-            [s.talep.talepNo, s.talep.musteriUnvani, s.tapu.ad, s.tapu.raporSonucu.raporNo, s.talep.degerlemeKurumBanka].join(" "),
+            [
+              s.talep.talepNo,
+              s.talep.musteriUnvani,
+              s.tapu.ad,
+              s.tapu.raporSonucu.raporNo,
+              s.talep.degerlemeKurumBanka,
+              s.talep.degerlemeFirmasi,
+              s.tapu.talepDetayi.atananEksper,
+              s.tapu.tapuKaydi.il,
+              s.tapu.tapuKaydi.ilce,
+              s.tapu.tapuKaydi.mahalleKoyAdi,
+              s.tapu.tapuKaydi.ada && `${s.tapu.tapuKaydi.ada}/${s.tapu.tapuKaydi.parsel}`,
+            ].join(" "),
           ).includes(q),
       )
       .sort(sirala(siralama));
@@ -242,7 +348,7 @@ export default function RaporlarimPage() {
             type="search"
             value={arama}
             onChange={(e) => setArama(e.target.value)}
-            placeholder="Talep no, müşteri, rapor no, kurum…"
+            placeholder="Talep no, müşteri, rapor no, ada/parsel, il, eksper…"
             aria-label="Rapor ara"
             className="w-full rounded-xl border-0 bg-slate-50 py-2.5 pl-10 pr-9 text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-lime-200 [&::-webkit-search-cancel-button]:hidden"
           />
@@ -315,90 +421,93 @@ export default function RaporlarimPage() {
             </p>
           </div>
         ) : (
-          <div className="-mx-4 overflow-x-auto">
-            <table className="w-full min-w-[860px] text-left text-sm">
-              <thead className="text-[11px] uppercase tracking-wider text-slate-400">
-                <tr>
-                  <th className="py-2 pl-4 pr-3 font-medium">Talep / Tapu</th>
-                  <th className="py-2 pr-3 font-medium">Müşteri</th>
-                  <th className="py-2 pr-3 font-medium">Rapor No</th>
-                  <th className="py-2 pr-3 font-medium">Durum</th>
-                  <th className="py-2 pr-3 text-right font-medium">Değer</th>
-                  <th className="py-2 pr-3 font-medium">Teslim</th>
-                  <th className="py-2 pr-4 text-right font-medium">İşlem</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {gorunen.map((s) => (
-                  <tr key={s.tapu.id} className="hover:bg-slate-50/70">
-                    <td className="py-2.5 pl-4 pr-3">
-                      <p className="font-medium text-slate-900">{s.talep.talepNo}</p>
-                      <p className="text-xs text-slate-400">
-                        {s.tapu.ad} · %{s.pct} dolu
-                      </p>
-                    </td>
-                    <td className="max-w-[200px] truncate py-2.5 pr-3 text-slate-600">{s.talep.musteriUnvani}</td>
-                    <td className="py-2.5 pr-3 tabular-nums text-slate-600">
-                      {s.tapu.raporSonucu.raporNo || "—"}
-                      {s.tapu.raporSonucu.versiyon && s.tapu.raporSonucu.raporNo ? (
-                        <span className="text-xs text-slate-400"> · v{s.tapu.raporSonucu.versiyon}</span>
-                      ) : null}
-                    </td>
-                    <td className="py-2.5 pr-3">
-                      <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${DURUM_STILI[s.durum] ?? DURUM_STILI.Belirtilmedi}`}>
-                        {s.durum}
-                      </span>
-                    </td>
-                    <td className="py-2.5 pr-3 text-right tabular-nums">
-                      {s.deger === null ? (
-                        <span className="text-xs text-slate-400">{s.degerNotu}</span>
-                      ) : (
-                        <span className="font-semibold text-slate-900">{formatTrNumber(s.deger)} ₺</span>
-                      )}
-                    </td>
-                    <td className="py-2.5 pr-3 text-xs tabular-nums text-slate-500">
-                      {s.tapu.raporSonucu.teslimTarihi
-                        ? new Date(s.tapu.raporSonucu.teslimTarihi).toLocaleDateString("tr-TR")
-                        : s.tapu.talepDetayi.hedefTeslimTarihi
-                          ? `Hedef ${new Date(s.tapu.talepDetayi.hedefTeslimTarihi).toLocaleDateString("tr-TR")}`
-                          : "—"}
-                    </td>
-                    <td className="py-2.5 pr-4">
-                      <div className="flex items-center justify-end gap-1">
-                        {(["docx", "pdf"] as const).map((tur) => (
-                          <button
-                            key={tur}
-                            type="button"
-                            onClick={() => indir(s, tur)}
-                            disabled={indiriliyor !== null}
-                            className="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40"
-                            title={tur === "docx" ? "Word olarak indir" : "PDF olarak indir"}
-                          >
-                            {indiriliyor === `${s.tapu.id}:${tur}` ? (
-                              <Loader2 className="h-3 w-3 animate-spin" />
-                            ) : (
-                              <FileDown className="h-3 w-3" />
-                            )}
-                            {tur === "docx" ? "Word" : "PDF"}
-                          </button>
-                        ))}
-                        <Link
-                          href={`/taleplerim/${encodeURIComponent(s.talep.id)}?bolum=raporSonucu&tapu=${encodeURIComponent(s.tapu.id)}`}
-                          className="inline-flex items-center gap-0.5 rounded-lg px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-900"
-                          title="Rapor Sonucu bölümünü aç"
-                        >
-                          Aç
-                          <ArrowRight className="h-3 w-3" />
-                        </Link>
-                      </div>
-                    </td>
+          <>
+            <div className="-mx-4 hidden overflow-x-auto md:block">
+              <table className="w-full min-w-[920px] table-fixed text-left text-sm">
+                <colgroup>
+                  <col className="w-[25%]" />
+                  <col className="w-[32%]" />
+                  <col className="w-[16%]" />
+                  <col className="w-[15%]" />
+                  <col className="w-[12%]" />
+                </colgroup>
+                <thead>
+                  <tr className="border-b border-slate-100 text-[11px] uppercase tracking-wider text-slate-400">
+                    <th className="py-2.5 pl-4 pr-4 font-semibold">Talep / Kurum / Tarihler</th>
+                    <th className="py-2.5 pr-4 font-semibold">Müşteri / Taşınmaz</th>
+                    <th className="py-2.5 pr-4 font-semibold">Firma / Eksper</th>
+                    <th className="py-2.5 pr-4 font-semibold">Durum</th>
+                    <th className="py-2.5 pr-4 text-right font-semibold">İşlemler</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {gorunen.map((s, i) => (
+                    <tr key={s.tapu.id} className="group align-top transition-colors hover:bg-lime-50/40">
+                      <td className="relative py-4 pl-4 pr-4">
+                        <span className="absolute inset-y-3 left-0 w-0.5 rounded-full bg-lime-400 opacity-0 transition-opacity group-hover:opacity-100" />
+                        <KimlikHucresi talep={s.talep} tapular={[s.tapu]} altBaslik={<RaporAltBaslik s={s} />} />
+                      </td>
+                      <td className="py-4 pr-4">
+                        <TasinmazHucresi talep={s.talep} tapular={[s.tapu]} renkSirasi={i} />
+                      </td>
+                      <td className="py-4 pr-4">
+                        <EkipHucresi talep={s.talep} tapular={[s.tapu]} />
+                      </td>
+                      <td className="py-4 pr-4">
+                        <RaporDurumu s={s} />
+                      </td>
+                      <td className="py-4 pr-4">
+                        <RaporIslemleri s={s} indiriliyor={indiriliyor} onIndir={indir} onSil={() => setSilinecek(s)} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <ul className="space-y-3 md:hidden">
+              {gorunen.map((s, i) => (
+                <li key={s.tapu.id} className="space-y-3 rounded-2xl border border-slate-100 bg-white p-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <KimlikHucresi talep={s.talep} tapular={[s.tapu]} altBaslik={<RaporAltBaslik s={s} />} />
+                    <RaporDurumu s={s} />
+                  </div>
+                  <TasinmazHucresi talep={s.talep} tapular={[s.tapu]} renkSirasi={i} />
+                  <div className="flex flex-wrap items-end justify-between gap-3 border-t border-slate-100 pt-3">
+                    <EkipHucresi talep={s.talep} tapular={[s.tapu]} />
+                    <RaporIslemleri s={s} indiriliyor={indiriliyor} onIndir={indir} onSil={() => setSilinecek(s)} />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </>
         )}
       </Card>
+
+      {silinecek && (
+        <SilmeOnayi
+          baslik={silinecek.talep.tapular.length > 1 ? "Raporu (tapuyu) sil" : "Raporu ve talebi sil"}
+          onayMetni={silinecek.talep.talepNo}
+          ozet={[
+            { etiket: "Talep No", deger: silinecek.talep.talepNo },
+            { etiket: "Tapu", deger: silinecek.tapu.ad },
+            { etiket: "Rapor No", deger: silinecek.tapu.raporSonucu.raporNo },
+            { etiket: "Müşteri", deger: silinecek.talep.musteriUnvani },
+          ]}
+          uyari={
+            silinecek.talep.tapular.length > 1
+              ? `${silinecek.tapu.ad} ve raporu, bu tapuya ait tüm bilgilerle birlikte talepten silinir; talebin diğer ${silinecek.talep.tapular.length - 1} tapusu kalır.`
+              : "Talebin tek tapusu bu olduğu için talep tümüyle (tapu, emsaller, değer hesaplamaları ve rapor) silinir. Emin değilseniz önce Taleplerim sayfasından yedek alın."
+          }
+          onVazgec={() => setSilinecek(null)}
+          onSil={async () => {
+            if (silinecek.talep.tapular.length > 1) await removeTapu(silinecek.talep.id, silinecek.tapu.id);
+            else await deleteTalep(silinecek.talep.id);
+            setSilinecek(null);
+            yenile();
+          }}
+        />
+      )}
     </div>
   );
 }
