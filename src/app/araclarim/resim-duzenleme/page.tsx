@@ -53,7 +53,7 @@ export default function ResimDuzenlemePage() {
 
       {/* Both stay mounted so switching tabs doesn't lose the collage. */}
       <div hidden={sekme !== "kolaj"}>
-        <KolajOlusturucu />
+        <KolajOlusturucu aktif={sekme === "kolaj"} />
       </div>
       <div hidden={sekme !== "tek"}>
         <TekResimDuzenleyici aktif={sekme === "tek"} />

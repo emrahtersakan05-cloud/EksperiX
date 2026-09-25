@@ -1,27 +1,39 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   ArrowDown,
   ArrowUp,
   CheckCircle2,
+  Cloud,
   Copy,
+  Crosshair,
   Download,
+  FilePlus2,
   FileArchive,
   FileText,
   GripVertical,
   ImagePlus,
   Images,
+  LayoutGrid,
   Loader2,
   Plus,
   RefreshCw,
+  RotateCcw,
+  RotateCw,
   Tag,
   Trash2,
+  Undo2,
   X,
+  ZoomIn,
 } from "lucide-react";
 import {
   A4,
   DUZENLER,
+  VARSAYILAN_AYARLAR,
+  YAZI_MM,
+  altBilgiMetni,
+  bantlar,
   dosyaAdi,
   duzenBul,
   hucreSayisi,
@@ -29,16 +41,20 @@ import {
   sayfaAdi,
   sayfaJpeg,
   yeniId,
+  yerlesim,
+  type Donme,
   type DuzenKey,
+  type KolajAyarlari,
   type KolajResmi,
   type KolajSayfasi,
-  type Sigdirma,
 } from "@/lib/kolaj/duzen";
+import { projeKaydet, projeSil, projeYukle } from "@/lib/kolaj/depo";
 import { boyutYaz } from "@/lib/dosyalar/depo";
 
 const AD_ONERILERI = ["Fotoğraf", "Dış Cephe", "İç Mekân", "Çevre", "Kroki", "Tapu Belgeleri"];
 const SAYFA_TURU = "application/x-kolaj-sayfa";
 const HUCRE_TURU = "application/x-kolaj-hucre";
+const GECMIS_SINIRI = 40;
 
 function yeniSayfa(duzen: DuzenKey): KolajSayfasi {
   return { id: yeniId(), duzen, resimler: Array(hucreSayisi(duzen)).fill(null) };
@@ -48,7 +64,19 @@ function resimOlustur(dosya: File): Promise<KolajResmi> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(dosya);
     const img = new Image();
-    img.onload = () => resolve({ id: yeniId(), url, ad: dosya.name, en: img.naturalWidth, boy: img.naturalHeight });
+    img.onload = () =>
+      resolve({
+        id: yeniId(),
+        url,
+        ad: dosya.name,
+        en: img.naturalWidth,
+        boy: img.naturalHeight,
+        donme: 0,
+        odakX: 0.5,
+        odakY: 0.5,
+        yakinlik: 1,
+        aciklama: "",
+      });
     img.onerror = () => {
       URL.revokeObjectURL(url);
       reject(new Error(`${dosya.name} açılamadı`));
@@ -74,6 +102,10 @@ function tasanSayisi(s: KolajSayfasi): number {
   return s.resimler.slice(hucreSayisi(s.duzen)).filter(Boolean).length;
 }
 
+function yuzde(deger: number, toplam: number): string {
+  return `${(deger / toplam) * 100}%`;
+}
+
 // Mini grid icon for a layout.
 function DuzenSimgesi({ duzen, className = "" }: { duzen: DuzenKey; className?: string }) {
   const d = duzenBul(duzen);
@@ -89,47 +121,103 @@ function DuzenSimgesi({ duzen, className = "" }: { duzen: DuzenKey; className?: 
   );
 }
 
+// The photo inside its slot, placed with the same maths as the export.
+function ResimKatmani({ r, kutuEn, kutuBoy, ayar }: { r: KolajResmi; kutuEn: number; kutuBoy: number; ayar: KolajAyarlari }) {
+  const y = yerlesim(r, kutuEn, kutuBoy, ayar.sigdirma);
+  return (
+    <div
+      className="pointer-events-none absolute"
+      style={{ left: yuzde(y.x, kutuEn), top: yuzde(y.y, kutuBoy), width: yuzde(y.en, kutuEn), height: yuzde(y.boy, kutuBoy) }}
+    >
+      {/* eslint-disable-next-line @next/next/no-img-element -- local blob URL */}
+      <img
+        src={r.url}
+        alt={r.aciklama || r.ad}
+        draggable={false}
+        className="absolute left-1/2 top-1/2 max-w-none select-none"
+        style={{
+          width: yuzde(y.hamEn, y.en),
+          height: yuzde(y.hamBoy, y.boy),
+          transform: `translate(-50%, -50%) rotate(${r.donme}deg)`,
+        }}
+      />
+    </div>
+  );
+}
+
 // An A4 page drawn from the same millimetre geometry as the export.
 function SayfaGorunumu({
   sayfa,
-  sigdirma,
+  ayar,
+  sira,
+  toplam,
   kucuk = false,
+  seciliHucre = null,
+  onHucreSec,
   onBosTikla,
-  onDoluDegistir,
-  onTemizle,
   onDosyaBirak,
   onHucreTasi,
+  onKaydirBasla,
+  onKaydir,
 }: {
   sayfa: KolajSayfasi;
-  sigdirma: Sigdirma;
+  ayar: KolajAyarlari;
+  sira: number;
+  toplam: number;
   kucuk?: boolean;
+  seciliHucre?: number | null;
+  onHucreSec?: (i: number | null) => void;
   onBosTikla?: (i: number) => void;
-  onDoluDegistir?: (i: number) => void;
-  onTemizle?: (i: number) => void;
   onDosyaBirak?: (i: number, dosyalar: File[]) => void;
   onHucreTasi?: (kaynak: number, hedef: number) => void;
+  onKaydirBasla?: (i: number) => void;
+  onKaydir?: (i: number, odakX: number, odakY: number) => void;
 }) {
   const [uzerinde, setUzerinde] = useState<number | null>(null);
+  const kaydirma = useRef<{ i: number; x: number; y: number; odakX: number; odakY: number; olcek: number } | null>(null);
+  // A pan ends with a click event; it must not toggle the selection.
+  const kaydirildi = useRef(false);
+  const b = bantlar(ayar);
+  const kutular = hucreler(sayfa.duzen, ayar);
+
   return (
-    <div className="relative aspect-[210/297] w-full overflow-hidden bg-white">
-      {hucreler(sayfa.duzen).map((k, i) => {
+    <div className="relative aspect-[210/297] w-full overflow-hidden bg-white [container-type:inline-size]">
+      {!kucuk && b.ust > 0 && (
+        <p
+          className="absolute inset-x-[4%] truncate text-center font-semibold text-slate-900"
+          style={{ top: yuzde(b.baslikY, A4.boy), transform: "translateY(-50%)", fontSize: `${(YAZI_MM.baslik / A4.en) * 100}cqw` }}
+        >
+          {ayar.baslik}
+        </p>
+      )}
+      {!kucuk && b.alt > 0 && (
+        <p
+          className="absolute inset-x-0 text-center text-slate-500"
+          style={{ top: yuzde(b.altBilgiY, A4.boy), transform: "translateY(-50%)", fontSize: `${(YAZI_MM.altBilgi / A4.en) * 100}cqw` }}
+        >
+          {altBilgiMetni(sira, toplam)}
+        </p>
+      )}
+      {kutular.map((k, i) => {
         const r = sayfa.resimler[i];
-        const stil = {
-          left: `${(k.x / A4.en) * 100}%`,
-          top: `${(k.y / A4.boy) * 100}%`,
-          width: `${(k.en / A4.en) * 100}%`,
-          height: `${(k.boy / A4.boy) * 100}%`,
-        };
+        const stil = { left: yuzde(k.x, A4.en), top: yuzde(k.y, A4.boy), width: yuzde(k.en, A4.en), height: yuzde(k.boy, A4.boy) };
+        const aciklama = ayar.aciklamaGoster && r?.aciklama.trim() ? r.aciklama.trim() : "";
+        const aciklamaBandi = aciklama && (
+          <span
+            className="pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-center truncate bg-slate-900/70 px-[3%] font-medium text-white"
+            style={{ height: `${((YAZI_MM.aciklama * 1.9) / k.boy) * 100}%`, fontSize: `${(YAZI_MM.aciklama / A4.en) * 100}cqw` }}
+          >
+            {aciklama}
+          </span>
+        );
         if (kucuk) {
           return (
             <div key={i} className="absolute overflow-hidden bg-slate-100" style={stil}>
-              {r && (
-                // eslint-disable-next-line @next/next/no-img-element -- local blob URL
-                <img src={r.url} alt="" className={`h-full w-full ${sigdirma === "doldur" ? "object-cover" : "object-contain"}`} />
-              )}
+              {r && <ResimKatmani r={r} kutuEn={k.en} kutuBoy={k.boy} ayar={ayar} />}
             </div>
           );
         }
+        const secili = seciliHucre === i && !!r;
         return (
           <div
             key={i}
@@ -147,42 +235,73 @@ function SayfaGorunumu({
               const kaynak = e.dataTransfer.getData(HUCRE_TURU);
               if (kaynak !== "") onHucreTasi?.(Number(kaynak), i);
             }}
-            className={`group absolute overflow-hidden transition-shadow ${
-              uzerinde === i ? "ring-4 ring-lime-400 ring-offset-1" : ""
-            } ${r ? "bg-slate-100" : ""}`}
+            className={`group absolute overflow-hidden ${ayar.sigdirma === "sigdir" && r ? "bg-slate-100" : ""} ${
+              uzerinde === i ? "ring-4 ring-lime-400" : secili ? "ring-[3px] ring-lime-400" : ""
+            }`}
           >
             {r ? (
-              <>
-                {/* eslint-disable-next-line @next/next/no-img-element -- local blob URL */}
-                <img
-                  src={r.url}
-                  alt={r.ad}
-                  draggable
-                  onDragStart={(e) => {
-                    e.dataTransfer.setData(HUCRE_TURU, String(i));
-                    e.dataTransfer.effectAllowed = "move";
-                  }}
-                  className={`h-full w-full cursor-grab ${sigdirma === "doldur" ? "object-cover" : "object-contain"}`}
-                />
-                <div className="pointer-events-none absolute inset-0 flex items-start justify-end gap-1 bg-gradient-to-b from-slate-950/40 to-transparent p-1.5 opacity-0 transition-opacity group-hover:opacity-100">
-                  <button
-                    type="button"
-                    onClick={() => onDoluDegistir?.(i)}
-                    title="Resmi değiştir"
-                    className="pointer-events-auto rounded-md bg-white/90 p-1 text-slate-700 hover:bg-white"
-                  >
-                    <RefreshCw className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => onTemizle?.(i)}
-                    title="Resmi kaldır"
-                    className="pointer-events-auto rounded-md bg-white/90 p-1 text-rose-600 hover:bg-white"
-                  >
-                    <X className="h-3.5 w-3.5" />
-                  </button>
-                </div>
-              </>
+              <div
+                draggable={!secili}
+                onDragStart={(e) => {
+                  e.dataTransfer.setData(HUCRE_TURU, String(i));
+                  e.dataTransfer.effectAllowed = "move";
+                }}
+                onClick={() => {
+                  if (kaydirildi.current) {
+                    kaydirildi.current = false;
+                    return;
+                  }
+                  onHucreSec?.(secili ? null : i);
+                }}
+                onPointerDown={(e) => {
+                  if (!secili) return;
+                  try {
+                    e.currentTarget.setPointerCapture(e.pointerId);
+                  } catch {
+                    // Not a live pointer (synthetic event); panning still works.
+                  }
+                  const kutuPx = e.currentTarget.getBoundingClientRect().width;
+                  kaydirma.current = { i, x: e.clientX, y: e.clientY, odakX: r.odakX, odakY: r.odakY, olcek: k.en / kutuPx };
+                  kaydirildi.current = false;
+                }}
+                onPointerMove={(e) => {
+                  const d = kaydirma.current;
+                  if (!d || d.i !== i) return;
+                  if (!kaydirildi.current) {
+                    if (Math.hypot(e.clientX - d.x, e.clientY - d.y) < 3) return;
+                    // First real movement: one undo step for the whole pan.
+                    kaydirildi.current = true;
+                    onKaydirBasla?.(i);
+                  }
+                  const y = yerlesim(r, k.en, k.boy, ayar.sigdirma);
+                  const [tasmaX, tasmaY] = [k.en - y.en, k.boy - y.boy];
+                  const dx = (e.clientX - d.x) * d.olcek;
+                  const dy = (e.clientY - d.y) * d.olcek;
+                  const sinirla = (v: number) => Math.min(1, Math.max(0, v));
+                  onKaydir?.(
+                    i,
+                    tasmaX ? sinirla((tasmaX * d.odakX + dx) / tasmaX) : d.odakX,
+                    tasmaY ? sinirla((tasmaY * d.odakY + dy) / tasmaY) : d.odakY,
+                  );
+                }}
+                onPointerUp={() => {
+                  kaydirma.current = null;
+                }}
+                className={`absolute inset-0 touch-none ${secili ? "cursor-move" : "cursor-pointer"}`}
+              >
+                <ResimKatmani r={r} kutuEn={k.en} kutuBoy={k.boy} ayar={ayar} />
+                {aciklamaBandi}
+                {!secili && (
+                  <span className="pointer-events-none absolute right-1.5 top-1.5 rounded-md bg-white/90 px-1.5 py-0.5 text-[10px] font-medium text-slate-700 opacity-0 shadow transition-opacity group-hover:opacity-100">
+                    Düzenle
+                  </span>
+                )}
+                {secili && (
+                  <span className="pointer-events-none absolute left-1.5 top-1.5 max-w-[calc(100%-12px)] truncate rounded-md bg-slate-900/80 px-1.5 py-0.5 text-[10px] font-medium text-lime-300">
+                    Kadrajı sürükleyin
+                  </span>
+                )}
+              </div>
             ) : (
               <button
                 type="button"
@@ -200,14 +319,20 @@ function SayfaGorunumu({
   );
 }
 
-export default function KolajOlusturucu() {
-  const [sayfalar, setSayfalar] = useState<KolajSayfasi[]>(() => [yeniSayfa("dortlu")]);
-  const [seciliId, setSeciliId] = useState<string>(() => "");
-  const [onEk, setOnEk] = useState("Fotoğraf");
-  const [sigdirma, setSigdirma] = useState<Sigdirma>("doldur");
+export default function KolajOlusturucu({ aktif = true }: { aktif?: boolean }) {
+  const [sayfalar, setSayfalarHam] = useState<KolajSayfasi[]>(() => [yeniSayfa("dortlu")]);
+  const [ayar, setAyar] = useState<KolajAyarlari>(VARSAYILAN_AYARLAR);
+  const [seciliId, setSeciliId] = useState("");
+  const [seciliHucre, setSeciliHucre] = useState<number | null>(null);
+  // Undo stack in a ref (read and popped synchronously); the count re-renders.
+  const gecmisRef = useRef<KolajSayfasi[][]>([]);
+  const [gecmisAdedi, setGecmisAdedi] = useState(0);
+  const [yuklendi, setYuklendi] = useState(false);
+  const [kayit, setKayit] = useState<"bekliyor" | "kaydedildi" | "hata">("kaydedildi");
   const [suruklenen, setSuruklenen] = useState<number | null>(null);
   const [birakmaYeri, setBirakmaYeri] = useState<number | null>(null);
   const [silOnayi, setSilOnayi] = useState<string | null>(null);
+  const [yeniProjeOnayi, setYeniProjeOnayi] = useState(false);
   const [islem, setIslem] = useState<{ tur: string; adim: number; toplam: number } | null>(null);
   const [sonuc, setSonuc] = useState<{ ad: string; boyut: number; kalite: number }[] | null>(null);
   const [mesaj, setMesaj] = useState<{ tur: "hata" | "bilgi"; metin: string } | null>(null);
@@ -215,6 +340,8 @@ export default function KolajOlusturucu() {
   const hucreGirdiRef = useRef<HTMLInputElement>(null);
   const topluGirdiRef = useRef<HTMLInputElement>(null);
   const sayfalarRef = useRef(sayfalar);
+  // Every photo file loaded this session, so undo can bring any back.
+  const bloblarRef = useRef(new Map<string, Blob>());
 
   useEffect(() => {
     sayfalarRef.current = sayfalar;
@@ -223,179 +350,305 @@ export default function KolajOlusturucu() {
   const secili = sayfalar.find((s) => s.id === seciliId) ?? sayfalar[0];
   const seciliSira = sayfalar.indexOf(secili);
   const toplamResim = sayfalar.reduce((t, s) => t + doluSayisi(s), 0);
+  const seciliResim = seciliHucre !== null ? (secili.resimler[seciliHucre] ?? null) : null;
 
-  // Photos live only in memory: warn before leaving, free them on unmount.
-  useEffect(() => {
-    function uyar(e: BeforeUnloadEvent) {
-      if (sayfalarRef.current.some((s) => s.resimler.some(Boolean))) e.preventDefault();
-    }
-    window.addEventListener("beforeunload", uyar);
-    return () => window.removeEventListener("beforeunload", uyar);
+  const gecmiseKaydet = useCallback(() => {
+    gecmisRef.current = [...gecmisRef.current.slice(-(GECMIS_SINIRI - 1)), sayfalarRef.current];
+    setGecmisAdedi(gecmisRef.current.length);
   }, []);
-  useEffect(
-    () => () => sayfalarRef.current.forEach((s) => s.resimler.forEach((r) => r && URL.revokeObjectURL(r.url))),
-    [],
+
+  // Every structural change goes through here so it can be undone.
+  const setSayfalar = useCallback(
+    (yeni: KolajSayfasi[], gecmiseEkle = true) => {
+      if (gecmiseEkle) gecmiseKaydet();
+      sayfalarRef.current = yeni;
+      setSayfalarHam(yeni);
+      setSonuc(null);
+    },
+    [gecmiseKaydet],
   );
 
-  function sayfaGuncelle(id: string, degistir: (s: KolajSayfasi) => KolajSayfasi) {
-    setSayfalar((liste) => liste.map((s) => (s.id === id ? degistir(s) : s)));
-  }
+  const geriAl = useCallback(() => {
+    const onceki = gecmisRef.current.at(-1);
+    if (!onceki) return;
+    gecmisRef.current = gecmisRef.current.slice(0, -1);
+    setGecmisAdedi(gecmisRef.current.length);
+    sayfalarRef.current = onceki;
+    setSayfalarHam(onceki);
+    setSeciliHucre(null);
+    setSonuc(null);
+  }, []);
+
+  // Restore the saved project once.
+  useEffect(() => {
+    let iptal = false;
+    projeYukle()
+      .then((p) => {
+        if (iptal || !p || p.sayfalar.length === 0) return;
+        p.bloblar.forEach((b, id) => bloblarRef.current.set(id, b));
+        sayfalarRef.current = p.sayfalar;
+        setSayfalarHam(p.sayfalar);
+        setAyar({ ...VARSAYILAN_AYARLAR, ...p.ayarlar });
+        setSeciliId(p.sayfalar[0].id);
+        const adet = p.sayfalar.reduce((t, s) => t + s.resimler.filter(Boolean).length, 0);
+        if (adet) setMesaj({ tur: "bilgi", metin: `Kaydedilmiş kolaj açıldı: ${p.sayfalar.length} sayfa, ${adet} resim.` });
+      })
+      .catch(() => setMesaj({ tur: "hata", metin: "Kaydedilmiş kolaj okunamadı; yeni bir kolaj başlatıldı." }))
+      .finally(() => {
+        if (!iptal) setYuklendi(true);
+      });
+    return () => {
+      iptal = true;
+    };
+  }, []);
+
+  // Autosave shortly after each change.
+  useEffect(() => {
+    if (!yuklendi) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- status indicator for the pending save
+    setKayit("bekliyor");
+    const t = setTimeout(() => {
+      projeKaydet(sayfalar, ayar, bloblarRef.current)
+        .then(() => setKayit("kaydedildi"))
+        .catch(() => setKayit("hata"));
+    }, 700);
+    return () => clearTimeout(t);
+  }, [sayfalar, ayar, yuklendi]);
 
   // Places photos starting at a slot: the first one into that slot (replacing
   // when asked), the rest into the next empty slots of this and following
   // pages, then into new pages with this page's layout.
-  async function yerlestir(dosyalar: File[], sayfaId: string, hucre: number, degistir: boolean) {
-    setMesaj(null);
-    const resimler: KolajResmi[] = [];
-    const hatalar: string[] = [];
-    for (const f of dosyalar.filter((f) => f.type.startsWith("image/"))) {
-      try {
-        resimler.push(await resimOlustur(f));
-      } catch (err) {
-        hatalar.push((err as Error).message);
+  const yerlestir = useCallback(
+    async (dosyalar: File[], sayfaId: string, hucre: number, degistir: boolean) => {
+      setMesaj(null);
+      const resimler: KolajResmi[] = [];
+      const hatalar: string[] = [];
+      for (const f of dosyalar.filter((f) => f.type.startsWith("image/"))) {
+        try {
+          const r = await resimOlustur(f);
+          bloblarRef.current.set(r.id, f);
+          resimler.push(r);
+        } catch (err) {
+          hatalar.push((err as Error).message);
+        }
       }
-    }
-    if (resimler.length === 0) {
-      setMesaj({ tur: "hata", metin: hatalar.length ? hatalar.join(", ") : "Resim dosyası seçilmedi." });
-      return;
-    }
-    // Built from the latest pages (decoding above awaited) rather than inside
-    // a state updater, so the page to select is known right away.
-    const liste = sayfalarRef.current.map((s) => ({ ...s, resimler: [...s.resimler] }));
-    let si = Math.max(0, liste.findIndex((s) => s.id === sayfaId));
-    const duzen = liste[si].duzen;
-    const kalan = [...resimler];
-    let sonSayfaId = liste[si].id;
-    if (degistir) {
-      const eski = liste[si].resimler[hucre];
-      if (eski) URL.revokeObjectURL(eski.url);
-      liste[si].resimler[hucre] = kalan.shift()!;
-    }
-    let h = hucre;
-    while (kalan.length) {
-      if (si >= liste.length) liste.push(yeniSayfa(duzen));
-      const s = liste[si];
-      const adet = hucreSayisi(s.duzen);
-      for (; h < adet && kalan.length; h++) {
-        if (!s.resimler[h]) s.resimler[h] = kalan.shift()!;
+      if (resimler.length === 0) {
+        setMesaj({ tur: "hata", metin: hatalar.length ? hatalar.join(", ") : "Resim dosyası seçilmedi." });
+        return;
       }
-      sonSayfaId = s.id;
-      si++;
-      h = 0;
-    }
-    sayfalarRef.current = liste;
-    setSayfalar(liste);
-    setSeciliId(sonSayfaId);
-    setSonuc(null);
-    if (hatalar.length) setMesaj({ tur: "hata", metin: `Açılamayan dosyalar: ${hatalar.join(", ")}` });
+      const liste = sayfalarRef.current.map((s) => ({ ...s, resimler: [...s.resimler] }));
+      let si = Math.max(0, liste.findIndex((s) => s.id === sayfaId));
+      const duzen = liste[si].duzen;
+      const kalan = [...resimler];
+      let sonSayfaId = liste[si].id;
+      if (degistir) liste[si].resimler[hucre] = kalan.shift()!;
+      let h = hucre;
+      while (kalan.length) {
+        if (si >= liste.length) liste.push(yeniSayfa(duzen));
+        const s = liste[si];
+        const adet = hucreSayisi(s.duzen);
+        for (; h < adet && kalan.length; h++) {
+          if (!s.resimler[h]) s.resimler[h] = kalan.shift()!;
+        }
+        sonSayfaId = s.id;
+        si++;
+        h = 0;
+      }
+      setSayfalar(liste);
+      setSeciliId(sonSayfaId);
+      setSeciliHucre(null);
+      if (hatalar.length) setMesaj({ tur: "hata", metin: `Açılamayan dosyalar: ${hatalar.join(", ")}` });
+    },
+    [setSayfalar],
+  );
+
+  function sayfaGuncelle(id: string, degistir: (s: KolajSayfasi) => KolajSayfasi, gecmiseEkle = true) {
+    setSayfalar(
+      sayfalarRef.current.map((s) => (s.id === id ? degistir(s) : s)),
+      gecmiseEkle,
+    );
   }
+
+  function resimGuncelle(i: number, degisiklik: Partial<KolajResmi>, gecmiseEkle = true) {
+    sayfaGuncelle(
+      secili.id,
+      (s) => {
+        const r = [...s.resimler];
+        if (r[i]) r[i] = { ...r[i]!, ...degisiklik };
+        return { ...s, resimler: r };
+      },
+      gecmiseEkle,
+    );
+  }
+
+  const hucreTemizle = useCallback(
+    (i: number) => {
+      const s = sayfalarRef.current.find((x) => x.id === secili.id);
+      if (!s) return;
+      const r = [...s.resimler];
+      r[i] = null;
+      setSayfalar(sayfalarRef.current.map((x) => (x.id === s.id ? { ...s, resimler: r } : x)));
+      setSeciliHucre(null);
+    },
+    [secili.id, setSayfalar],
+  );
+
+  // Keyboard: Ctrl+Z undo, Delete removes the selected photo, Esc deselects;
+  // Ctrl+V pastes screenshots/photos into the current page.
+  useEffect(() => {
+    if (!aktif) return;
+    function tus(e: KeyboardEvent) {
+      const hedef = e.target as HTMLElement;
+      if (hedef.closest?.("input, textarea, select, [contenteditable=true]")) return;
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        geriAl();
+      } else if ((e.key === "Delete" || e.key === "Backspace") && seciliHucre !== null) {
+        e.preventDefault();
+        hucreTemizle(seciliHucre);
+      } else if (e.key === "Escape") {
+        setSeciliHucre(null);
+      }
+    }
+    function yapistir(e: ClipboardEvent) {
+      const hedef = e.target as HTMLElement;
+      if (hedef.closest?.("input, textarea")) return;
+      const dosyalar = [...(e.clipboardData?.files ?? [])].filter((f) => f.type.startsWith("image/"));
+      if (dosyalar.length) yerlestir(dosyalar, secili.id, 0, false);
+    }
+    window.addEventListener("keydown", tus);
+    window.addEventListener("paste", yapistir);
+    return () => {
+      window.removeEventListener("keydown", tus);
+      window.removeEventListener("paste", yapistir);
+    };
+  }, [aktif, geriAl, hucreTemizle, seciliHucre, secili.id, yerlestir]);
 
   function hucreSec(sayfaId: string, hucre: number, degistir: boolean) {
     hedefRef.current = { sayfaId, hucre, degistir };
     hucreGirdiRef.current?.click();
   }
 
-  function hucreTemizle(sayfaId: string, i: number) {
-    sayfaGuncelle(sayfaId, (s) => {
-      const r = [...s.resimler];
-      if (r[i]) URL.revokeObjectURL(r[i]!.url);
-      r[i] = null;
-      return { ...s, resimler: r };
-    });
-  }
-
-  function hucreTasi(sayfaId: string, a: number, b: number) {
+  function hucreTasi(a: number, b: number) {
     if (a === b) return;
-    sayfaGuncelle(sayfaId, (s) => {
+    sayfaGuncelle(secili.id, (s) => {
       const r = [...s.resimler];
       [r[a], r[b]] = [r[b] ?? null, r[a] ?? null];
       return { ...s, resimler: r };
     });
+    setSeciliHucre(null);
   }
 
-  function duzenDegistir(sayfaId: string, duzen: DuzenKey) {
-    sayfaGuncelle(sayfaId, (s) => {
+  function duzenDegistir(duzen: DuzenKey) {
+    sayfaGuncelle(secili.id, (s) => {
       // Pack photos into the new layout in order; overflow is kept.
       const dolu = s.resimler.filter(Boolean) as KolajResmi[];
-      const adet = hucreSayisi(duzen);
       const r: (KolajResmi | null)[] = [...dolu];
-      while (r.length < adet) r.push(null);
+      while (r.length < hucreSayisi(duzen)) r.push(null);
       return { ...s, duzen, resimler: r };
     });
+    setSeciliHucre(null);
   }
 
   // Photos that no longer fit after a layout change go to new pages.
-  function tasanlariTasi(sayfaId: string) {
-    setSayfalar((onceki) => {
-      const i = onceki.findIndex((s) => s.id === sayfaId);
-      if (i === -1) return onceki;
-      const s = onceki[i];
-      const adet = hucreSayisi(s.duzen);
-      const tasan = s.resimler.slice(adet).filter(Boolean) as KolajResmi[];
-      const yeniler: KolajSayfasi[] = [];
-      while (tasan.length) {
-        const y = yeniSayfa(s.duzen);
-        y.resimler = y.resimler.map(() => tasan.shift() ?? null);
-        yeniler.push(y);
-      }
-      return [...onceki.slice(0, i), { ...s, resimler: s.resimler.slice(0, adet) }, ...yeniler, ...onceki.slice(i + 1)];
+  function tasanlariTasi() {
+    const liste = sayfalarRef.current;
+    const i = liste.findIndex((s) => s.id === secili.id);
+    const s = liste[i];
+    const adet = hucreSayisi(s.duzen);
+    const tasan = s.resimler.slice(adet).filter(Boolean) as KolajResmi[];
+    const yeniler: KolajSayfasi[] = [];
+    while (tasan.length) {
+      const y = yeniSayfa(s.duzen);
+      y.resimler = y.resimler.map(() => tasan.shift() ?? null);
+      yeniler.push(y);
+    }
+    setSayfalar([...liste.slice(0, i), { ...s, resimler: s.resimler.slice(0, adet) }, ...yeniler, ...liste.slice(i + 1)]);
+  }
+
+  // Every photo, in page order, re-flowed into pages of one layout.
+  function yenidenDiz(duzen: DuzenKey) {
+    const hepsi = sayfalarRef.current.flatMap((s) => s.resimler.filter(Boolean) as KolajResmi[]);
+    if (hepsi.length === 0) return;
+    const adet = hucreSayisi(duzen);
+    const yeni: KolajSayfasi[] = [];
+    for (let i = 0; i < hepsi.length; i += adet) {
+      const s = yeniSayfa(duzen);
+      s.resimler = s.resimler.map((_, j) => hepsi[i + j] ?? null);
+      yeni.push(s);
+    }
+    setSayfalar(yeni);
+    setSeciliId(yeni[0].id);
+    setSeciliHucre(null);
+    setMesaj({
+      tur: "bilgi",
+      metin: `${hepsi.length} resim ${yeni.length} sayfaya (${duzenBul(duzen).ad}) yeniden dizildi. Geri almak için Ctrl+Z.`,
     });
   }
 
   function sayfaEkle(duzen: DuzenKey) {
     const y = yeniSayfa(duzen);
-    setSayfalar((liste) => [...liste.slice(0, seciliSira + 1), y, ...liste.slice(seciliSira + 1)]);
+    const liste = sayfalarRef.current;
+    setSayfalar([...liste.slice(0, seciliSira + 1), y, ...liste.slice(seciliSira + 1)]);
     setSeciliId(y.id);
-    setSonuc(null);
-  }
-
-  function sayfaKopyala(id: string) {
-    // Same layout, empty slots: photos stay unique to one page.
-    const kaynak = sayfalar.find((s) => s.id === id);
-    if (kaynak) sayfaEkle(kaynak.duzen);
+    setSeciliHucre(null);
   }
 
   function sayfaSil(id: string) {
-    const s = sayfalar.find((x) => x.id === id);
+    const liste = sayfalarRef.current;
+    const s = liste.find((x) => x.id === id);
     if (!s) return;
     if (s.resimler.some(Boolean) && silOnayi !== id) {
       setSilOnayi(id);
       return;
     }
-    s.resimler.forEach((r) => r && URL.revokeObjectURL(r.url));
-    const kalan = sayfalar.filter((x) => x.id !== id);
-    const liste = kalan.length ? kalan : [yeniSayfa(s.duzen)];
-    setSayfalar(liste);
-    setSeciliId(liste[Math.min(sayfalar.indexOf(s), liste.length - 1)].id);
+    const kalan = liste.filter((x) => x.id !== id);
+    const yeni = kalan.length ? kalan : [yeniSayfa(s.duzen)];
+    setSayfalar(yeni);
+    setSeciliId(yeni[Math.min(liste.indexOf(s), yeni.length - 1)].id);
+    setSeciliHucre(null);
     setSilOnayi(null);
-    setSonuc(null);
   }
 
   function tasi(kaynak: number, hedef: number) {
     if (kaynak === hedef || hedef < 0 || hedef >= sayfalar.length) return;
-    setSayfalar((liste) => {
-      const yeni = [...liste];
-      const [s] = yeni.splice(kaynak, 1);
-      yeni.splice(hedef, 0, s);
-      return yeni;
-    });
-    setSonuc(null);
+    const yeni = [...sayfalarRef.current];
+    const [s] = yeni.splice(kaynak, 1);
+    yeni.splice(hedef, 0, s);
+    setSayfalar(yeni);
   }
 
-  const indirilecek = sayfalar
-    .map((s, i) => ({ s, sira: i + 1 }))
-    .filter(({ s }) => doluSayisi(s) > 0);
+  async function yeniProje() {
+    await projeSil().catch(() => {});
+    sayfalarRef.current.forEach((s) => s.resimler.forEach((r) => r && URL.revokeObjectURL(r.url)));
+    bloblarRef.current.clear();
+    const s = yeniSayfa("dortlu");
+    sayfalarRef.current = [s];
+    setSayfalarHam([s]);
+    gecmisRef.current = [];
+    setGecmisAdedi(0);
+    setSeciliId(s.id);
+    setSeciliHucre(null);
+    setSonuc(null);
+    // The title belongs to the old collage; naming and display options stay.
+    setAyar((a) => ({ ...a, baslik: "" }));
+    setYeniProjeOnayi(false);
+    setMesaj({ tur: "bilgi", metin: "Yeni kolaj başlatıldı." });
+  }
+
+  const indirilecek = sayfalar.map((s, i) => ({ s, sira: i + 1 })).filter(({ s }) => doluSayisi(s) > 0);
 
   async function sayfalariHazirla(tur: string) {
     const dosyalar: { ad: string; blob: Blob; kalite: number }[] = [];
-    setIslem({ tur, adim: 0, toplam: indirilecek.length });
     for (const [n, { s, sira }] of indirilecek.entries()) {
       setIslem({ tur, adim: n + 1, toplam: indirilecek.length });
-      const { blob, kalite } = await sayfaJpeg(s, sigdirma);
-      dosyalar.push({ ad: dosyaAdi(onEk, sira, sayfalar.length), blob, kalite });
+      const { blob, kalite } = await sayfaJpeg(s, ayar, sira, sayfalar.length);
+      dosyalar.push({ ad: dosyaAdi(ayar.onEk, sira, sayfalar.length), blob, kalite });
     }
     return dosyalar;
   }
+
+  const paketAdi = (uzanti: string) => `${(ayar.onEk.trim() || "Kolaj").replace(/\s+/g, "-")}-kolaj.${uzanti}`;
 
   async function zipIndir() {
     if (indirilecek.length === 0) return;
@@ -405,8 +658,7 @@ export default function KolajOlusturucu() {
       const { zipSync } = await import("fflate");
       const icerik: Record<string, [Uint8Array, { level: 0 }]> = {};
       for (const d of dosyalar) icerik[d.ad] = [new Uint8Array(await d.blob.arrayBuffer()), { level: 0 }];
-      const zip = zipSync(icerik);
-      indir(new Blob([zip.slice().buffer], { type: "application/zip" }), `${(onEk.trim() || "Kolaj").replace(/\s+/g, "-")}-kolaj.zip`);
+      indir(new Blob([zipSync(icerik).slice().buffer], { type: "application/zip" }), paketAdi("zip"));
       setSonuc(dosyalar.map((d) => ({ ad: d.ad, boyut: d.blob.size, kalite: d.kalite })));
     } catch (err) {
       setMesaj({ tur: "hata", metin: (err as Error).message || "İndirme hazırlanamadı." });
@@ -426,7 +678,7 @@ export default function KolajOlusturucu() {
         if (i > 0) pdf.addPage();
         pdf.addImage(new Uint8Array(await d.blob.arrayBuffer()), "JPEG", 0, 0, A4.en, A4.boy);
       }
-      indir(pdf.output("blob"), `${(onEk.trim() || "Kolaj").replace(/\s+/g, "-")}-kolaj.pdf`);
+      indir(pdf.output("blob"), paketAdi("pdf"));
       setSonuc(dosyalar.map((d) => ({ ad: d.ad, boyut: d.blob.size, kalite: d.kalite })));
     } catch (err) {
       setMesaj({ tur: "hata", metin: (err as Error).message || "PDF hazırlanamadı." });
@@ -435,11 +687,11 @@ export default function KolajOlusturucu() {
     }
   }
 
-  async function tekIndir(s: KolajSayfasi, sira: number) {
+  async function tekIndir() {
     setIslem({ tur: "JPG", adim: 1, toplam: 1 });
     try {
-      const { blob } = await sayfaJpeg(s, sigdirma);
-      indir(blob, dosyaAdi(onEk, sira, sayfalar.length));
+      const { blob } = await sayfaJpeg(secili, ayar, seciliSira + 1, sayfalar.length);
+      indir(blob, dosyaAdi(ayar.onEk, seciliSira + 1, sayfalar.length));
     } catch (err) {
       setMesaj({ tur: "hata", metin: (err as Error).message });
     } finally {
@@ -449,12 +701,16 @@ export default function KolajOlusturucu() {
 
   const dugme =
     "inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40";
+  const kucukDugme =
+    "inline-flex items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40";
+  const girdi =
+    "w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:border-lime-300 focus:outline-none focus:ring-4 focus:ring-lime-200/50";
   const tasan = tasanSayisi(secili);
 
   return (
     <div className="space-y-4">
       {/* Araç çubuğu */}
-      <div className="flex flex-col gap-3 rounded-2xl border border-slate-100 bg-white p-3 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col gap-3 rounded-2xl border border-slate-100 bg-white p-3 xl:flex-row xl:items-center xl:justify-between">
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
@@ -464,26 +720,42 @@ export default function KolajOlusturucu() {
             <Images className="h-4 w-4" />
             Resimleri Toplu Ekle
           </button>
-          <div className="inline-flex rounded-xl bg-slate-100 p-0.5 text-xs font-medium" role="group" aria-label="Resim yerleşimi">
-            {(
-              [
-                ["doldur", "Kutuyu doldur"],
-                ["sigdir", "Resmin tamamı"],
-              ] as const
-            ).map(([k, ad]) => (
-              <button
-                key={k}
-                type="button"
-                aria-pressed={sigdirma === k}
-                onClick={() => setSigdirma(k)}
-                className={`rounded-lg px-2.5 py-1.5 ${sigdirma === k ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"}`}
-              >
-                {ad}
-              </button>
-            ))}
-          </div>
-          <span className="text-xs text-slate-500">
-            {sayfalar.length} sayfa · {toplamResim} resim
+          <button type="button" onClick={geriAl} disabled={gecmisAdedi === 0} className={dugme} title="Geri al (Ctrl+Z)">
+            <Undo2 className="h-4 w-4" />
+            Geri Al
+          </button>
+          <label className="relative inline-flex items-center">
+            <LayoutGrid className="pointer-events-none absolute left-3 h-4 w-4 text-slate-400" />
+            <select
+              value=""
+              onChange={(e) => e.target.value && yenidenDiz(e.target.value as DuzenKey)}
+              disabled={toplamResim === 0}
+              className="cursor-pointer rounded-xl border border-slate-200 bg-white py-2 pl-9 pr-8 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40"
+              aria-label="Tüm resimleri tek düzende yeniden diz"
+            >
+              <option value="">Tümünü yeniden diz…</option>
+              {DUZENLER.map((d) => (
+                <option key={d.key} value={d.key}>
+                  {d.ad} sayfalara
+                </option>
+              ))}
+            </select>
+          </label>
+          <span className="inline-flex items-center gap-1 text-xs text-slate-500">
+            {sayfalar.length} sayfa · {toplamResim} resim ·
+            {kayit === "bekliyor" ? (
+              <span className="inline-flex items-center gap-1 text-slate-400">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                kaydediliyor
+              </span>
+            ) : kayit === "hata" ? (
+              <span className="text-rose-600">kaydedilemedi</span>
+            ) : (
+              <span className="inline-flex items-center gap-1 text-emerald-600">
+                <Cloud className="h-3 w-3" />
+                kaydedildi
+              </span>
+            )}
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-2">
@@ -495,6 +767,22 @@ export default function KolajOlusturucu() {
             {islem?.tur === "PDF" ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
             PDF
           </button>
+          {yeniProjeOnayi ? (
+            <span className="inline-flex items-center gap-1 rounded-xl bg-rose-50 px-2 py-1.5 text-xs text-rose-700">
+              Tüm sayfalar silinsin mi?
+              <button type="button" onClick={yeniProje} className="rounded bg-rose-600 px-1.5 py-0.5 font-semibold text-white">
+                Evet
+              </button>
+              <button type="button" onClick={() => setYeniProjeOnayi(false)} className="px-1 font-medium">
+                Vazgeç
+              </button>
+            </span>
+          ) : (
+            <button type="button" onClick={() => setYeniProjeOnayi(true)} className={dugme} title="Tüm sayfaları temizleyip yeni kolaj başlat">
+              <FilePlus2 className="h-4 w-4" />
+              Yeni Kolaj
+            </button>
+          )}
         </div>
       </div>
 
@@ -504,8 +792,15 @@ export default function KolajOlusturucu() {
         </p>
       )}
       {mesaj && (
-        <p className={`rounded-xl px-3 py-2 text-sm ${mesaj.tur === "hata" ? "bg-rose-50 text-rose-700" : "bg-slate-50 text-slate-600"}`}>
+        <p
+          className={`flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-sm ${
+            mesaj.tur === "hata" ? "bg-rose-50 text-rose-700" : "bg-sky-50 text-sky-800"
+          }`}
+        >
           {mesaj.metin}
+          <button type="button" onClick={() => setMesaj(null)} aria-label="Kapat" className="rounded p-0.5 opacity-60 hover:opacity-100">
+            <X className="h-3.5 w-3.5" />
+          </button>
         </p>
       )}
       {sonuc && (
@@ -520,7 +815,7 @@ export default function KolajOlusturucu() {
         </div>
       )}
 
-      <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)_240px]">
+      <div className="grid gap-4 lg:grid-cols-[250px_minmax(0,1fr)] 2xl:grid-cols-[250px_minmax(0,1fr)_270px]">
         {/* Sayfa listesi */}
         <div className="rounded-2xl border border-slate-100 bg-white p-3">
           <p className="mb-1.5 flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-slate-400">
@@ -548,7 +843,7 @@ export default function KolajOlusturucu() {
           </div>
           <ol className="max-h-[70vh] space-y-2 overflow-y-auto pr-1">
             {sayfalar.map((s, i) => {
-              const aktif = s.id === secili.id;
+              const aktifSayfa = s.id === secili.id;
               const dolu = doluSayisi(s);
               return (
                 <li
@@ -574,19 +869,20 @@ export default function KolajOlusturucu() {
                     setSuruklenen(null);
                     setBirakmaYeri(null);
                   }}
-                  onClick={() => setSeciliId(s.id)}
+                  onClick={() => {
+                    setSeciliId(s.id);
+                    setSeciliHucre(null);
+                  }}
                   className={`flex cursor-pointer items-center gap-2 rounded-xl border p-2 transition-all ${
-                    aktif ? "border-slate-900 bg-slate-50 ring-1 ring-slate-900" : "border-slate-100 hover:border-slate-200"
-                  } ${suruklenen === i ? "opacity-40" : ""} ${
-                    birakmaYeri === i && suruklenen !== i ? "border-lime-400 bg-lime-50" : ""
-                  }`}
+                    aktifSayfa ? "border-slate-900 bg-slate-50 ring-1 ring-slate-900" : "border-slate-100 hover:border-slate-200"
+                  } ${suruklenen === i ? "opacity-40" : ""} ${birakmaYeri === i && suruklenen !== i ? "border-lime-400 bg-lime-50" : ""}`}
                 >
                   <GripVertical className="h-4 w-4 shrink-0 cursor-grab text-slate-300" />
                   <div className="w-11 shrink-0 overflow-hidden rounded-sm shadow ring-1 ring-slate-200">
-                    <SayfaGorunumu sayfa={s} sigdirma={sigdirma} kucuk />
+                    <SayfaGorunumu sayfa={s} ayar={ayar} sira={i + 1} toplam={sayfalar.length} kucuk />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-slate-900">{sayfaAdi(onEk, i + 1)}</p>
+                    <p className="truncate text-sm font-medium text-slate-900">{sayfaAdi(ayar.onEk, i + 1)}</p>
                     <p className="text-[11px] text-slate-500">
                       {duzenBul(s.duzen).ad} · {dolu}/{hucreSayisi(s.duzen)}
                       {dolu === 0 && <span className="text-amber-600"> · boş</span>}
@@ -597,7 +893,7 @@ export default function KolajOlusturucu() {
                       type="button"
                       onClick={() => tasi(i, i - 1)}
                       disabled={i === 0}
-                      aria-label={`${sayfaAdi(onEk, i + 1)} yukarı taşı`}
+                      aria-label={`${sayfaAdi(ayar.onEk, i + 1)} yukarı taşı`}
                       className="rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-20"
                     >
                       <ArrowUp className="h-3.5 w-3.5" />
@@ -606,7 +902,7 @@ export default function KolajOlusturucu() {
                       type="button"
                       onClick={() => tasi(i, i + 1)}
                       disabled={i === sayfalar.length - 1}
-                      aria-label={`${sayfaAdi(onEk, i + 1)} aşağı taşı`}
+                      aria-label={`${sayfaAdi(ayar.onEk, i + 1)} aşağı taşı`}
                       className="rounded p-0.5 text-slate-400 hover:bg-slate-100 hover:text-slate-900 disabled:opacity-20"
                     >
                       <ArrowDown className="h-3.5 w-3.5" />
@@ -619,18 +915,18 @@ export default function KolajOlusturucu() {
         </div>
 
         {/* Seçili sayfa */}
-        <div className="rounded-2xl border border-slate-100 bg-slate-50 p-3 sm:p-5">
+        <div className="min-w-0 rounded-2xl border border-slate-100 bg-slate-50 p-3 sm:p-5">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div className="min-w-0">
-              <p className="text-base font-semibold text-slate-900">{sayfaAdi(onEk, seciliSira + 1)}</p>
+              <p className="text-base font-semibold text-slate-900">{sayfaAdi(ayar.onEk, seciliSira + 1)}</p>
               <p className="text-xs text-slate-500">
-                A4 dikey · {duzenBul(secili.duzen).aciklama} · dosya: {dosyaAdi(onEk, seciliSira + 1, sayfalar.length)}
+                A4 dikey · {duzenBul(secili.duzen).aciklama} · {dosyaAdi(ayar.onEk, seciliSira + 1, sayfalar.length)}
               </p>
             </div>
             <div className="flex items-center gap-1">
               <button
                 type="button"
-                onClick={() => tekIndir(secili, seciliSira + 1)}
+                onClick={tekIndir}
                 disabled={!!islem || doluSayisi(secili) === 0}
                 title="Bu sayfayı JPG indir"
                 className="rounded-lg p-2 text-slate-500 hover:bg-white hover:text-slate-900 disabled:opacity-30"
@@ -639,7 +935,7 @@ export default function KolajOlusturucu() {
               </button>
               <button
                 type="button"
-                onClick={() => sayfaKopyala(secili.id)}
+                onClick={() => sayfaEkle(secili.duzen)}
                 title="Aynı düzende boş sayfa ekle"
                 className="rounded-lg p-2 text-slate-500 hover:bg-white hover:text-slate-900"
               >
@@ -670,17 +966,17 @@ export default function KolajOlusturucu() {
 
           <div className="mb-4 flex flex-wrap gap-1.5" role="radiogroup" aria-label="Kolaj düzeni">
             {DUZENLER.map((d) => {
-              const aktif = secili.duzen === d.key;
+              const secilen = secili.duzen === d.key;
               return (
                 <button
                   key={d.key}
                   type="button"
                   role="radio"
-                  aria-checked={aktif}
+                  aria-checked={secilen}
                   title={d.aciklama}
-                  onClick={() => duzenDegistir(secili.id, d.key)}
+                  onClick={() => duzenDegistir(d.key)}
                   className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-left transition-colors ${
-                    aktif ? "border-slate-900 bg-slate-900 text-lime-300" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
+                    secilen ? "border-slate-900 bg-slate-900 text-lime-300" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
                   }`}
                 >
                   <DuzenSimgesi duzen={d.key} className="w-4" />
@@ -695,7 +991,7 @@ export default function KolajOlusturucu() {
               <span>{tasan} resim bu düzene sığmıyor.</span>
               <button
                 type="button"
-                onClick={() => tasanlariTasi(secili.id)}
+                onClick={tasanlariTasi}
                 className="rounded-lg bg-amber-500 px-2.5 py-1 text-xs font-semibold text-white hover:bg-amber-600"
               >
                 Yeni sayfaya taşı
@@ -703,73 +999,182 @@ export default function KolajOlusturucu() {
             </div>
           )}
 
-          <div className="mx-auto w-full max-w-[520px] shadow-[0_10px_40px_-12px_rgba(15,23,42,0.35)] ring-1 ring-slate-200">
+          <div className="mx-auto w-full max-w-[540px] shadow-[0_10px_40px_-12px_rgba(15,23,42,0.35)] ring-1 ring-slate-200">
             <SayfaGorunumu
               sayfa={secili}
-              sigdirma={sigdirma}
+              ayar={ayar}
+              sira={seciliSira + 1}
+              toplam={sayfalar.length}
+              seciliHucre={seciliHucre}
+              onHucreSec={setSeciliHucre}
               onBosTikla={(i) => hucreSec(secili.id, i, true)}
-              onDoluDegistir={(i) => hucreSec(secili.id, i, true)}
-              onTemizle={(i) => hucreTemizle(secili.id, i)}
               onDosyaBirak={(i, dosyalar) => yerlestir(dosyalar, secili.id, i, true)}
-              onHucreTasi={(a, b) => hucreTasi(secili.id, a, b)}
+              onHucreTasi={hucreTasi}
+              onKaydirBasla={gecmiseKaydet}
+              onKaydir={(i, odakX, odakY) => resimGuncelle(i, { odakX, odakY }, false)}
             />
           </div>
           <p className="mt-3 text-center text-xs text-slate-400">
-            Boş kutuya tıklayın ya da resimleri sürükleyip bırakın · Resimleri kutular arasında sürükleyerek yer değiştirin
+            Resme tıklayarak düzenleyin · Resimleri kutular arasında sürükleyerek yer değiştirin · Ctrl+V ile yapıştırın
           </p>
         </div>
 
-        {/* İsimlendirme */}
-        <div className="space-y-4">
+        {/* Sağ panel: seçili resim + sayfa ayarları */}
+        <div className="grid gap-4 lg:col-span-2 lg:grid-cols-2 2xl:col-span-1 2xl:grid-cols-1 2xl:content-start">
+          <div className={`rounded-2xl border p-3 ${seciliResim ? "border-lime-300 bg-lime-50/40" : "border-slate-100 bg-white"}`}>
+            <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400">
+              <Crosshair className="h-3.5 w-3.5" />
+              Seçili Resim
+            </p>
+            {seciliResim && seciliHucre !== null ? (
+              <div className="space-y-3">
+                <p className="truncate text-xs text-slate-500" title={seciliResim.ad}>
+                  {seciliResim.ad} · {seciliResim.en}×{seciliResim.boy}
+                </p>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    type="button"
+                    className={kucukDugme}
+                    onClick={() => resimGuncelle(seciliHucre, { donme: ((seciliResim.donme + 270) % 360) as Donme, odakX: 0.5, odakY: 0.5 })}
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    Sola döndür
+                  </button>
+                  <button
+                    type="button"
+                    className={kucukDugme}
+                    onClick={() => resimGuncelle(seciliHucre, { donme: ((seciliResim.donme + 90) % 360) as Donme, odakX: 0.5, odakY: 0.5 })}
+                  >
+                    <RotateCw className="h-3.5 w-3.5" />
+                    Sağa döndür
+                  </button>
+                </div>
+                <label className="block">
+                  <span className="flex items-center justify-between text-xs text-slate-600">
+                    <span className="inline-flex items-center gap-1">
+                      <ZoomIn className="h-3.5 w-3.5" />
+                      Yakınlaştırma
+                    </span>
+                    <span className="tabular-nums text-slate-400">%{Math.round(seciliResim.yakinlik * 100)}</span>
+                  </span>
+                  <input
+                    type="range"
+                    min={100}
+                    max={300}
+                    step={5}
+                    value={Math.round(seciliResim.yakinlik * 100)}
+                    onPointerDown={gecmiseKaydet}
+                    onChange={(e) => resimGuncelle(seciliHucre, { yakinlik: Number(e.target.value) / 100 }, false)}
+                    className="mt-1 w-full accent-slate-900"
+                  />
+                </label>
+                <button type="button" className={`${kucukDugme} w-full`} onClick={() => resimGuncelle(seciliHucre, { odakX: 0.5, odakY: 0.5, yakinlik: 1 })}>
+                  Kadrajı sıfırla
+                </button>
+                <label className="block text-xs text-slate-600">
+                  Açıklama
+                  <input
+                    value={seciliResim.aciklama}
+                    onFocus={gecmiseKaydet}
+                    onChange={(e) => resimGuncelle(seciliHucre, { aciklama: e.target.value }, false)}
+                    placeholder="Örn. Salon, Mutfak, Dış cephe"
+                    maxLength={60}
+                    className={`${girdi} mt-1`}
+                  />
+                </label>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button type="button" className={kucukDugme} onClick={() => hucreSec(secili.id, seciliHucre, true)}>
+                    <RefreshCw className="h-3.5 w-3.5" />
+                    Değiştir
+                  </button>
+                  <button type="button" className={`${kucukDugme} text-rose-600 hover:bg-rose-50`} onClick={() => hucreTemizle(seciliHucre)}>
+                    <X className="h-3.5 w-3.5" />
+                    Kaldır
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <p className="text-xs leading-relaxed text-slate-500">
+                Önizlemede bir resme tıklayın: döndürün, yakınlaştırın, sürükleyerek kadrajı ayarlayın ve açıklama yazın.
+              </p>
+            )}
+          </div>
+
           <div className="rounded-2xl border border-slate-100 bg-white p-3">
             <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-400">
               <Tag className="h-3.5 w-3.5" />
-              Toplu İsimlendirme
+              Sayfa Ayarları
             </p>
-            <input
-              value={onEk}
-              onChange={(e) => setOnEk(e.target.value)}
-              placeholder="Sayfa adı"
-              aria-label="Sayfa adı"
-              className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:border-lime-300 focus:outline-none focus:ring-4 focus:ring-lime-200/50"
-            />
-            <div className="mt-2 flex flex-wrap gap-1">
-              {AD_ONERILERI.map((a) => (
-                <button
-                  key={a}
-                  type="button"
-                  onClick={() => setOnEk(a)}
-                  className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
-                    onEk === a ? "bg-slate-900 text-lime-300" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
-                  }`}
-                >
-                  {a}
-                </button>
-              ))}
+            <div className="space-y-3">
+              <label className="block text-xs text-slate-600">
+                Sayfa adı (toplu isimlendirme)
+                <input value={ayar.onEk} onChange={(e) => setAyar({ ...ayar, onEk: e.target.value })} placeholder="Sayfa adı" className={`${girdi} mt-1`} />
+              </label>
+              <div className="flex flex-wrap gap-1">
+                {AD_ONERILERI.map((a) => (
+                  <button
+                    key={a}
+                    type="button"
+                    onClick={() => setAyar({ ...ayar, onEk: a })}
+                    className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${
+                      ayar.onEk === a ? "bg-slate-900 text-lime-300" : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                    }`}
+                  >
+                    {a}
+                  </button>
+                ))}
+              </div>
+              <p className="font-mono text-[11px] text-slate-500">
+                {dosyaAdi(ayar.onEk, 1, sayfalar.length)}
+                {sayfalar.length > 1 && ` … ${dosyaAdi(ayar.onEk, sayfalar.length, sayfalar.length)}`}
+              </p>
+              <label className="block text-xs text-slate-600">
+                Sayfa başlığı (her sayfanın üstünde)
+                <input
+                  value={ayar.baslik}
+                  onChange={(e) => setAyar({ ...ayar, baslik: e.target.value })}
+                  placeholder="Örn. AKBNK-2026-0001 · Fotoğraf Ekleri"
+                  maxLength={90}
+                  className={`${girdi} mt-1`}
+                />
+              </label>
+              <div className="inline-flex w-full rounded-xl bg-slate-100 p-0.5 text-xs font-medium" role="group" aria-label="Resim yerleşimi">
+                {(
+                  [
+                    ["doldur", "Kutuyu doldur"],
+                    ["sigdir", "Resmin tamamı"],
+                  ] as const
+                ).map(([k, ad]) => (
+                  <button
+                    key={k}
+                    type="button"
+                    aria-pressed={ayar.sigdirma === k}
+                    onClick={() => setAyar({ ...ayar, sigdirma: k })}
+                    className={`flex-1 rounded-lg px-2 py-1.5 ${ayar.sigdirma === k ? "bg-white text-slate-900 shadow-sm" : "text-slate-500"}`}
+                  >
+                    {ad}
+                  </button>
+                ))}
+              </div>
+              <label className="flex items-center gap-2 text-sm text-slate-600">
+                <input type="checkbox" checked={ayar.sayfaNo} onChange={(e) => setAyar({ ...ayar, sayfaNo: e.target.checked })} className="accent-slate-900" />
+                Sayfa numarası (Sayfa 1 / {sayfalar.length})
+              </label>
+              <label className="flex items-center gap-2 text-sm text-slate-600">
+                <input
+                  type="checkbox"
+                  checked={ayar.aciklamaGoster}
+                  onChange={(e) => setAyar({ ...ayar, aciklamaGoster: e.target.checked })}
+                  className="accent-slate-900"
+                />
+                Resim açıklamalarını göster
+              </label>
+              <p className="border-t border-slate-100 pt-2 text-[11px] leading-relaxed text-slate-500">
+                Her sayfa A4 (≈200 dpi) JPG olarak, sığan en yüksek kaliteyle 1 MB altına sıkıştırılır. Boş sayfalar indirilmez. Kolaj
+                bu tarayıcıda otomatik kaydedilir.
+              </p>
             </div>
-            <p className="mt-3 text-[11px] text-slate-500">Sayfalar sıraya göre numaralanır:</p>
-            <ul className="mt-1 space-y-0.5 text-xs text-slate-700">
-              {sayfalar.slice(0, 4).map((s, i) => (
-                <li key={s.id} className="truncate font-mono">
-                  {dosyaAdi(onEk, i + 1, sayfalar.length)}
-                </li>
-              ))}
-              {sayfalar.length > 4 && <li className="text-slate-400">… {dosyaAdi(onEk, sayfalar.length, sayfalar.length)}</li>}
-            </ul>
           </div>
-          <div className="rounded-2xl border border-slate-100 bg-white p-3 text-xs leading-relaxed text-slate-500">
-            <p className="mb-1 font-semibold text-slate-700">İndirme</p>
-            Her sayfa A4 (≈200 dpi) JPG olarak, sığan en yüksek kaliteyle 1 MB altına sıkıştırılır. Boş sayfalar indirilmez.
-            Resimler yalnızca bu tarayıcıda işlenir; sayfayı kapatınca kaybolur.
-          </div>
-          <button
-            type="button"
-            onClick={() => sayfaEkle(secili.duzen)}
-            className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-slate-300 px-3 py-2.5 text-sm font-medium text-slate-600 hover:border-lime-400 hover:bg-lime-50 hover:text-lime-800"
-          >
-            <Plus className="h-4 w-4" />
-            Aynı düzende sayfa ekle
-          </button>
         </div>
       </div>
 
