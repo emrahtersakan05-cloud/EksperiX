@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu } from "lucide-react";
 import BildirimMerkezi from "@/components/BildirimMerkezi";
@@ -36,7 +37,11 @@ export default function Topbar({
 
         <BildirimMerkezi kullaniciId={user?.id} />
 
-        <div className="ml-1 flex items-center gap-2.5 border-l border-slate-200 pl-3">
+        <Link
+          href="/hesabim"
+          title="Hesabım"
+          className="ml-1 flex items-center gap-2.5 rounded-r-xl border-l border-slate-200 pl-3 pr-1 hover:opacity-80"
+        >
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-lime-300 ring-2 ring-white">
             {getInitials(user?.fullName ?? "Kullanıcı")}
           </div>
@@ -44,7 +49,7 @@ export default function Topbar({
             <p className="text-sm font-medium text-slate-900">{user?.fullName ?? "Kullanıcı"}</p>
             <p className="text-xs text-slate-500">{user?.role === "admin" ? "Yönetici" : "Eksper"}</p>
           </div>
-        </div>
+        </Link>
       </div>
     </header>
   );

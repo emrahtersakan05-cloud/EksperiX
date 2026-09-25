@@ -35,6 +35,7 @@ const extraPageTitles: Record<string, string> = {
   "/deger-haritasi/emsal-haritasi": "Emsal Haritası",
   "/deger-haritasi/emsal-haritasi/yeni": "Yeni Emsal",
   "/deger-haritasi/deger-haritasi": "Değer Haritası",
+  "/hesabim": "Hesabım",
 };
 
 export function getPageTitle(pathname: string): string {

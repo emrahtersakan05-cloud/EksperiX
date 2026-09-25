@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { requireAdmin } from "./dal";
+import { requireAdmin, verifySession } from "./dal";
 import { createSession, deleteSession } from "./session";
 import {
   createUser,
@@ -143,4 +143,48 @@ export async function deleteUserAction(formData: FormData): Promise<void> {
     await deleteUser(id).catch(() => {});
   }
   revalidatePath("/admin/kullanicilar");
+}
+
+// ---- Own account (Hesabım) ----------------------------------------------------
+
+export async function updateProfileAction(_prevState: UserFormState, formData: FormData): Promise<UserFormState> {
+  const session = await verifySession();
+  const fullName = String(formData.get("fullName") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim();
+  if (!fullName) return { error: "Ad soyad boş bırakılamaz." };
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: "Geçerli bir e-posta adresi girin." };
+
+  try {
+    // Only name and e-mail: a user can't change their own role.
+    await updateUser(session.userId, { fullName, email });
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Bilgiler güncellenemedi." };
+  }
+  revalidatePath("/", "layout");
+  return { success: true };
+}
+
+export async function changePasswordAction(_prevState: UserFormState, formData: FormData): Promise<UserFormState> {
+  const session = await verifySession();
+  const mevcut = String(formData.get("currentPassword") ?? "");
+  const yeni = String(formData.get("newPassword") ?? "");
+  const tekrar = String(formData.get("confirmPassword") ?? "");
+
+  if (!mevcut || !yeni) return { error: "Mevcut ve yeni şifre gereklidir." };
+  if (yeni.length < 8) return { error: "Yeni şifre en az 8 karakter olmalıdır." };
+  if (yeni !== tekrar) return { error: "Yeni şifreler eşleşmiyor." };
+  if (yeni === mevcut) return { error: "Yeni şifre mevcut şifreden farklı olmalıdır." };
+
+  // Guessing the current password counts against the same lock as the login
+  // form, so a left-open session can't be used to brute-force it.
+  const kilit = await girisKilitSuresi(session.username);
+  if (kilit > 0) return { error: `Çok fazla hatalı deneme. ${Math.ceil(kilit / 60)} dakika sonra tekrar deneyin.` };
+  const user = await verifyCredentials(session.username, mevcut);
+  if (!user || user.id !== session.userId) {
+    await hataliGirisKaydet(session.username);
+    return { error: "Mevcut şifre hatalı." };
+  }
+  await girisDenemeleriniSifirla(session.username);
+  await resetPassword(user.id, yeni);
+  return { success: true };
 }

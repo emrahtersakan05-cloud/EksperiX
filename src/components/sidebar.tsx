@@ -117,10 +117,10 @@ export default function Sidebar({
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-lime-300 text-sm font-semibold text-slate-900">
             {getInitials(user?.fullName ?? "Kullanıcı")}
           </div>
-          <div className="min-w-0 flex-1 leading-tight">
+          <Link href="/hesabim" onClick={onNavigate} title="Hesabım" className="min-w-0 flex-1 leading-tight hover:opacity-80">
             <p className="truncate text-sm font-medium text-white">{user?.fullName ?? "Kullanıcı"}</p>
-            <p className="truncate text-xs text-slate-500">{user?.email ?? ""}</p>
-          </div>
+            <p className="truncate text-xs text-slate-500">{user?.email || "Hesabım"}</p>
+          </Link>
           <form action={logoutAction}>
             <button
               type="submit"
