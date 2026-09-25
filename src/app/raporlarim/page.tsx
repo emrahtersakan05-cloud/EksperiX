@@ -6,7 +6,7 @@ import { ArrowRight, FileDown, FileText, Loader2, Search } from "lucide-react";
 import Card from "@/components/card";
 import { formatTrNumber } from "@/lib/emsal/hesaplama";
 import { getTapuCompletion } from "@/lib/talep/completion";
-import { yontemSonuclari } from "@/lib/talep/deger-hesaplama";
+import { oneCikanSonuc } from "@/lib/talep/deger-hesaplama";
 import { exportReportAsDocx, exportReportAsPdf } from "@/lib/talep/report-export";
 import { generateValuationReport } from "@/lib/talep/report";
 import { listTalepler } from "@/lib/talep/service";
@@ -32,15 +32,10 @@ interface RaporSatiri {
   pct: number;
 }
 
-// The figure a report puts forward: the esas method's result, else the only
-// method filled in (same rule as the report text).
+// The figure a report puts forward (same rule as the report text).
 function raporDegeri(tapu: Tapu): { deger: number | null; not: string } {
-  const h = tapu.degerleme.hesaplamalar;
-  const sonuclar = yontemSonuclari(h);
-  if (h.esasYontem && sonuclar[h.esasYontem] !== null) return { deger: sonuclar[h.esasYontem], not: "" };
-  const dolu = Object.values(sonuclar).filter((v): v is number => v !== null);
-  if (dolu.length === 1) return { deger: dolu[0], not: "" };
-  return { deger: null, not: dolu.length > 1 ? "Esas yöntem seçilmedi" : "Hesaplanmadı" };
+  const s = oneCikanSonuc(tapu.degerleme.hesaplamalar);
+  return { deger: s.deger, not: s.eksik === "esas-secilmedi" ? "Esas yöntem seçilmedi" : s.eksik ? "Hesaplanmadı" : "" };
 }
 
 function satirlar(talepler: Talep[]): RaporSatiri[] {

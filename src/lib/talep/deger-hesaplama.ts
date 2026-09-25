@@ -326,3 +326,21 @@ export function emsalDayanagi(kayitlar: { etiket: string; kaydi: EmsalKaydi }[])
     degisimKatsayisi: sapma !== null && ortalamaNet ? sapma / ortalamaNet : null,
   };
 }
+
+export interface OneCikanSonuc {
+  deger: number | null;
+  birim: number | null;
+  yontem: HesapYontemi | null;
+  // Why there is no value: nothing filled in, or several methods and no esas.
+  eksik: "" | "hesaplanmadi" | "esas-secilmedi";
+}
+
+// The single figure a report puts forward: the esas method's result, else the
+// only method filled in. Shared by the report list and the Değer Haritası.
+export function oneCikanSonuc(h: DegerHesaplamalari): OneCikanSonuc {
+  const sonuclar = yontemSonuclari(h);
+  const dolu = (Object.keys(sonuclar) as HesapYontemi[]).filter((y) => sonuclar[y] !== null);
+  const yontem = h.esasYontem && sonuclar[h.esasYontem] !== null ? h.esasYontem : dolu.length === 1 ? dolu[0] : null;
+  if (!yontem) return { deger: null, birim: null, yontem: null, eksik: dolu.length > 1 ? "esas-secilmedi" : "hesaplanmadi" };
+  return { deger: sonuclar[yontem], birim: yontemBirimi(yontem, h), yontem, eksik: "" };
+}

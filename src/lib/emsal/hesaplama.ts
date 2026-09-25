@@ -71,3 +71,8 @@ export const HESAP_GIRDI_ALANLARI: (keyof EmsalKaydi)[] = [
   "yapiSerefiyesi",
   "katSerefiyesi",
 ];
+
+// Whole lira / ₺/m² figures for dense UI (stat tiles, lists, map legends).
+export function tamSayi(value: number): string {
+  return Math.round(value).toLocaleString("tr-TR");
+}
