@@ -523,6 +523,25 @@ export default function KolajOlusturucu() {
       <div className="grid gap-4 lg:grid-cols-[260px_minmax(0,1fr)_240px]">
         {/* Sayfa listesi */}
         <div className="rounded-2xl border border-slate-100 bg-white p-3">
+          <p className="mb-1.5 flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-slate-400">
+            <Plus className="h-3.5 w-3.5" />
+            Yeni Sayfa Ekle
+          </p>
+          <div className="grid grid-cols-5 gap-1.5">
+            {DUZENLER.map((d) => (
+              <button
+                key={d.key}
+                type="button"
+                onClick={() => sayfaEkle(d.key)}
+                title={`${d.ad} sayfa ekle (${d.aciklama})`}
+                className="flex flex-col items-center gap-1 rounded-lg border border-slate-200 p-1.5 text-slate-500 hover:border-lime-400 hover:bg-lime-50 hover:text-lime-800"
+              >
+                <DuzenSimgesi duzen={d.key} className="w-5" />
+                <span className="text-[10px] font-semibold">{d.ad}</span>
+              </button>
+            ))}
+          </div>
+          <div className="my-3 border-t border-slate-100" />
           <div className="mb-2 flex items-center justify-between">
             <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Sayfalar</p>
             <span className="text-[11px] text-slate-400">Sürükleyerek sıralayın</span>
@@ -597,21 +616,6 @@ export default function KolajOlusturucu() {
               );
             })}
           </ol>
-          <p className="mb-1.5 mt-3 text-[11px] font-medium text-slate-500">Yeni sayfa ekle</p>
-          <div className="grid grid-cols-5 gap-1.5">
-            {DUZENLER.map((d) => (
-              <button
-                key={d.key}
-                type="button"
-                onClick={() => sayfaEkle(d.key)}
-                title={`${d.ad} sayfa ekle (${d.aciklama})`}
-                className="flex flex-col items-center gap-1 rounded-lg border border-slate-200 p-1.5 text-slate-500 hover:border-lime-400 hover:bg-lime-50 hover:text-lime-800"
-              >
-                <DuzenSimgesi duzen={d.key} className="w-5" />
-                <span className="text-[10px] font-semibold">{d.ad}</span>
-              </button>
-            ))}
-          </div>
         </div>
 
         {/* Seçili sayfa */}
@@ -673,16 +677,14 @@ export default function KolajOlusturucu() {
                   type="button"
                   role="radio"
                   aria-checked={aktif}
+                  title={d.aciklama}
                   onClick={() => duzenDegistir(secili.id, d.key)}
-                  className={`flex items-center gap-2 rounded-xl border px-2.5 py-1.5 text-left transition-colors ${
+                  className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-left transition-colors ${
                     aktif ? "border-slate-900 bg-slate-900 text-lime-300" : "border-slate-200 bg-white text-slate-600 hover:border-slate-300"
                   }`}
                 >
                   <DuzenSimgesi duzen={d.key} className="w-4" />
-                  <span>
-                    <span className="block text-xs font-semibold">{d.ad}</span>
-                    <span className={`block text-[10px] ${aktif ? "text-slate-300" : "text-slate-400"}`}>{d.aciklama}</span>
-                  </span>
+                  <span className="text-xs font-semibold">{d.ad}</span>
                 </button>
               );
             })}
