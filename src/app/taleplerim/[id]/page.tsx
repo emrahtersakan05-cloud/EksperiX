@@ -41,6 +41,8 @@ export default function TalepDetayPage() {
   const [sectionResetVersion, setSectionResetVersion] = useState(0);
   const [resetModalOpen, setResetModalOpen] = useState(false);
   const [resettingSection, setResettingSection] = useState(false);
+  // Set when a save to browser storage fails, so the loss is never silent.
+  const [kayitHatasi, setKayitHatasi] = useState<string | null>(null);
   const sectionsWithoutData: TapuSectionKey[] = [
     "talepDetayi",
     "yakinRaporlarAdaParsel",
@@ -88,14 +90,31 @@ export default function TalepDetayPage() {
 
   const activeTapu = talep.tapular.find((t) => t.id === activeTapuId) ?? talep.tapular[0];
   const sectionTapu = isSharedSection ? talep.tapular[0] : activeTapu;
+  // Runs a save; on failure keeps the message on screen instead of losing the edit silently.
+  async function kaydetVeyaBildir<T>(is: () => Promise<T>): Promise<T | undefined> {
+    try {
+      const sonuc = await is();
+      setKayitHatasi(null);
+      return sonuc;
+    } catch (err) {
+      const kota = err instanceof DOMException && err.name === "QuotaExceededError";
+      setKayitHatasi(
+        kota
+          ? "Tarayıcı depolama alanı doldu; son değişiklik kaydedilemedi. Taleplerim sayfasından yedek alıp eski talepleri silin."
+          : `Son değişiklik kaydedilemedi (${err instanceof Error ? err.message : "bilinmeyen hata"}).`,
+      );
+      return undefined;
+    }
+  }
+
   async function handleUpdateTapu(updater: (tapu: Tapu) => Tapu) {
     if (!sectionTapu) return;
-    const updated = await updateTapu(talep!.id, sectionTapu.id, updater);
+    const updated = await kaydetVeyaBildir(() => updateTapu(talep!.id, sectionTapu.id, updater));
     if (updated) setTalep(updated);
   }
 
   async function handleAddTapu() {
-    const updated = await addTapu(talep!.id);
+    const updated = await kaydetVeyaBildir(() => addTapu(talep!.id));
     if (updated) {
       setTalep(updated);
       setActiveTapuId(updated.tapular[updated.tapular.length - 1].id);
@@ -103,7 +122,7 @@ export default function TalepDetayPage() {
   }
 
   async function handleRemoveTapu(id: string) {
-    const updated = await removeTapu(talep!.id, id);
+    const updated = await kaydetVeyaBildir(() => removeTapu(talep!.id, id));
     if (updated) {
       setTalep(updated);
       if (activeTapuId === id) setActiveTapuId(updated.tapular[0]?.id ?? "");
@@ -111,7 +130,7 @@ export default function TalepDetayPage() {
   }
 
   async function handleRenameTapu(id: string, ad: string) {
-    const updated = await renameTapu(talep!.id, id, ad);
+    const updated = await kaydetVeyaBildir(() => renameTapu(talep!.id, id, ad));
     if (updated) setTalep(updated);
   }
 
@@ -125,7 +144,7 @@ export default function TalepDetayPage() {
     setResettingSection(true);
 
     const emptyTapu = createEmptyTapu(0);
-    const updated = await updateTapu(talep!.id, sectionTapu.id, (t) => {
+    const updated = await kaydetVeyaBildir(() => updateTapu(talep!.id, sectionTapu.id, (t) => {
       switch (activeSection) {
         case "adresKonum":
           return { ...t, adresKonum: emptyTapu.adresKonum };
@@ -163,7 +182,7 @@ export default function TalepDetayPage() {
         default:
           return t;
       }
-    });
+    }));
     if (updated) {
       setTalep(updated);
       setSectionResetVersion((v) => v + 1);
@@ -206,6 +225,19 @@ export default function TalepDetayPage() {
           {talep.degerlemeKurumBanka && <MetaChip icon={Landmark} label={talep.degerlemeKurumBanka} />}
         </div>
       </div>
+
+      {kayitHatasi && (
+        <div
+          role="alert"
+          className="sticky top-16 z-10 flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-800 shadow-sm"
+        >
+          <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-rose-500" />
+          <span className="flex-1">{kayitHatasi}</span>
+          <button type="button" onClick={() => setKayitHatasi(null)} className="text-xs font-medium underline">
+            Kapat
+          </button>
+        </div>
+      )}
 
       <div className="space-y-3">
         <SectionNav active={activeSection} onSelect={setActiveSection} className="w-full lg:w-full" />

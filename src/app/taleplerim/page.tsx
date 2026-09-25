@@ -5,6 +5,7 @@ import { ChevronLeft, ChevronRight, ClipboardList, FilterX, Search, X } from "lu
 import Card from "@/components/card";
 import TalepTable from "@/components/talep/TalepTable";
 import YeniTalepButton from "@/components/talep/YeniTalepButton";
+import TalepYedekleme from "@/components/talep/TalepYedekleme";
 import { inputClass } from "@/components/talep/form-fields";
 import { getTalepCompletion, getTalepDurum, type TalepDurum } from "@/lib/talep/completion";
 import { listTalepler } from "@/lib/talep/service";
@@ -127,7 +128,10 @@ export default function TaleplerimPage() {
             Tüm değerleme taleplerinizi buradan görüntüleyip yönetebilirsiniz.
           </p>
         </div>
-        <YeniTalepButton />
+        <div className="flex flex-wrap items-center gap-2">
+          <TalepYedekleme onYuklendi={reload} />
+          <YeniTalepButton />
+        </div>
       </div>
 
       {talepler !== null && talepler.length > 0 && (
