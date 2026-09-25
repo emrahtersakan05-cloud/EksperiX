@@ -7,6 +7,9 @@ import { createSession, deleteSession } from "./session";
 import {
   createUser,
   deleteUser,
+  girisDenemeleriniSifirla,
+  girisKilitSuresi,
+  hataliGirisKaydet,
   resetPassword,
   teshisEt,
   updateUser,
@@ -28,7 +31,15 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
 
   let user: Awaited<ReturnType<typeof verifyCredentials>>;
   try {
+    const kilit = await girisKilitSuresi(username);
+    if (kilit > 0) {
+      return {
+        error: `Çok fazla hatalı deneme. ${Math.ceil(kilit / 60)} dakika sonra tekrar deneyin ya da yöneticinizden şifre sıfırlaması isteyin.`,
+      };
+    }
     user = await verifyCredentials(username, password);
+    if (user) await girisDenemeleriniSifirla(username);
+    else await hataliGirisKaydet(username);
   } catch (err) {
     console.error("[giris] Kullanıcı veritabanına erişilemedi:", err);
     return {
@@ -97,7 +108,11 @@ export async function updateUserAction(
     return { error: "Geçersiz istek." };
   }
 
-  await updateUser(id, { fullName, email, role });
+  try {
+    await updateUser(id, { fullName, email, role });
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : "Kullanıcı güncellenemedi." };
+  }
   revalidatePath("/admin/kullanicilar");
   return { success: true };
 }
@@ -124,7 +139,8 @@ export async function deleteUserAction(formData: FormData): Promise<void> {
   const admin = await requireAdmin();
   const id = String(formData.get("id") ?? "");
   if (id && id !== admin.id) {
-    await deleteUser(id);
+    // deleteUser refuses to remove the last admin; nothing else to report here.
+    await deleteUser(id).catch(() => {});
   }
   revalidatePath("/admin/kullanicilar");
 }
