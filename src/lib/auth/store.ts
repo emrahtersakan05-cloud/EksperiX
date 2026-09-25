@@ -231,12 +231,15 @@ export async function updateUser(
   return toPublic(all[idx]);
 }
 
-export async function resetPassword(id: string, newPassword: string): Promise<void> {
+// Returns the user's new session version (see StoredUser.oturumSurumu).
+export async function resetPassword(id: string, newPassword: string): Promise<number | undefined> {
   const all = await readAll();
   const idx = all.findIndex((u) => u.id === id);
-  if (idx === -1) return;
-  all[idx] = { ...all[idx], passwordHash: bcrypt.hashSync(newPassword, 10) };
+  if (idx === -1) return undefined;
+  const oturumSurumu = (all[idx].oturumSurumu ?? 0) + 1;
+  all[idx] = { ...all[idx], passwordHash: bcrypt.hashSync(newPassword, 10), oturumSurumu };
   await writeAll(all);
+  return oturumSurumu;
 }
 
 export async function deleteUser(id: string): Promise<void> {

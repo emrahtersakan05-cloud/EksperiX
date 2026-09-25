@@ -2,7 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { requireAdmin, verifySession } from "./dal";
+import { getCurrentUser, requireAdmin } from "./dal";
 import { createSession, deleteSession } from "./session";
 import {
   createUser,
@@ -50,7 +50,7 @@ export async function loginAction(_prevState: LoginState, formData: FormData): P
     return { error: "Kullanıcı adı veya şifre hatalı." };
   }
 
-  await createSession({ id: user.id, username: user.username, role: user.role });
+  await createSession({ id: user.id, username: user.username, role: user.role, oturumSurumu: user.oturumSurumu });
   redirect("/panel");
 }
 
@@ -148,7 +148,8 @@ export async function deleteUserAction(formData: FormData): Promise<void> {
 // ---- Own account (Hesabım) ----------------------------------------------------
 
 export async function updateProfileAction(_prevState: UserFormState, formData: FormData): Promise<UserFormState> {
-  const session = await verifySession();
+  const hesap = await getCurrentUser();
+  if (!hesap) return { error: "Oturumunuz sona erdi; lütfen tekrar giriş yapın." };
   const fullName = String(formData.get("fullName") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
   if (!fullName) return { error: "Ad soyad boş bırakılamaz." };
@@ -156,7 +157,7 @@ export async function updateProfileAction(_prevState: UserFormState, formData: F
 
   try {
     // Only name and e-mail: a user can't change their own role.
-    await updateUser(session.userId, { fullName, email });
+    await updateUser(hesap.id, { fullName, email });
   } catch (err) {
     return { error: err instanceof Error ? err.message : "Bilgiler güncellenemedi." };
   }
@@ -165,7 +166,8 @@ export async function updateProfileAction(_prevState: UserFormState, formData: F
 }
 
 export async function changePasswordAction(_prevState: UserFormState, formData: FormData): Promise<UserFormState> {
-  const session = await verifySession();
+  const hesap = await getCurrentUser();
+  if (!hesap) return { error: "Oturumunuz sona erdi; lütfen tekrar giriş yapın." };
   const mevcut = String(formData.get("currentPassword") ?? "");
   const yeni = String(formData.get("newPassword") ?? "");
   const tekrar = String(formData.get("confirmPassword") ?? "");
@@ -177,14 +179,16 @@ export async function changePasswordAction(_prevState: UserFormState, formData: 
 
   // Guessing the current password counts against the same lock as the login
   // form, so a left-open session can't be used to brute-force it.
-  const kilit = await girisKilitSuresi(session.username);
+  const kilit = await girisKilitSuresi(hesap.username);
   if (kilit > 0) return { error: `Çok fazla hatalı deneme. ${Math.ceil(kilit / 60)} dakika sonra tekrar deneyin.` };
-  const user = await verifyCredentials(session.username, mevcut);
-  if (!user || user.id !== session.userId) {
-    await hataliGirisKaydet(session.username);
+  const user = await verifyCredentials(hesap.username, mevcut);
+  if (!user || user.id !== hesap.id) {
+    await hataliGirisKaydet(hesap.username);
     return { error: "Mevcut şifre hatalı." };
   }
-  await girisDenemeleriniSifirla(session.username);
-  await resetPassword(user.id, yeni);
+  await girisDenemeleriniSifirla(hesap.username);
+  const oturumSurumu = await resetPassword(user.id, yeni);
+  // Other devices are now logged out; keep this one signed in.
+  await createSession({ ...user, oturumSurumu });
   return { success: true };
 }

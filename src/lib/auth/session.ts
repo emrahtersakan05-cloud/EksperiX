@@ -30,13 +30,14 @@ export async function decrypt(session?: string): Promise<SessionPayload | null> 
   }
 }
 
-export async function createSession(user: { id: string; username: string; role: Role }): Promise<void> {
+export async function createSession(user: { id: string; username: string; role: Role; oturumSurumu?: number }): Promise<void> {
   const expiresAt = new Date(Date.now() + SESSION_DURATION_MS);
   const session = await encrypt({
     userId: user.id,
     username: user.username,
     role: user.role,
     expiresAt: expiresAt.toISOString(),
+    surum: user.oturumSurumu ?? 0,
   });
   const cookieStore = await cookies();
   cookieStore.set(COOKIE_NAME, session, {
