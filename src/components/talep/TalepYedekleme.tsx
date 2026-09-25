@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DatabaseBackup, Download, Loader2, Upload } from "lucide-react";
 import { yedekOlustur, yedekOzeti, yedektenYukle, type YedekOzeti } from "@/lib/talep/service";
 
@@ -11,6 +11,13 @@ export default function TalepYedekleme({ onYuklendi }: { onYuklendi: () => void 
   const [bekleyen, setBekleyen] = useState<{ ad: string; veri: unknown; ozet: YedekOzeti } | null>(null);
   const [mesaj, setMesaj] = useState<{ tur: "basari" | "hata"; metin: string } | null>(null);
   const [calisiyor, setCalisiyor] = useState(false);
+
+  // The note floats over the page, so it clears itself.
+  useEffect(() => {
+    if (!mesaj) return;
+    const t = setTimeout(() => setMesaj(null), 5000);
+    return () => clearTimeout(t);
+  }, [mesaj]);
 
   async function yedekAl() {
     setMesaj(null);
@@ -58,21 +65,30 @@ export default function TalepYedekleme({ onYuklendi }: { onYuklendi: () => void 
   }
 
   const dugme =
-    "inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-sm font-medium text-slate-700 shadow-sm hover:bg-slate-50";
+    "inline-flex items-center gap-1.5 px-3.5 py-2 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 hover:text-slate-900";
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <button type="button" onClick={yedekAl} className={dugme} title="Tüm talepleri bir JSON dosyasına indir">
-        <Download className="h-4 w-4" />
-        Yedek Al
-      </button>
-      <button type="button" onClick={() => dosyaRef.current?.click()} className={dugme} title="Daha önce alınmış bir yedeği yükle">
-        <Upload className="h-4 w-4" />
-        Yedekten Yükle
-      </button>
+    <div className="relative">
+      <div className="inline-flex divide-x divide-slate-200 overflow-hidden rounded-full border border-slate-200 bg-white shadow-sm">
+        <button type="button" onClick={yedekAl} className={dugme} title="Tüm talepleri bir JSON dosyasına indir">
+          <Download className="h-4 w-4 text-slate-500" />
+          Yedek Al
+        </button>
+        <button type="button" onClick={() => dosyaRef.current?.click()} className={dugme} title="Daha önce alınmış bir yedeği yükle">
+          <Upload className="h-4 w-4 text-slate-500" />
+          Yükle
+        </button>
+      </div>
       <input ref={dosyaRef} type="file" accept="application/json,.json" className="hidden" onChange={dosyaSecildi} />
       {mesaj && (
-        <span className={`text-xs font-medium ${mesaj.tur === "basari" ? "text-emerald-700" : "text-rose-600"}`}>{mesaj.metin}</span>
+        <p
+          role="status"
+          className={`absolute right-0 top-full z-10 mt-2 whitespace-nowrap rounded-lg px-2.5 py-1 text-xs font-medium shadow-sm ${
+            mesaj.tur === "basari" ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700"
+          }`}
+        >
+          {mesaj.metin}
+        </p>
       )}
 
       {bekleyen && (

@@ -1,12 +1,25 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, ClipboardList, FilterX, Search, X } from "lucide-react";
+import {
+  AlarmClock,
+  ArrowUpDown,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  CircleDashed,
+  ClipboardList,
+  FilterX,
+  Layers,
+  Loader,
+  Search,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import Card from "@/components/card";
 import TalepTable from "@/components/talep/TalepTable";
 import YeniTalepButton from "@/components/talep/YeniTalepButton";
 import TalepYedekleme from "@/components/talep/TalepYedekleme";
-import { inputClass } from "@/components/talep/form-fields";
 import { getTalepCompletion, getTalepDurum, type TalepDurum } from "@/lib/talep/completion";
 import { listTalepler } from "@/lib/talep/service";
 import type { Talep } from "@/lib/talep/types";
@@ -18,6 +31,23 @@ type DurumFilter = "Tümü" | TalepDurum;
 type SortKey = "yeni" | "eski" | "ilerleme" | "musteri" | "talepNo";
 
 const durumFilters: DurumFilter[] = ["Tümü", "Başlanmadı", "Devam Ediyor", "Tamamlandı"];
+
+const DURUM_GORUNUM: Record<DurumFilter, { icon: LucideIcon; ikon: string; bar: string; aciklama: string }> = {
+  Tümü: { icon: Layers, ikon: "bg-slate-900 text-lime-300", bar: "bg-slate-900", aciklama: "Tüm talepler" },
+  Başlanmadı: { icon: CircleDashed, ikon: "bg-slate-100 text-slate-500", bar: "bg-slate-400", aciklama: "Veri girilmedi" },
+  "Devam Ediyor": { icon: Loader, ikon: "bg-amber-100 text-amber-700", bar: "bg-amber-400", aciklama: "Doldurulmakta" },
+  Tamamlandı: { icon: CheckCircle2, ikon: "bg-emerald-100 text-emerald-700", bar: "bg-emerald-500", aciklama: "Eksiksiz" },
+};
+
+// A talep is late when any tapu's target date has passed before delivery.
+function gecikmisMi(talep: Talep, bugun: string): boolean {
+  return talep.tapular.some(
+    (t) =>
+      t.talepDetayi.hedefTeslimTarihi !== "" &&
+      t.talepDetayi.hedefTeslimTarihi < bugun &&
+      t.raporSonucu.durum !== "Teslim Edildi",
+  );
+}
 
 const sortOptions: { value: SortKey; label: string }[] = [
   { value: "yeni", label: "Önce en yeni" },
@@ -111,6 +141,18 @@ export default function TaleplerimPage() {
   const pageStart = (safePage - 1) * PAGE_SIZE;
   const pageRows = filtered?.slice(pageStart, pageStart + PAGE_SIZE) ?? [];
 
+  const ozet = useMemo(() => {
+    if (!rows || rows.length === 0) return null;
+    const simdi = new Date();
+    const bugun = `${simdi.getFullYear()}-${String(simdi.getMonth() + 1).padStart(2, "0")}-${String(simdi.getDate()).padStart(2, "0")}`;
+    const buAy = bugun.slice(0, 7);
+    return {
+      ortalama: Math.round(rows.reduce((t, r) => t + r.pct, 0) / rows.length),
+      buAy: rows.filter((r) => r.talep.olusturmaTarihi.slice(0, 7) === buAy).length,
+      geciken: rows.filter((r) => gecikmisMi(r.talep, bugun)).length,
+    };
+  }, [rows]);
+
   const hasActiveFilter = query.trim() !== "" || durumFilter !== "Tümü";
 
   function clearFilters() {
@@ -121,23 +163,91 @@ export default function TaleplerimPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Taleplerim</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Tüm değerleme taleplerinizi buradan görüntüleyip yönetebilirsiniz.
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <TalepYedekleme onYuklendi={reload} />
-          <YeniTalepButton />
+      <div className="relative overflow-hidden rounded-3xl border border-slate-100 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-12px_rgba(15,23,42,0.08)] sm:p-6">
+        <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-lime-200/40 blur-3xl" />
+        <div className="relative flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex items-start gap-4">
+            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-lime-300 shadow-[0_0_32px_-8px] shadow-lime-400/40">
+              <ClipboardList className="h-6 w-6" />
+            </span>
+            <div className="min-w-0">
+              <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Taleplerim</h1>
+              <p className="mt-0.5 text-sm text-slate-500">
+                Tüm değerleme taleplerinizi buradan görüntüleyip yönetebilirsiniz.
+              </p>
+              {ozet && (
+                <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                  <span className="rounded-full bg-slate-100 px-2.5 py-1 font-medium text-slate-600">
+                    Bu ay <strong className="text-slate-900">{ozet.buAy}</strong> yeni talep
+                  </span>
+                  <span className="rounded-full bg-slate-100 px-2.5 py-1 font-medium text-slate-600">
+                    Ortalama doluluk <strong className="text-slate-900">%{ozet.ortalama}</strong>
+                  </span>
+                  {ozet.geciken > 0 && (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2.5 py-1 font-medium text-rose-700">
+                      <AlarmClock className="h-3.5 w-3.5" />
+                      Teslim tarihi geçen: {ozet.geciken}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="flex flex-wrap items-center gap-2 lg:shrink-0 lg:flex-nowrap">
+            <TalepYedekleme onYuklendi={reload} />
+            <YeniTalepButton />
+          </div>
         </div>
       </div>
 
       {talepler !== null && talepler.length > 0 && (
-        <div className="space-y-3">
-          <div className="flex flex-wrap items-center gap-3">
-            <div className="relative w-full max-w-sm">
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4" role="group" aria-label="Duruma göre filtrele">
+            {durumFilters.map((d) => {
+              const active = durumFilter === d;
+              const g = DURUM_GORUNUM[d];
+              const Icon = g.icon;
+              const oran = counts.Tümü ? Math.round((counts[d] / counts.Tümü) * 100) : 0;
+              return (
+                <button
+                  key={d}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => {
+                    setDurumFilter(d);
+                    setPage(1);
+                  }}
+                  className={`flex flex-col gap-3 rounded-2xl border bg-white p-4 text-left transition-all ${
+                    active
+                      ? "border-slate-900 shadow-[0_8px_24px_-12px_rgba(15,23,42,0.35)] ring-1 ring-slate-900"
+                      : "border-slate-100 hover:-translate-y-0.5 hover:border-slate-200 hover:shadow-sm"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-2">
+                    <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${g.ikon}`}>
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <span className="text-2xl font-semibold tabular-nums text-slate-900">{counts[d]}</span>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-slate-900">{d}</p>
+                    <p className="truncate text-xs text-slate-500">
+                      {d === "Tümü" ? g.aciklama : `%${oran} · ${g.aciklama}`}
+                    </p>
+                  </div>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
+                    <div
+                      className={`h-full rounded-full transition-all ${g.bar}`}
+                      style={{ width: `${d === "Tümü" ? (counts.Tümü ? 100 : 0) : oran}%` }}
+                    />
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="flex flex-col gap-2 rounded-2xl border border-slate-100 bg-white p-2 sm:flex-row sm:items-center">
+            <div className="relative flex-1">
               <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
               <input
                 type="search"
@@ -148,7 +258,7 @@ export default function TaleplerimPage() {
                 }}
                 placeholder="Talep no, müşteri, firma, banka veya nitelik ara..."
                 aria-label="Talep ara"
-                className={`${inputClass} rounded-full pl-9 pr-9 [&::-webkit-search-cancel-button]:hidden`}
+                className="w-full rounded-xl border-0 bg-slate-50 py-2.5 pl-10 pr-9 text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-lime-200 [&::-webkit-search-cancel-button]:hidden"
               />
               {query && (
                 <button
@@ -158,22 +268,23 @@ export default function TaleplerimPage() {
                     setPage(1);
                   }}
                   aria-label="Aramayı temizle"
-                  className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-700"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
               )}
             </div>
 
-            <label className="ml-auto flex items-center gap-2 text-sm text-slate-500">
-              Sırala
+            <label className="relative flex items-center">
+              <ArrowUpDown className="pointer-events-none absolute left-3.5 h-4 w-4 text-slate-400" />
+              <span className="sr-only">Sırala</span>
               <select
                 value={sort}
                 onChange={(e) => {
                   setSort(e.target.value as SortKey);
                   setPage(1);
                 }}
-                className={`${inputClass} w-auto rounded-full py-1.5`}
+                className="w-full cursor-pointer rounded-xl border-0 bg-slate-50 py-2.5 pl-10 pr-8 text-sm font-medium text-slate-700 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-lime-200 sm:w-auto"
               >
                 {sortOptions.map((o) => (
                   <option key={o.value} value={o.value}>
@@ -182,37 +293,17 @@ export default function TaleplerimPage() {
                 ))}
               </select>
             </label>
-          </div>
 
-          <div className="flex flex-wrap gap-2" role="group" aria-label="Duruma göre filtrele">
-            {durumFilters.map((d) => {
-              const active = durumFilter === d;
-              return (
-                <button
-                  key={d}
-                  type="button"
-                  aria-pressed={active}
-                  onClick={() => {
-                    setDurumFilter(d);
-                    setPage(1);
-                  }}
-                  className={`inline-flex items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors ${
-                    active
-                      ? "border-slate-900 bg-slate-900 text-white"
-                      : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900"
-                  }`}
-                >
-                  {d}
-                  <span
-                    className={`rounded-full px-2 py-0.5 text-xs tabular-nums ${
-                      active ? "bg-white/20 text-white" : "bg-slate-100 text-slate-500"
-                    }`}
-                  >
-                    {counts[d]}
-                  </span>
-                </button>
-              );
-            })}
+            {hasActiveFilter && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+              >
+                <FilterX className="h-4 w-4" />
+                Temizle
+              </button>
+            )}
           </div>
         </div>
       )}
