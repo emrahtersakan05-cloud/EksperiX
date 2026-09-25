@@ -2,9 +2,24 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { ArrowRight, FileDown, FileText, Loader2, Search } from "lucide-react";
+import {
+  ArrowRight,
+  ArrowUpDown,
+  CheckCircle2,
+  CircleDashed,
+  FileDown,
+  FilePen,
+  FileSearch,
+  FileText,
+  FilterX,
+  Loader2,
+  Search,
+  Send,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import Card from "@/components/card";
-import { formatTrNumber } from "@/lib/emsal/hesaplama";
+import { formatTrNumber, tamSayi } from "@/lib/emsal/hesaplama";
 import { getTapuCompletion } from "@/lib/talep/completion";
 import { oneCikanSonuc } from "@/lib/talep/deger-hesaplama";
 import { exportReportAsDocx, exportReportAsPdf } from "@/lib/talep/report-export";
@@ -22,6 +37,43 @@ const DURUM_STILI: Record<string, string> = {
   "Teslim Edildi": "bg-emerald-100 text-emerald-800",
   Belirtilmedi: "bg-slate-50 text-slate-400",
 };
+
+const DURUMLAR = ["Taslak", "İncelemede", "Onaylandı", "Teslim Edildi", "Belirtilmedi"] as const;
+
+const DURUM_GORUNUM: Record<(typeof DURUMLAR)[number], { icon: LucideIcon; ikon: string; bar: string }> = {
+  Taslak: { icon: FilePen, ikon: "bg-slate-100 text-slate-600", bar: "bg-slate-500" },
+  İncelemede: { icon: FileSearch, ikon: "bg-amber-100 text-amber-700", bar: "bg-amber-400" },
+  Onaylandı: { icon: CheckCircle2, ikon: "bg-sky-100 text-sky-700", bar: "bg-sky-500" },
+  "Teslim Edildi": { icon: Send, ikon: "bg-emerald-100 text-emerald-700", bar: "bg-emerald-500" },
+  Belirtilmedi: { icon: CircleDashed, ikon: "bg-slate-50 text-slate-400", bar: "bg-slate-300" },
+};
+
+type Siralama = "yeni" | "eski" | "deger" | "teslim";
+
+const SIRALAMALAR: { value: Siralama; label: string }[] = [
+  { value: "yeni", label: "Önce en yeni" },
+  { value: "eski", label: "Önce en eski" },
+  { value: "deger", label: "Değere göre (yüksek)" },
+  { value: "teslim", label: "Teslim tarihine göre" },
+];
+
+function teslimTarihi(s: { tapu: Tapu }): string {
+  return s.tapu.raporSonucu.teslimTarihi || s.tapu.talepDetayi.hedefTeslimTarihi || "";
+}
+
+function sirala(siralama: Siralama): (a: RaporSatiri, b: RaporSatiri) => number {
+  switch (siralama) {
+    case "eski":
+      return (a, b) => a.talep.olusturmaTarihi.localeCompare(b.talep.olusturmaTarihi);
+    case "deger":
+      return (a, b) => (b.deger ?? -1) - (a.deger ?? -1);
+    case "teslim":
+      // Undated reports go last.
+      return (a, b) => (teslimTarihi(a) || "9999").localeCompare(teslimTarihi(b) || "9999");
+    default:
+      return (a, b) => b.talep.olusturmaTarihi.localeCompare(a.talep.olusturmaTarihi);
+  }
+}
 
 interface RaporSatiri {
   talep: Talep;
@@ -59,6 +111,7 @@ export default function RaporlarimPage() {
   const [talepler, setTalepler] = useState<Talep[] | null>(null);
   const [durum, setDurum] = useState<DurumFiltresi>("Tümü");
   const [arama, setArama] = useState("");
+  const [siralama, setSiralama] = useState<Siralama>("yeni");
   const [indiriliyor, setIndiriliyor] = useState<string | null>(null);
   const [hata, setHata] = useState<string | null>(null);
 
@@ -83,9 +136,20 @@ export default function RaporlarimPage() {
             [s.talep.talepNo, s.talep.musteriUnvani, s.tapu.ad, s.tapu.raporSonucu.raporNo, s.talep.degerlemeKurumBanka].join(" "),
           ).includes(q),
       )
-      .sort((a, b) => b.talep.olusturmaTarihi.localeCompare(a.talep.olusturmaTarihi));
-  }, [tumu, durum, arama]);
+      .sort(sirala(siralama));
+  }, [tumu, durum, arama, siralama]);
   const toplamDeger = gorunen.reduce((t, s) => t + (s.deger ?? 0), 0);
+
+  const ozet = useMemo(() => {
+    if (tumu.length === 0) return null;
+    const buAy = new Date().toISOString().slice(0, 7);
+    return {
+      degerli: tumu.filter((s) => s.deger !== null).length,
+      portfoy: tumu.reduce((t, s) => t + (s.deger ?? 0), 0),
+      buAyTeslim: tumu.filter((s) => s.tapu.raporSonucu.teslimTarihi.slice(0, 7) === buAy).length,
+    };
+  }, [tumu]);
+  const filtreVar = durum !== "Tümü" || arama.trim() !== "";
 
   async function indir(s: RaporSatiri, tur: "docx" | "pdf") {
     const anahtar = `${s.tapu.id}:${tur}`;
@@ -103,47 +167,136 @@ export default function RaporlarimPage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Raporlarım</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Tüm taleplerdeki değerleme raporları. Rapor durumu, talebin Rapor Sonucu bölümünden güncellenir.
-        </p>
+      <div className="relative overflow-hidden rounded-3xl border border-slate-100 bg-white p-5 shadow-[0_1px_2px_rgba(15,23,42,0.04),0_8px_24px_-12px_rgba(15,23,42,0.08)] sm:p-6">
+        <div className="pointer-events-none absolute -right-16 -top-20 h-56 w-56 rounded-full bg-lime-200/40 blur-3xl" />
+        <div className="relative flex items-start gap-4">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-lime-300 shadow-[0_0_32px_-8px] shadow-lime-400/40">
+            <FileText className="h-6 w-6" />
+          </span>
+          <div className="min-w-0">
+            <h1 className="text-2xl font-semibold tracking-tight text-slate-900">Raporlarım</h1>
+            <p className="mt-0.5 text-sm text-slate-500">
+              Tüm taleplerdeki değerleme raporları. Rapor durumu, talebin Rapor Sonucu bölümünden güncellenir.
+            </p>
+            {ozet && (
+              <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                <span className="rounded-full bg-slate-100 px-2.5 py-1 font-medium text-slate-600">
+                  <strong className="text-slate-900">{tumu.length}</strong> rapor ·{" "}
+                  <strong className="text-slate-900">{ozet.degerli}</strong> değeri hesaplandı
+                </span>
+                {ozet.portfoy > 0 && (
+                  <span className="rounded-full bg-slate-100 px-2.5 py-1 font-medium text-slate-600">
+                    Toplam değer <strong className="text-slate-900">{tamSayi(ozet.portfoy)} ₺</strong>
+                  </span>
+                )}
+                <span className="rounded-full bg-emerald-50 px-2.5 py-1 font-medium text-emerald-700">
+                  Bu ay teslim: <strong>{ozet.buAyTeslim}</strong>
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-        {(["Taslak", "İncelemede", "Onaylandı", "Teslim Edildi", "Belirtilmedi"] as const).map((d) => (
-          <button
-            key={d}
-            type="button"
-            onClick={() => setDurum(durum === d ? "Tümü" : d)}
-            aria-pressed={durum === d}
-            className={`rounded-2xl border p-4 text-left transition-colors ${
-              durum === d ? "border-slate-900 bg-slate-900 text-white" : "border-slate-100 bg-white hover:border-slate-200"
-            }`}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-5" role="group" aria-label="Duruma göre filtrele">
+        {DURUMLAR.map((d) => {
+          const aktif = durum === d;
+          const g = DURUM_GORUNUM[d];
+          const Icon = g.icon;
+          const adet = sayilar.get(d) ?? 0;
+          const oran = tumu.length ? Math.round((adet / tumu.length) * 100) : 0;
+          return (
+            <button
+              key={d}
+              type="button"
+              onClick={() => setDurum(aktif ? "Tümü" : d)}
+              aria-pressed={aktif}
+              className={`flex flex-col gap-3 rounded-2xl border bg-white p-4 text-left transition-all last:col-span-2 sm:last:col-span-1 ${
+                aktif
+                  ? "border-slate-900 shadow-[0_8px_24px_-12px_rgba(15,23,42,0.35)] ring-1 ring-slate-900"
+                  : "border-slate-100 hover:-translate-y-0.5 hover:border-slate-200 hover:shadow-sm"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <span className={`flex h-9 w-9 items-center justify-center rounded-xl ${g.ikon}`}>
+                  <Icon className="h-4 w-4" />
+                </span>
+                <span className="text-2xl font-semibold tabular-nums text-slate-900">{adet}</span>
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-slate-900">{d}</p>
+                <p className="text-xs text-slate-500">%{oran}</p>
+              </div>
+              <div className="h-1.5 overflow-hidden rounded-full bg-slate-100">
+                <div className={`h-full rounded-full transition-all ${g.bar}`} style={{ width: `${oran}%` }} />
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="flex flex-col gap-2 rounded-2xl border border-slate-100 bg-white p-2 sm:flex-row sm:items-center">
+        <div className="relative flex-1">
+          <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <input
+            type="search"
+            value={arama}
+            onChange={(e) => setArama(e.target.value)}
+            placeholder="Talep no, müşteri, rapor no, kurum…"
+            aria-label="Rapor ara"
+            className="w-full rounded-xl border-0 bg-slate-50 py-2.5 pl-10 pr-9 text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-lime-200 [&::-webkit-search-cancel-button]:hidden"
+          />
+          {arama && (
+            <button
+              type="button"
+              onClick={() => setArama("")}
+              aria-label="Aramayı temizle"
+              className="absolute right-2.5 top-1/2 -translate-y-1/2 rounded-full p-1 text-slate-400 hover:bg-slate-200 hover:text-slate-700"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
+        <label className="relative flex items-center">
+          <ArrowUpDown className="pointer-events-none absolute left-3.5 h-4 w-4 text-slate-400" />
+          <span className="sr-only">Sırala</span>
+          <select
+            value={siralama}
+            onChange={(e) => setSiralama(e.target.value as Siralama)}
+            className="w-full cursor-pointer rounded-xl border-0 bg-slate-50 py-2.5 pl-10 pr-8 text-sm font-medium text-slate-700 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-lime-200 sm:w-auto"
           >
-            <p className={`text-2xl font-semibold tabular-nums ${durum === d ? "text-lime-300" : "text-slate-900"}`}>
-              {sayilar.get(d) ?? 0}
-            </p>
-            <p className={`mt-0.5 text-xs ${durum === d ? "text-slate-300" : "text-slate-500"}`}>{d}</p>
+            {SIRALAMALAR.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        {filtreVar && (
+          <button
+            type="button"
+            onClick={() => {
+              setArama("");
+              setDurum("Tümü");
+            }}
+            className="inline-flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+          >
+            <FilterX className="h-4 w-4" />
+            Temizle
           </button>
-        ))}
+        )}
       </div>
 
       <Card>
-        <div className="mb-3 flex flex-wrap items-center gap-3">
-          <div className="relative w-full max-w-sm">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-            <input
-              type="search"
-              value={arama}
-              onChange={(e) => setArama(e.target.value)}
-              placeholder="Talep no, müşteri, rapor no, kurum…"
-              className="w-full rounded-full border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm text-slate-700 placeholder:text-slate-400 focus:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-200"
-            />
-          </div>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs text-slate-500">
-            {gorunen.length} rapor{durum !== "Tümü" ? ` · ${durum}` : ""}
-            {toplamDeger > 0 && ` · toplam ${formatTrNumber(toplamDeger)} ₺`}
+            <strong className="text-slate-900">{gorunen.length}</strong> rapor{durum !== "Tümü" ? ` · ${durum}` : ""}
+            {toplamDeger > 0 && (
+              <>
+                {" "}
+                · toplam <strong className="text-slate-900">{tamSayi(toplamDeger)} ₺</strong>
+              </>
+            )}
           </p>
           {hata && <p className="text-xs font-medium text-rose-600">{hata}</p>}
         </div>
