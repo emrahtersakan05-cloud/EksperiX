@@ -10,6 +10,7 @@ import DevamEtKarti from "@/components/panel/DevamEtKarti";
 import TeslimlerKarti from "@/components/panel/TeslimlerKarti";
 import RaporDurumKarti from "@/components/panel/RaporDurumKarti";
 import PanelGrafikleri from "@/components/panel/PanelGrafikleri";
+import TeslimTakvimi from "@/components/panel/TeslimTakvimi";
 import {
   degisimYuzdesi,
   devamEdilecekler,
@@ -153,12 +154,16 @@ export default function PanelIcerik({ ad, emsalKarti }: { ad: string; emsalKarti
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
         <div className="min-w-0 xl:col-span-2">
+          {simdi && <TeslimTakvimi satirlar={satirlar} simdi={simdi} />}
+        </div>
+        <RaporDurumKarti sayilar={raporlar} />
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
+        <div className="min-w-0 xl:col-span-2">
           <RecentTaleplerCard limit={10} onDegisti={yukle} />
         </div>
-        <div className="space-y-6">
-          <RaporDurumKarti sayilar={raporlar} />
-          {emsalKarti}
-        </div>
+        {emsalKarti}
       </div>
     </div>
   );
