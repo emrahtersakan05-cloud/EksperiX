@@ -9,6 +9,17 @@ import {
 } from "@/lib/talep/reference-lists";
 import type { TalepDetayiData } from "@/lib/talep/types";
 
+// Hedef Teslim Tarihi follows Talep Tarihi by this many days.
+const TESLIM_SURESI_GUN = 2;
+
+// "2026-09-25" + n days, in calendar days (no time zone drift).
+function gunEkle(tarih: string, gun: number): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(tarih);
+  if (!m) return "";
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]) + gun));
+  return d.toISOString().slice(0, 10);
+}
+
 export default function TalepDetayiSection({
   data,
   onChange,
@@ -75,7 +86,13 @@ export default function TalepDetayiSection({
             label="Talep Tarihi"
             type="date"
             value={data.talepTarihi}
-            onChange={(v) => onChange({ talepTarihi: v })}
+            onChange={(v) => {
+              // Fill the target date, unless the user has set one by hand
+              // (i.e. it no longer matches the previous automatic value).
+              const otomatik = !data.hedefTeslimTarihi || data.hedefTeslimTarihi === gunEkle(data.talepTarihi, TESLIM_SURESI_GUN);
+              const hedef = gunEkle(v, TESLIM_SURESI_GUN);
+              onChange(otomatik && hedef ? { talepTarihi: v, hedefTeslimTarihi: hedef } : { talepTarihi: v });
+            }}
           />
           <TextField
             label="Hedef Teslim Tarihi"
