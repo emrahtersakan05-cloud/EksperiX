@@ -271,7 +271,11 @@ export interface HisseliDegerlemeData {
   satirlar: HisseSatiri[];
 }
 
+export type HesapYontemi = "normal" | "alanFarki" | "seviyeli" | "hisseli";
+
 export interface DegerHesaplamalari {
+  // The method whose result the report puts forward when several are filled.
+  esasYontem: HesapYontemi | "";
   normal: NormalDegerlemeData;
   alanFarki: AlanFarkiDegerlemeData;
   seviyeli: SeviyeliDegerlemeData;
@@ -596,6 +600,7 @@ export function createEmptyTapu(index: number, defaults?: TalepDetayiDefaults): 
       satisKabiliyetiNotlari: [],
       degerlemeAciklamaNotlari: [],
       hesaplamalar: {
+        esasYontem: "",
         normal: { alanM2: "", birimDeger: "" },
         alanFarki: { resmiAlanM2: "", fiiliAlanM2: "", birimDeger: "", farkKatsayisi: "" },
         seviyeli: { alanM2: "", birimFiyat: "", maliyetBirimFiyat: "", seviyeOrani: "" },

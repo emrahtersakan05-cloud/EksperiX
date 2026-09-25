@@ -22,7 +22,11 @@ function normalizeHesaplamalar(stored: unknown, empty: DegerHesaplamalari): Dege
   const s = (stored && typeof stored === "object" ? stored : {}) as Partial<Record<keyof DegerHesaplamalari, unknown>>;
   const obj = (value: unknown) => (value && typeof value === "object" && !Array.isArray(value) ? value : {});
   const hisseli = obj(s.hisseli) as Partial<DegerHesaplamalari["hisseli"]>;
+  const yontemler: DegerHesaplamalari["esasYontem"][] = ["normal", "alanFarki", "seviyeli", "hisseli"];
   return {
+    esasYontem: yontemler.includes(s.esasYontem as DegerHesaplamalari["esasYontem"])
+      ? (s.esasYontem as DegerHesaplamalari["esasYontem"])
+      : "",
     normal: { ...empty.normal, ...obj(s.normal) },
     alanFarki: { ...empty.alanFarki, ...obj(s.alanFarki) },
     seviyeli: { ...empty.seviyeli, ...obj(s.seviyeli) },

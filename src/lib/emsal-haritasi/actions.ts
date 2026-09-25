@@ -128,6 +128,8 @@ export async function createEmsalKaydiAction(
 
   revalidatePath(PAGE_PATH);
   // redirect() throws to navigate, so it must stay outside the try/catch.
+  // "Kaydet ve yeni ekle" returns to an empty form for the next listing.
+  if (str(formData, "sonraki") === "yeni") redirect(`${PAGE_PATH}/yeni?eklendi=${encodeURIComponent(id)}`);
   redirect(`${PAGE_PATH}?odak=${encodeURIComponent(id)}`);
 }
 
