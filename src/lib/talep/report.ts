@@ -9,6 +9,7 @@ import {
   hisseliMetni,
   normalMetni,
   seviyeliMetni,
+  yontemSonuclari,
 } from "./deger-hesaplama";
 import type { KurumIncelemesi, NotKaydi, RuhsatIncelemeData, Talep, Tapu } from "./types";
 
@@ -415,8 +416,12 @@ function buildDegerHesaplamaParagraphs(tapu: Tapu): string[] {
   ].filter(Boolean);
 }
 
-// The single figure the report can put forward: the result of the only calculation filled in.
+// The single figure the report can put forward: the method chosen as esas in
+// Değer Hesaplaması, otherwise the result of the only calculation filled in.
 function oneCikanDeger(tapu: Tapu): string | null {
+  const h = tapu.degerleme.hesaplamalar;
+  const esas = h.esasYontem ? yontemSonuclari(h)[h.esasYontem] : null;
+  if (esas !== null) return formatTL(esas);
   const sonuclar = degerSonuclari(tapu);
   return sonuclar.length === 1 ? formatTL(sonuclar[0].deger) : null;
 }
