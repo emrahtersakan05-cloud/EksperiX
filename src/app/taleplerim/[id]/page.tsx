@@ -60,7 +60,14 @@ export default function TalepDetayPage() {
   useEffect(() => {
     getTalep(talepId).then((t) => {
       setTalep(t ?? null);
-      if (t) setActiveTapuId(t.tapular[0]?.id ?? "");
+      if (!t) return;
+      // Deep links from the Ana Sayfa ("kaldığın yerden devam et"):
+      // ?bolum=<section key>&tapu=<tapu id> open that section directly.
+      const params = new URLSearchParams(window.location.search);
+      const tapu = t.tapular.find((tp) => tp.id === params.get("tapu")) ?? t.tapular[0];
+      setActiveTapuId(tapu?.id ?? "");
+      const bolum = params.get("bolum");
+      if (bolum && sectionMeta.some((s) => s.key === bolum)) setActiveSection(bolum as TapuSectionKey);
     });
   }, [talepId]);
 

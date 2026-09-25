@@ -8,7 +8,7 @@ function isFilled(value: unknown): boolean {
   return false;
 }
 
-function isSectionFilled(section: unknown): boolean {
+export function isSectionFilled(section: unknown): boolean {
   if (Array.isArray(section)) return section.length > 0;
   if (section && typeof section === "object") {
     return Object.entries(section as Record<string, unknown>).some(([key, value]) => {
