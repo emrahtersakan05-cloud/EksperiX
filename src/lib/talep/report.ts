@@ -22,6 +22,7 @@ import {
   yontemSonuclari,
 } from "./deger-hesaplama";
 import type { NotKaydi, Talep, Tapu } from "./types";
+import { imarMetni } from "./imar";
 import { projeMetni } from "./proje";
 
 export interface ValuationReportSection {
@@ -257,28 +258,7 @@ function buildOwnershipParagraphs(tapu: Tapu): string[] {
 
 
 function buildPlanningParagraph(tapu: Tapu): string {
-  return joinSentence([
-    tapu.imarDurumu.meriImarPlani ? `Taşınmaz ${tapu.imarDurumu.meriImarPlani} kapsamında kalmaktadır.` : "",
-    tapu.imarDurumu.fonksiyon ? `Fonksiyon ${tapu.imarDurumu.fonksiyon} olarak belirtilmiştir.` : "",
-    tapu.imarDurumu.tasdikTarihi ? `Tasdik tarihi ${formatDate(tapu.imarDurumu.tasdikTarihi)}.` : "",
-    tapu.imarDurumu.pafta || tapu.imarDurumu.ada || tapu.imarDurumu.parsel
-      ? joinSentence([
-          tapu.imarDurumu.pafta ? `Pafta ${tapu.imarDurumu.pafta}` : "",
-          tapu.imarDurumu.ada ? `ada ${tapu.imarDurumu.ada}` : "",
-          tapu.imarDurumu.parsel ? `parsel ${tapu.imarDurumu.parsel}` : "",
-        ]).replace(/\.$/, "") + " olarak kayıtlıdır."
-      : "",
-    tapu.imarDurumu.ilce || tapu.imarDurumu.mahalle
-      ? `${[tapu.imarDurumu.mahalle, tapu.imarDurumu.ilce].filter(Boolean).join(" mahallesi, ")} sınırları içinde yer almaktadır.`
-      : "",
-    tapu.imarDurumu.hesapAlani ? `Hesap alanı ${tapu.imarDurumu.hesapAlani} m² olarak belirlenmiştir.` : "",
-    tapu.imarDurumu.katAdedi ? `Kat adedi ${tapu.imarDurumu.katAdedi}.` : "",
-    tapu.imarDurumu.binaYuksekligi ? `Bina yüksekliği ${tapu.imarDurumu.binaYuksekligi}.` : "",
-    tapu.imarDurumu.insaatNizami ? `İnşaat nizamı ${tapu.imarDurumu.insaatNizami} olarak belirtilmiştir.` : "",
-    tapu.imarDurumu.taks ? `TAKS ${tapu.imarDurumu.taks}.` : "",
-    tapu.imarDurumu.kaks ? `KAKS (Emsal) ${tapu.imarDurumu.kaks}.` : "",
-    tapu.imarDurumu.kotAlinacakNokta ? `Kot alınacak nokta: ${tapu.imarDurumu.kotAlinacakNokta}.` : "",
-  ]);
+  return imarMetni(tapu.imarDurumu);
 }
 
 function buildBuildingParagraph(tapu: Tapu): string {

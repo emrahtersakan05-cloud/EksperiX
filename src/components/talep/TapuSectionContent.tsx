@@ -96,6 +96,7 @@ function TapuSectionIcerik({ talep, tapu, sectionKey, onUpdate }: SectionProps) 
       return (
         <ImarDurumuSection
           data={tapu.imarDurumu}
+          tapuKaydi={tapu.tapuKaydi}
           onChange={(patch) => onUpdate((t) => ({ ...t, imarDurumu: { ...t.imarDurumu, ...patch } }))}
         />
       );
