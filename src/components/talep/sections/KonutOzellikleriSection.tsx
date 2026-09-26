@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Building, Building2, FileText, Home, MapPin } from "lucide-react";
 import { AkiciAlan } from "@/components/akici-metin/baglam";
 import KonutTespitleri from "@/components/talep/sections/KonutTespitleri";
@@ -11,6 +12,14 @@ import type { KonutOzellikleriData, TapuKaydiData } from "@/lib/talep/types";
 
 const FormGroup = SectionCard;
 
+const SEKMELER = [
+  { key: "tapu", label: "Tapu Bilgileri" },
+  { key: "konum", label: "Konum Tespiti" },
+  { key: "katDagilim", label: "Kat Dağılım Bilgisi" },
+  { key: "bina", label: "Bina Özellikleri" },
+] as const;
+type Sekme = (typeof SEKMELER)[number]["key"];
+
 export default function KonutOzellikleriSection({
   data,
   tapuKaydi,
@@ -20,6 +29,7 @@ export default function KonutOzellikleriSection({
   tapuKaydi: TapuKaydiData;
   onChange: (patch: Partial<KonutOzellikleriData>) => void;
 }) {
+  const [sekme, setSekme] = useState<Sekme>("tapu");
   const bloklu = data.mahallindekiNitelik === "bloklu";
   const tapuBilgileri = [
     { etiket: "Ana Taşınmaz Nitelik", deger: tapuKaydi.anaTasinmazNitelik },
@@ -63,49 +73,77 @@ export default function KonutOzellikleriSection({
         </div>
       ) : (
         <>
-          <FormGroup title="Tapu Bilgileri">
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              {(tapuKaydi.blok || tapuKaydi.bbNo) && (
-                <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-2.5 py-1 text-xs font-semibold text-lime-300">
-                  <MapPin className="h-3.5 w-3.5" />
-                  {[tapuKaydi.blok && `${tapuKaydi.blok} Blok`, tapuKaydi.kat && `${tapuKaydi.kat}. Kat`, tapuKaydi.bbNo && `BB ${tapuKaydi.bbNo}`]
-                    .filter(Boolean)
-                    .join(" · ")}
+          <div role="tablist" aria-label="Ana gayrimenkul formları" className="flex flex-wrap gap-1 rounded-xl bg-slate-100 p-1">
+            {SEKMELER.map((t) => {
+              const aktif = sekme === t.key;
+              return (
+                <button
+                  key={t.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={aktif}
+                  onClick={() => setSekme(t.key)}
+                  className={`whitespace-nowrap rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                    aktif ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-900"
+                  }`}
+                >
+                  {t.label}
+                </button>
+              );
+            })}
+          </div>
+
+          {sekme === "tapu" && (
+            <FormGroup title="Tapu Bilgileri">
+              <div className="mb-3 flex flex-wrap items-center gap-2">
+                {(tapuKaydi.blok || tapuKaydi.bbNo) && (
+                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-2.5 py-1 text-xs font-semibold text-lime-300">
+                    <MapPin className="h-3.5 w-3.5" />
+                    {[tapuKaydi.blok && `${tapuKaydi.blok} Blok`, tapuKaydi.kat && `${tapuKaydi.kat}. Kat`, tapuKaydi.bbNo && `BB ${tapuKaydi.bbNo}`]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </span>
+                )}
+                <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700 ring-1 ring-sky-200">
+                  <FileText className="h-3 w-3" />
+                  Tapu Kaydı sekmesinden otomatik alınır
                 </span>
+              </div>
+              {tapuBos && (
+                <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                  Tapu Kaydı sekmesinde henüz bilgi girilmemiş. Tapu belgesini orada yüklediğinizde bu alanlar kendiliğinden dolar.
+                </p>
               )}
-              <span className="inline-flex items-center gap-1 rounded-full bg-sky-50 px-2 py-0.5 text-[11px] font-medium text-sky-700 ring-1 ring-sky-200">
-                <FileText className="h-3 w-3" />
-                Tapu Kaydı sekmesinden otomatik alınır
-              </span>
-            </div>
-            {tapuBos && (
-              <p className="mb-3 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                Tapu Kaydı sekmesinde henüz bilgi girilmemiş. Tapu belgesini orada yüklediğinizde bu alanlar kendiliğinden dolar.
-              </p>
-            )}
-            <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
-              {tapuBilgileri.map((b) => (
-                <TapuBilgisi key={b.etiket} etiket={b.etiket} deger={b.deger} />
-              ))}
-            </div>
-            <AkiciAlan
-              etiket="Mahallindeki Niteliği"
-              deger={KONUT_MAHALLINDEKI_NITELIKLER.find((n) => n.value === data.mahallindekiNitelik)?.label ?? ""}
-            />
-          </FormGroup>
+              <div className="grid grid-cols-2 gap-2 md:grid-cols-5">
+                {tapuBilgileri.map((b) => (
+                  <TapuBilgisi key={b.etiket} etiket={b.etiket} deger={b.deger} />
+                ))}
+              </div>
+              <AkiciAlan
+                etiket="Mahallindeki Niteliği"
+                deger={KONUT_MAHALLINDEKI_NITELIKLER.find((n) => n.value === data.mahallindekiNitelik)?.label ?? ""}
+              />
+            </FormGroup>
+          )}
 
-          <FormGroup title="Konum Tespiti">
-            <KonutTespitleri data={data} tapuKaydi={tapuKaydi} bloklu={bloklu} onChange={onChange} />
-            <AkiciAlan etiket="İnşaat Nizamı" deger={insaatNizamiOzeti(data)} />
-          </FormGroup>
+          {sekme === "konum" && (
+            <FormGroup title="Konum Tespiti">
+              <KonutTespitleri data={data} tapuKaydi={tapuKaydi} bloklu={bloklu} onChange={onChange} />
+              <AkiciAlan etiket="İnşaat Nizamı" deger={insaatNizamiOzeti(data)} />
+            </FormGroup>
+          )}
 
-          <FormGroup title="Kat Dağılım Bilgisi">
-            <KatDagilimBilgisi data={data} onChange={onChange} />
-          </FormGroup>
+          {sekme === "katDagilim" && (
+            <FormGroup title="Kat Dağılım Bilgisi">
+              <KatDagilimBilgisi data={data} onChange={onChange} />
+            </FormGroup>
+          )}
 
-          <FormGroup title="Bina Özellikleri">
-            <BinaOzellikleri data={data} onChange={onChange} />
-          </FormGroup>
+          {sekme === "bina" && (
+            <FormGroup title="Bina Özellikleri">
+              <BinaOzellikleri data={data} onChange={onChange} />
+            </FormGroup>
+          )}
         </>
       )}
     </div>
