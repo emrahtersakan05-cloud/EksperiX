@@ -248,6 +248,14 @@ export interface NizamAtamasi {
   nizamDiger: string;
 }
 
+// One building entrance: the facade it is on, the road it opens to, its kind.
+export interface BinaGirisi {
+  id: string;
+  yon: string;
+  yol: string;
+  tur: string;
+}
+
 export interface ProjeKati {
   id: string;
   kat: string;
@@ -258,8 +266,14 @@ export interface KonutOzellikleriData {
   mahallindekiNitelik: KonutMahallindekiNitelik | "";
   // Konum Tespiti
   blokTespiti: EvetHayirSecimi;
-  blokYonleri: string[];
+  // Block the bağımsız bölüm is in, and where that block sits on the parcel
+  // (a direction or "Orta").
+  konuBlok: string;
+  blokKonumu: string;
   binaGirisTespiti: EvetHayirSecimi;
+  binaGirisleri: BinaGirisi[];
+  // Earlier compass-only answers; read once into the fields above.
+  blokYonleri: string[];
   binaGirisYonleri: string[];
   yapiSinifi: string;
   blokSayisi: string;
@@ -664,8 +678,11 @@ export function createEmptyTapu(index: number, defaults?: TalepDetayiDefaults): 
     konutOzellikleri: {
       mahallindekiNitelik: "",
       blokTespiti: "",
-      blokYonleri: [],
+      konuBlok: "",
+      blokKonumu: "",
       binaGirisTespiti: "",
+      binaGirisleri: [],
+      blokYonleri: [],
       binaGirisYonleri: [],
       yapiSinifi: "",
       blokSayisi: "",
