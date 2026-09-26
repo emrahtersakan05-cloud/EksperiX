@@ -5,7 +5,6 @@ import {
   Building,
   Building2,
   Check,
-  DoorOpen,
   FileText,
   Home,
   ImageUp,
@@ -20,8 +19,9 @@ import {
 } from "lucide-react";
 import { AkiciAlan } from "@/components/akici-metin/baglam";
 import SecenekListesiAlani from "@/components/talep/SecenekListesiAlani";
+import KonutTespitleri from "@/components/talep/sections/KonutTespitleri";
 import { SectionCard, TextField, inputClass, sectionBodyClass, sectionCardClass } from "@/components/talep/form-fields";
-import { AltBaslik, EvetHayir, NitelikKarti, TapuBilgisi, YonSecici, yeniId } from "@/components/talep/sections/ortak";
+import { AltBaslik, NitelikKarti, TapuBilgisi, yeniId } from "@/components/talep/sections/ortak";
 import {
   KONUT_MAHALLINDEKI_NITELIKLER,
   NIZAMLAR,
@@ -499,64 +499,13 @@ export default function KonutOzellikleriSection({
 
           <FormGroup title="Konum Tespiti">
             <div className="space-y-4">
-              {bloklu && (
-                <div className={sectionBodyClass}>
-                  <AltBaslik
-                    icon={<Building2 className="h-4 w-4" />}
-                    baslik="Blok Tespiti Yapmak İstiyor musunuz?"
-                    aciklama="Bağımsız bölümün bulunduğu bloğun parsel içindeki yönü"
-                  />
-                  <EvetHayir
-                    etiket="Blok tespiti"
-                    value={data.blokTespiti}
-                    onChange={(v) => onChange({ blokTespiti: v, ...(v !== "Evet" ? { blokYonleri: [] } : {}) })}
-                  />
-                  {data.blokTespiti === "Evet" && (
-                    <div className="mt-4">
-                      <YonSecici
-                        secili={data.blokYonleri}
-                        onChange={(blokYonleri) => onChange({ blokYonleri })}
-                        etiket="Blok yönleri"
-                        merkez="Parsel"
-                        seciliBaslik="Bloğun parseldeki yönü"
-                        bosMetin="Pusulada bloğun parsel içindeki yönüne tıklayın."
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
-
               {!bloklu && (
                 <div className={sectionBodyClass}>
                   <TextField label="Yapı Sınıfı" value={data.yapiSinifi} onChange={(v) => onChange({ yapiSinifi: v })} placeholder="Örn. 3B" />
                 </div>
               )}
 
-              <div className={sectionBodyClass}>
-                <AltBaslik
-                  icon={<DoorOpen className="h-4 w-4" />}
-                  baslik="Bina Giriş Tespiti Yapmak İstiyor musunuz?"
-                  aciklama="Bina girişinin hangi cepheden olduğu"
-                />
-                <EvetHayir
-                  etiket="Bina giriş tespiti"
-                  value={data.binaGirisTespiti}
-                  onChange={(v) => onChange({ binaGirisTespiti: v, ...(v !== "Evet" ? { binaGirisYonleri: [] } : {}) })}
-                />
-                {data.binaGirisTespiti === "Evet" && (
-                  <div className="mt-4">
-                    <YonSecici
-                      secili={data.binaGirisYonleri}
-                      onChange={(binaGirisYonleri) => onChange({ binaGirisYonleri })}
-                      etiket="Bina giriş yönleri"
-                      merkez="Bina"
-                      merkezIcon={<Building className="mb-0.5 h-4 w-4 text-lime-600" />}
-                      seciliBaslik="Bina girişinin bulunduğu cephe"
-                      bosMetin="Pusulada bina girişinin bulunduğu cepheye tıklayın."
-                    />
-                  </div>
-                )}
-              </div>
+              <KonutTespitleri data={data} tapuKaydi={tapuKaydi} bloklu={bloklu} onChange={onChange} />
 
               <div className={sectionBodyClass}>
                 <AltBaslik icon={<Layers className="h-4 w-4" />} baslik="İnşaat Nizamı" />
@@ -571,8 +520,6 @@ export default function KonutOzellikleriSection({
                 )}
               </div>
             </div>
-            <AkiciAlan etiket="Blok Yönü" deger={data.blokTespiti === "Evet" ? data.blokYonleri.join(", ") : ""} />
-            <AkiciAlan etiket="Bina Giriş Yönü" deger={data.binaGirisTespiti === "Evet" ? data.binaGirisYonleri.join(", ") : ""} />
             {bloklu && <AkiciAlan etiket="Blok Sayısı" deger={data.blokSayisi} />}
             {bloklu && (
               <AkiciAlan

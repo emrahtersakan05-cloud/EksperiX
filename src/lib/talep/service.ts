@@ -3,12 +3,24 @@ import {
   createEmptyTapu,
   newRowId,
   type DegerHesaplamalari,
+  type KonutOzellikleriData,
   type RuhsatIncelemeData,
   type Talep,
   type Tapu,
 } from "./types";
 
 const STORAGE_KEY = "eksperix_talepler_v1";
+
+// Konum tespiti used to be compass picks only; carry them into the richer
+// fields (first direction → block position, each direction → an entrance).
+function konutuTasi(k: KonutOzellikleriData): KonutOzellikleriData {
+  const sonuc = { ...k, binaGirisleri: k.binaGirisleri ?? [] };
+  if (!sonuc.blokKonumu && k.blokYonleri?.length) sonuc.blokKonumu = k.blokYonleri[0];
+  if (!sonuc.binaGirisleri.length && k.binaGirisYonleri?.length) {
+    sonuc.binaGirisleri = k.binaGirisYonleri.map((yon, i) => ({ id: `giris-${i}-${yon}`, yon, yol: "", tur: i === 0 ? "Ana giriş" : "" }));
+  }
+  return { ...sonuc, blokYonleri: [], binaGirisYonleri: [] };
+}
 
 // Backfills any section fields missing from a stored Tapu against the
 // current empty-tapu shape. Section field lists evolve (e.g. tapuKaydi was
@@ -70,7 +82,7 @@ function normalizeTapu(tapu: Tapu): Tapu {
     imarDurumu: { ...empty.imarDurumu, ...tapu.imarDurumu },
     anaGayrimenkul: { ...empty.anaGayrimenkul, ...tapu.anaGayrimenkul },
     araziOzellikleri: { ...empty.araziOzellikleri, ...tapu.araziOzellikleri },
-    konutOzellikleri: { ...empty.konutOzellikleri, ...tapu.konutOzellikleri },
+    konutOzellikleri: konutuTasi({ ...empty.konutOzellikleri, ...tapu.konutOzellikleri }),
     bagimsizBolum: { ...empty.bagimsizBolum, ...tapu.bagimsizBolum },
     degerleme: {
       ...empty.degerleme,

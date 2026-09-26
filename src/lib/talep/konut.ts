@@ -47,3 +47,64 @@ export function projeKatlariMetni(data: KonutOzellikleriData): string {
     .map((k) => (k.kat.trim() ? `${k.kat.trim()}: ${k.aciklama.trim()}` : k.aciklama.trim()))
     .join(" ");
 }
+
+// ---- Konum tespiti ------------------------------------------------------------
+
+// The parcel as a 3×3 plan, north up: where a block sits.
+export const PARSEL_KONUMLARI = [
+  "Kuzeybatı",
+  "Kuzey",
+  "Kuzeydoğu",
+  "Batı",
+  "Orta",
+  "Doğu",
+  "Güneybatı",
+  "Güney",
+  "Güneydoğu",
+];
+
+const KONUM_EKI: Record<string, string> = {
+  Kuzey: "kuzeyinde",
+  Güney: "güneyinde",
+  Doğu: "doğusunda",
+  Batı: "batısında",
+  Kuzeydoğu: "kuzeydoğusunda",
+  Kuzeybatı: "kuzeybatısında",
+  Güneydoğu: "güneydoğusunda",
+  Güneybatı: "güneybatısında",
+  Orta: "ortasında",
+};
+
+// "Kuzeydoğu" → "kuzeydoğusunda", "Orta" → "ortasında".
+export function konumEki(konum: string): string {
+  return KONUM_EKI[konum] ?? konum.toLocaleLowerCase("tr-TR");
+}
+
+export const GIRIS_TURLERI = ["Ana giriş", "Yan giriş", "Otopark girişi", "Servis girişi"];
+
+// "…bağımsız bölüm, parselin kuzeydoğusunda konumlu A blokta yer almaktadır."
+export function blokTespitiCumlesi(k: KonutOzellikleriData): string {
+  if (k.blokTespiti !== "Evet") return "";
+  const blok = k.konuBlok.trim();
+  const konum = KONUM_EKI[k.blokKonumu];
+  if (!blok && !konum) return "";
+  const blokMetni = blok ? `${blok} blokta` : "blokta";
+  return konum
+    ? `Değerlemeye konu bağımsız bölüm, parselin ${konum} konumlu ${blokMetni} yer almaktadır.`
+    : `Değerlemeye konu bağımsız bölüm ${blokMetni} yer almaktadır.`;
+}
+
+// "Binanın ana girişi kuzey cepheden, Atatürk Caddesi üzerinden; yan girişi
+// doğu cepheden sağlanmaktadır."
+export function binaGirisCumlesi(k: KonutOzellikleriData): string {
+  if (k.binaGirisTespiti !== "Evet") return "";
+  const parcalar = k.binaGirisleri
+    .filter((g) => g.yon)
+    .map((g) => {
+      const tur = (g.tur || "giriş").toLocaleLowerCase("tr-TR").replace(/giriş$/, "girişi");
+      const yol = g.yol.trim() ? `, ${g.yol.trim()} üzerinden` : "";
+      return `${tur} ${g.yon.toLocaleLowerCase("tr-TR")} cepheden${yol}`;
+    });
+  if (!parcalar.length) return "";
+  return `Binanın ${parcalar.join("; ")} sağlanmaktadır.`;
+}

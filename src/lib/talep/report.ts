@@ -1,5 +1,13 @@
 import { ortalamaEmsalBirimFiyatlari } from "@/lib/emsal/hesaplama";
-import { KONUT_MAHALLINDEKI_NITELIKLER, blokAdi, insaatNizamiOzeti, konutMu, projeKatlariMetni } from "./konut";
+import {
+  KONUT_MAHALLINDEKI_NITELIKLER,
+  binaGirisCumlesi,
+  blokAdi,
+  blokTespitiCumlesi,
+  insaatNizamiOzeti,
+  konutMu,
+  projeKatlariMetni,
+} from "./konut";
 import {
   alanFarkiMetni,
   formatTL,
@@ -345,8 +353,8 @@ function buildKonutParagraph(tapu: Tapu): string {
     k.mahallindekiNitelik === "bloklu" && blokSayisi
       ? `Ana gayrimenkul ${blokSayisi} bloktan (${Array.from({ length: blokSayisi }, (_, i) => blokAdi(k, i)).join(", ")}) oluşmaktadır.`
       : "",
-    k.blokTespiti === "Evet" && k.blokYonleri.length ? `Bağımsız bölümün bulunduğu blok parselin ${k.blokYonleri.map(kucuk).join(", ")} yönünde yer almaktadır.` : "",
-    k.binaGirisTespiti === "Evet" && k.binaGirisYonleri.length ? `Bina girişi ${k.binaGirisYonleri.map(kucuk).join(", ")} cepheden sağlanmaktadır.` : "",
+    blokTespitiCumlesi(k),
+    binaGirisCumlesi(k),
     k.yapiSinifi ? `Yapı sınıfı ${k.yapiSinifi}.` : "",
     nizam ? `İnşaat nizamı: ${nizam}.` : "",
     k.binaGirisiTespit,
