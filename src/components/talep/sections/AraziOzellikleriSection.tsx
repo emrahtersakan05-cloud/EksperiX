@@ -24,6 +24,7 @@ import {
   TextField,
   inputClass,
   sectionBodyClass,
+  sectionCardClass,
 } from "@/components/talep/form-fields";
 import { AkiciAlan, useAkiciAlan } from "@/components/akici-metin/baglam";
 import type { AraziOzellikleriData, DigerCephe, MahallindekiNitelik, TapuKaydiData } from "@/lib/talep/types";
@@ -292,6 +293,22 @@ export default function AraziOzellikleriSection({
 
   return (
     <div className="space-y-4">
+      <div className={sectionCardClass}>
+        <p className="mb-2.5 text-sm font-semibold text-slate-900">Mahallindeki Niteliği</p>
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2" role="radiogroup" aria-label="Mahallindeki niteliği">
+          {MAHALLINDEKI_NITELIKLER.map((n) => (
+            <NitelikKarti
+              key={n.value}
+              aktif={data.mahallindekiNitelik === n.value}
+              baslik={n.label}
+              aciklama={n.value === "bina-var" ? "Üzerindeki yapının bilgileri girilir" : "Arazinin özellikleri girilir"}
+              icon={n.value === "bina-var" ? <Building2 className="h-5 w-5" /> : <Trees className="h-5 w-5" />}
+              onClick={() => onChange({ mahallindekiNitelik: data.mahallindekiNitelik === n.value ? "" : n.value })}
+            />
+          ))}
+        </div>
+      </div>
+
       <FormGroup title="Tapu Bilgileri Formu">
         <div className="mb-3 flex flex-wrap items-center gap-2">
           {tapuKaydi.ada || tapuKaydi.parsel ? (
@@ -314,22 +331,6 @@ export default function AraziOzellikleriSection({
           {tapuBilgileri.map((b) => (
             <TapuBilgisi key={b.etiket} etiket={b.etiket} deger={b.deger} />
           ))}
-        </div>
-
-        <div className="mt-5 border-t border-slate-100 pt-4">
-          <p className="mb-2.5 text-sm font-semibold text-slate-900">Mahallindeki Niteliği</p>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2" role="radiogroup" aria-label="Mahallindeki niteliği">
-            {MAHALLINDEKI_NITELIKLER.map((n) => (
-              <NitelikKarti
-                key={n.value}
-                aktif={data.mahallindekiNitelik === n.value}
-                baslik={n.label}
-                aciklama={n.value === "bina-var" ? "Üzerindeki yapının bilgileri girilir" : "Arazinin özellikleri girilir"}
-                icon={n.value === "bina-var" ? <Building2 className="h-5 w-5" /> : <Trees className="h-5 w-5" />}
-                onClick={() => onChange({ mahallindekiNitelik: data.mahallindekiNitelik === n.value ? "" : n.value })}
-              />
-            ))}
-          </div>
         </div>
         <AkiciAlan
           etiket="Mahallindeki Niteliği"
