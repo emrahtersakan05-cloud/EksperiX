@@ -2,7 +2,8 @@
 
 // Handles "fetch it for me" requests made from the Eksperix page itself, so
 // the user doesn't have to open the popup: "İlan sekmesinden getir" on Yeni
-// Emsal Ekle and "E-imar sekmesinden getir" on İmar Durumu. The source tab is
+// Emsal Ekle, "E-imar sekmesinden getir" on İmar Durumu and "UAVT sekmesinden
+// getir" on Adres / Konum. The source tab is
 // read and the data delivered back to the requesting tab only.
 
 importScripts("shared.js");
@@ -26,6 +27,15 @@ const KAYNAKLAR = {
     okunamadi: "E-imar sayfasının metni okunamadı. Sorgu sonucu ekranda görünürken tekrar deneyin.",
     almadi: "Sayfa veriyi almadı. İmar Durumu bölümünün açık olduğundan emin olun.",
   },
+  uavt: {
+    // UAVT results can sit inside an iframe too.
+    tumCerceveler: true,
+    bulunamadi:
+      "Açık bir UAVT sekmesi bulunamadı. adres.nvi.gov.tr adres sorgusunu başka bir sekmede açıp adresi sorgulayın, " +
+      "sonuç ekranındayken tekrar deneyin.",
+    okunamadi: "UAVT sayfasının metni okunamadı. Sorgu sonucu ekranda görünürken tekrar deneyin.",
+    almadi: "Sayfa veriyi almadı. Adres / Konum bölümünün Adres sekmesinin açık olduğundan emin olun.",
+  },
 };
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -33,14 +43,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   (async () => {
     const tabId = sender.tab?.id;
-    // Only an Eksperix tab (where app-bridge.js runs) may ask; UAVT still goes
-    // through the popup.
+    // Only an Eksperix tab (where app-bridge.js runs) may ask.
     if (typeof tabId !== "number" || !sender.tab?.url || !EksperixBridge.isAppUrl(sender.tab.url)) {
       return { ok: false, error: "İstek bir Eksperix sekmesinden gelmedi." };
     }
     const kaynak = KAYNAKLAR[message.kind];
     if (!kaynak) {
-      return { ok: false, error: "Bu sayfadan yalnızca emsal ilanı ya da e-imar sonucu getirilebilir." };
+      return { ok: false, error: "Bu sayfadan yalnızca emsal ilanı, e-imar ya da UAVT sonucu getirilebilir." };
     }
 
     const source = await EksperixBridge.getBestSourceTab(message.kind, false);

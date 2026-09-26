@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
 import { AkiciMetinGrubu } from "@/components/akici-metin/kart";
 import { acknowledgeBridge, readBridgeDetail } from "@/lib/bridge/event-detail";
-import { ChevronDown, ClipboardPaste, ExternalLink, Home, ImageUp, Loader2, MapPinned, Search, Sparkles, Trees, X } from "lucide-react";
+import { surumEnAz, useBridgeIstegi } from "@/lib/bridge/useBridgeIstegi";
+import { ClipboardPaste, Download, ExternalLink, Home, Loader2, MapPinned, Trees, X } from "lucide-react";
 import {
   ComboboxField,
   SectionCard,
@@ -27,13 +29,15 @@ import {
   removeKoy,
   removeMahalle,
 } from "@/lib/talep/adres-referans";
-import { parseUavtResult, parseUavtText, recognizeText, type ParsedUavtFields } from "@/lib/ocr/uavt-extract";
+import { parseUavtText, type ParsedUavtFields } from "@/lib/ocr/uavt-extract";
 import type { AdresKonumData } from "@/lib/talep/types";
 import KmlMapPanel from "@/components/talep/sections/KmlMapPanel";
 import { Doluluk, Ozet, OzetBasligi, OzetIzgarasi } from "@/components/talep/sections/tasarim";
 
 const UAVT_SORGU_URL = "https://adres.nvi.gov.tr/VatandasIslemleri/AdresSorgu";
 const UAVT_BRIDGE_EVENT = "eksperix:uavt-import";
+// The in-page request for UAVT arrived in this extension version.
+const UAVT_ISTEGI_SURUMU = "0.8.0";
 const UAVT_SAMPLE_TEXT = `Adres Bilgileri
 İl: Ankara
 İlçe: Çankaya
@@ -97,14 +101,6 @@ function buildEmptyUavtPatch(): ParsedUavtFields {
   return Object.fromEntries(IMPORTABLE_UAVT_FIELDS.map((field) => [field, ""])) as ParsedUavtFields;
 }
 
-const OCR_STATUS_LABELS: Record<string, string> = {
-  "loading tesseract core": "Motor yükleniyor",
-  "initializing tesseract": "Başlatılıyor",
-  "loading language traineddata": "Dil verisi indiriliyor",
-  "initializing api": "Hazırlanıyor",
-  "recognizing text": "Metin tanınıyor",
-};
-
 const FormGroup = SectionCard;
 const ADRES_KONUM_TABS = [
   { key: "adres", label: "Adres", icon: Home },
@@ -116,129 +112,6 @@ const ADRES_KONUM_TABS = [
 const ADRES_ALANLARI = IMPORTABLE_UAVT_FIELDS.filter((k) => k !== "koy");
 
 type AdresKonumTabKey = (typeof ADRES_KONUM_TABS)[number]["key"];
-
-function ImageUploadZone({
-  value,
-  onImageChange,
-  onExtract,
-  extracting,
-  extractStatus,
-  extractMessage,
-  rawText,
-}: {
-  value: string;
-  onImageChange: (dataUrl: string) => void;
-  onExtract: () => void;
-  extracting: boolean;
-  extractStatus: string;
-  extractMessage: { tone: "success" | "warning" | "error"; text: string } | null;
-  rawText: string | null;
-}) {
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [showRawText, setShowRawText] = useState(false);
-  const [surukleniyor, setSurukleniyor] = useState(false);
-
-  function handleFile(file: File | undefined) {
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => onImageChange(String(reader.result));
-    reader.readAsDataURL(file);
-  }
-
-  const messageTone = {
-    success: "bg-emerald-50 text-emerald-700",
-    warning: "bg-amber-50 text-amber-700",
-    error: "bg-rose-50 text-rose-700",
-  };
-
-  return (
-    <FormGroup title="UAVT Görseli" akiciMetin={false} className="flex h-full flex-col">
-      {value ? (
-        <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={value}
-            alt="UAVT adres görseli"
-            className="h-24 w-full rounded-lg border border-slate-200 object-cover sm:w-32"
-          />
-          <div className="flex min-w-0 flex-1 flex-col gap-2">
-            <p className="text-xs text-slate-500">Görseldeki UAVT bilgilerini okuyup formu doldurun.</p>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={onExtract}
-                disabled={extracting}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-lime-300 hover:bg-slate-800 disabled:opacity-60"
-              >
-                {extracting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
-                {extracting ? extractStatus || "Ayıklanıyor..." : "Bilgileri Görselden Ayıkla"}
-              </button>
-              <button
-                type="button"
-                onClick={() => onImageChange("")}
-                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-slate-400"
-              >
-                <X className="h-3.5 w-3.5" />
-                Kaldır
-              </button>
-            </div>
-          </div>
-        </div>
-      ) : (
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          onDragOver={(e) => {
-            e.preventDefault();
-            setSurukleniyor(true);
-          }}
-          onDragLeave={() => setSurukleniyor(false)}
-          onDrop={(e) => {
-            e.preventDefault();
-            setSurukleniyor(false);
-            handleFile(e.dataTransfer.files?.[0]);
-          }}
-          className={`flex w-full flex-1 flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed px-4 py-5 text-center transition-colors ${
-            surukleniyor ? "border-lime-500 bg-lime-50" : "border-slate-200 bg-slate-50/60 hover:border-slate-400"
-          }`}
-        >
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-lime-300">
-            <ImageUp className="h-4.5 w-4.5" />
-          </span>
-          <span className="text-sm font-semibold text-slate-800">UAVT ekran görüntüsü yükleyin</span>
-          <span className="text-xs text-slate-500">PNG veya JPG — sürükleyin ya da tıklayıp seçin</span>
-        </button>
-      )}
-
-      {extractMessage && (
-        <p className={`mt-3 rounded-lg px-3 py-2 text-xs ${messageTone[extractMessage.tone]}`}>{extractMessage.text}</p>
-      )}
-      {rawText && (
-        <button
-          type="button"
-          onClick={() => setShowRawText((s) => !s)}
-          className="mt-2 inline-flex items-center gap-1 self-start text-xs font-medium text-slate-500 hover:text-slate-800"
-        >
-          <ChevronDown className={`h-3 w-3 transition-transform ${showRawText ? "rotate-180" : ""}`} />
-          Ham OCR metnini {showRawText ? "gizle" : "gör"}
-        </button>
-      )}
-      {rawText && showRawText && (
-        <pre className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap rounded-lg border border-slate-200 bg-white p-2.5 text-[11px] leading-relaxed text-slate-600">
-          {rawText}
-        </pre>
-      )}
-
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(e) => handleFile(e.target.files?.[0])}
-      />
-    </FormGroup>
-  );
-}
 
 function UavtPasteModal({
   value,
@@ -375,13 +248,6 @@ export default function AdresKonumSection({
   const [mahalleOptions, setMahalleOptions] = useState<string[]>([]);
   const [koyOptions, setKoyOptions] = useState<string[]>([]);
 
-  const [extracting, setExtracting] = useState(false);
-  const [extractStatus, setExtractStatus] = useState("");
-  const [extractMessage, setExtractMessage] = useState<{
-    tone: "success" | "warning" | "error";
-    text: string;
-  } | null>(null);
-  const [rawText, setRawText] = useState<string | null>(null);
   const [uavtModalOpen, setUavtModalOpen] = useState(false);
   const [uavtPasteText, setUavtPasteText] = useState("");
   const [uavtImporting, setUavtImporting] = useState(false);
@@ -391,6 +257,13 @@ export default function AdresKonumSection({
   } | null>(null);
   const [bridgeMessage, setBridgeMessage] = useState<BridgeMessageState>(null);
   const [activeTab, setActiveTab] = useState<AdresKonumTabKey>("adres");
+  const bridge = useBridgeIstegi("uavt", (text) => setBridgeMessage({ tone: "error", text }));
+  const bridgeGuncel = bridge.durum === "hazir" && surumEnAz(bridge.surum, UAVT_ISTEGI_SURUMU);
+
+  function uavtGetir() {
+    setBridgeMessage(null);
+    bridge.getir();
+  }
 
   useEffect(() => {
     getIller().then(setIlOptions);
@@ -434,7 +307,7 @@ export default function AdresKonumSection({
           onChange({ ...buildEmptyUavtPatch(), ...parsed });
           setBridgeMessage({
             tone: "success",
-            text: `${filledCount} alan eklenti üzerinden UAVT sonucundan dolduruldu. Lütfen doğruluğunu kontrol edin.`,
+            text: `${filledCount} alan UAVT sonucundan dolduruldu${detail?.title ? ` (${detail.title})` : ""}. Lütfen doğruluğunu kontrol edin.`,
           });
         } else {
           setBridgeMessage({
@@ -453,52 +326,6 @@ export default function AdresKonumSection({
     window.addEventListener(UAVT_BRIDGE_EVENT, handleBridgeImport as EventListener);
     return () => window.removeEventListener(UAVT_BRIDGE_EVENT, handleBridgeImport as EventListener);
   }, [onChange]);
-
-  async function handleExtract() {
-    if (!data.uavtGorselUrl || extracting) return;
-    setExtracting(true);
-    setExtractMessage(null);
-    setExtractStatus("Başlatılıyor...");
-    try {
-      const ocr = await recognizeText(data.uavtGorselUrl, (p) => {
-        const label = OCR_STATUS_LABELS[p.status] ?? p.status;
-        setExtractStatus(`${label} %${Math.round(p.progress * 100)}`);
-      });
-      setRawText(ocr.text);
-
-      const parsed: ParsedUavtFields = parseUavtResult(ocr);
-      const patch: Partial<AdresKonumData> = {};
-      let filledCount = 0;
-      (Object.keys(parsed) as (keyof ParsedUavtFields)[]).forEach((key) => {
-        const value = parsed[key];
-        if (value) {
-          patch[key] = value;
-          filledCount += 1;
-        }
-      });
-
-      if (filledCount > 0) {
-        onChange({ ...buildEmptyUavtPatch(), ...patch });
-        setExtractMessage({
-          tone: "success",
-          text: `${filledCount} alan bu görselden güncellendi. Lütfen doğruluğunu kontrol edin.`,
-        });
-      } else {
-        setExtractMessage({
-          tone: "warning",
-          text: "Görselde eşleşen alan bulunamadı. Ham OCR metnini inceleyip alanları manuel doldurabilirsiniz.",
-        });
-      }
-    } catch {
-      setExtractMessage({
-        tone: "error",
-        text: "Görsel işlenemedi — internet bağlantınızı kontrol edip tekrar deneyin.",
-      });
-    } finally {
-      setExtracting(false);
-      setExtractStatus("");
-    }
-  }
 
   function openUavtSite() {
     window.open(UAVT_SORGU_URL, "_blank", "noopener,noreferrer");
@@ -596,7 +423,52 @@ export default function AdresKonumSection({
             baslik={adresSatiri || "Adres girilmedi"}
             bos={!adresSatiri}
             altBaslik={[data.ilce, data.il].filter(Boolean).join(" / ") + (data.postaKodu ? ` · ${data.postaKodu}` : "") || "İl ve ilçe seçilmedi"}
-            alt={<Doluluk dolu={adresDolu} toplam={ADRES_ALANLARI.length} />}
+            sag={
+              <>
+                <button
+                  type="button"
+                  onClick={openUavtSite}
+                  className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-slate-300 ring-1 ring-white/15 hover:bg-white/5 hover:text-white"
+                >
+                  <ExternalLink className="h-4 w-4" />
+                  UAVT&apos;yi Aç
+                </button>
+                <button
+                  type="button"
+                  onClick={handleOpenUavtModal}
+                  className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium text-slate-300 ring-1 ring-white/15 hover:bg-white/5 hover:text-white"
+                >
+                  <ClipboardPaste className="h-4 w-4" />
+                  Sonucu Yapıştır
+                </button>
+                <button
+                  type="button"
+                  onClick={uavtGetir}
+                  disabled={!bridgeGuncel || bridge.yukleniyor}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-lime-300 px-3.5 py-2 text-sm font-semibold text-slate-900 hover:bg-lime-200 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  {bridge.yukleniyor ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                  UAVT sekmesinden getir
+                </button>
+              </>
+            }
+            alt={
+              <>
+                <span className="inline-flex items-center gap-1.5">
+                  <span
+                    className={`h-1.5 w-1.5 rounded-full ${
+                      bridge.durum === "hazir" && bridgeGuncel ? "bg-emerald-400" : bridge.durum === "kontrol" ? "bg-slate-500" : "bg-amber-400"
+                    }`}
+                  />
+                  {bridge.durum === "kontrol"
+                    ? "Eklenti kontrol ediliyor"
+                    : bridge.durum === "yok"
+                      ? "Eksperix Bridge algılanmadı"
+                      : `Eksperix Bridge${bridge.surum ? ` v${bridge.surum}` : ""}${bridgeGuncel ? " bağlı" : " güncel değil"}`}
+                </span>
+                <Doluluk dolu={adresDolu} toplam={ADRES_ALANLARI.length} />
+              </>
+            }
           >
             <OzetIzgarasi>
               <Ozet etiket="Ada / Parsel" deger={data.ada || data.parsel ? `${data.ada || "—"} / ${data.parsel || "—"}` : ""} />
@@ -621,56 +493,17 @@ export default function AdresKonumSection({
             </p>
           )}
 
-          <div className="grid grid-cols-1 items-stretch gap-4 xl:grid-cols-2">
-            <ImageUploadZone
-              value={data.uavtGorselUrl}
-              onImageChange={(v) => {
-                onChange({ uavtGorselUrl: v });
-                setExtractMessage(null);
-                setRawText(null);
-              }}
-              onExtract={handleExtract}
-              extracting={extracting}
-              extractStatus={extractStatus}
-              extractMessage={extractMessage}
-              rawText={rawText}
-            />
-
-            <FormGroup akiciMetin={false} title="UAVT Adres Sorgula" className="flex h-full flex-col">
-              <ol className="flex-1 space-y-2 text-xs text-slate-600">
-                {[
-                  "UAVT sorgu ekranını açıp adresi sorgulayın.",
-                  "Sonuç ekranındayken Eksperix Bridge eklentisinden Bilgileri Getir'e basın.",
-                  "Eklenti yoksa sonucu kopyalayıp Sonucu Yapıştır ile aktarın.",
-                ].map((adim, i) => (
-                  <li key={adim} className="flex items-start gap-2">
-                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-slate-900 text-[10px] font-semibold text-lime-300">
-                      {i + 1}
-                    </span>
-                    {adim}
-                  </li>
-                ))}
-              </ol>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={openUavtSite}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-lime-300 hover:bg-slate-800"
-                >
-                  <Search className="h-3.5 w-3.5" />
-                  UAVT Sorgu Ekranını Aç
-                </button>
-                <button
-                  type="button"
-                  onClick={handleOpenUavtModal}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-slate-400"
-                >
-                  <ClipboardPaste className="h-3.5 w-3.5" />
-                  Sonucu Yapıştır
-                </button>
-              </div>
-            </FormGroup>
-          </div>
+          {(bridge.durum === "yok" || (bridge.durum === "hazir" && !bridgeGuncel)) && (
+            <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              {bridge.durum === "yok"
+                ? "Eksperix Bridge algılanmadı. "
+                : `UAVT sekmesinden getirmek için eklentinin v${UAVT_ISTEGI_SURUMU} veya üstü gerekir. `}
+              Sonucu yapıştırarak da aktarabilirsiniz.{" "}
+              <Link href="/araclarim/uygulama-eklentileri" className="font-semibold text-lime-700 hover:text-lime-800">
+                Eklentiyi kur / güncelle →
+              </Link>
+            </p>
+          )}
 
           <AkiciMetinGrubu
             baslik="Adres Bilgileri"

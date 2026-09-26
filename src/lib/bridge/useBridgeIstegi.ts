@@ -29,9 +29,10 @@ export function surumEnAz(surum: string | null, enAz: string): boolean {
 }
 
 // Detects the Eksperix Bridge extension and asks it to read an open source tab
-// (an ad for "emsal", a municipal e-imar result for "imar"). The data itself
-// arrives through the section's own import event; `onHata` hears failures.
-export function useBridgeIstegi(tur: "emsal" | "imar", onHata: (metin: string) => void) {
+// (an ad for "emsal", a municipal e-imar result for "imar", an address query
+// result for "uavt"). The data itself arrives through the section's own import
+// event; `onHata` hears failures.
+export function useBridgeIstegi(tur: "emsal" | "imar" | "uavt", onHata: (metin: string) => void) {
   const [durum, setDurum] = useState<EklentiDurumu>("kontrol");
   const [surum, setSurum] = useState<string | null>(null);
   const [yukleniyor, setYukleniyor] = useState(false);
