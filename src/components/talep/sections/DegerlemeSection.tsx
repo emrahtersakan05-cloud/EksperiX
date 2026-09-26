@@ -3,7 +3,6 @@
 import { useMemo } from "react";
 import DegerHesaplamasi from "@/components/talep/sections/DegerHesaplamasi";
 import NotTaslaklari from "@/components/talep/sections/NotTaslaklari";
-import { ortalamaEmsalBirimFiyatlari } from "@/lib/emsal/hesaplama";
 import type { DegerlemeData, EmsallerData, MulkiyetKaydi } from "@/lib/talep/types";
 
 export type DegerlemeView = "satisKabiliyeti" | "degerlemeAciklamasi" | "degerHesaplamasi";
@@ -21,15 +20,15 @@ export default function DegerlemeSection({
   mulkiyetKayitlari: MulkiyetKaydi[];
   onChange: (patch: Partial<DegerlemeData>) => void;
 }) {
-  const emsalOrtalamasi = useMemo(
-    () =>
-      ortalamaEmsalBirimFiyatlari([
-        emsaller.satilik1,
-        emsaller.satilik2,
-        emsaller.satilik3,
-        emsaller.satilik4,
-        emsaller.satilik5,
-      ]),
+  // The satılık emsaller are the basis for the unit value (Emsal Dayanağı).
+  const emsalKayitlari = useMemo(
+    () => [
+      { etiket: "Satılık-1", kaydi: emsaller.satilik1 },
+      { etiket: "Satılık-2", kaydi: emsaller.satilik2 },
+      { etiket: "Satılık-3", kaydi: emsaller.satilik3 },
+      { etiket: "Satılık-4", kaydi: emsaller.satilik4 },
+      { etiket: "Satılık-5", kaydi: emsaller.satilik5 },
+    ],
     [emsaller],
   );
 
@@ -59,7 +58,7 @@ export default function DegerlemeSection({
     <DegerHesaplamasi
       value={data.hesaplamalar}
       onChange={(hesaplamalar) => onChange({ hesaplamalar })}
-      emsal={emsalOrtalamasi}
+      emsalKayitlari={emsalKayitlari}
       mulkiyetKayitlari={mulkiyetKayitlari}
     />
   );

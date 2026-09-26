@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { AkiciMetinGrubu } from "@/components/akici-metin/kart";
 import { acknowledgeBridge, readBridgeDetail } from "@/lib/bridge/event-detail";
 import { ChevronDown, ExternalLink, ImageUp, Search, Sparkles, X } from "lucide-react";
 import {
@@ -578,6 +579,7 @@ export default function AdresKonumSection({
             />
 
             <FormGroup
+              akiciMetin={false}
               title="UAVT Adres Sorgula"
               className="flex h-full flex-col overflow-hidden border-sky-400/80 bg-gradient-to-br from-sky-200 via-cyan-100 to-emerald-200 shadow-[0_16px_36px_-24px_rgba(2,132,199,0.75)]"
             >
@@ -632,175 +634,180 @@ export default function AdresKonumSection({
             </FormGroup>
           </div>
 
-          <FormGroup title="Adres Bilgileri Formu">
-            <div className={`${sectionBodyClass} grid grid-cols-1 gap-x-3 gap-y-3 md:grid-cols-2 xl:grid-cols-7`}>
-              <ComboboxField
-                label="İl"
-                value={data.il}
-                options={ilOptions}
-                onChange={(v) => onChange({ il: v, ilce: "", mahalle: "", koy: "" })}
-                onAddNew={async (v) => setIlOptions(await addIl(v))}
-                onRemoveOption={async (v) => {
-                  setIlOptions(await removeIl(v));
-                  if (data.il === v) onChange({ il: "", ilce: "", mahalle: "", koy: "" });
-                }}
-                className="xl:col-span-1"
-              />
-              <ComboboxField
-                label="İlçe"
-                value={data.ilce}
-                options={ilceOptions}
-                placeholder={data.il ? "Ara veya seçin..." : "Önce il seçin"}
-                onChange={(v) => onChange({ ilce: v, mahalle: "", koy: "" })}
-                onAddNew={data.il ? async (v) => setIlceOptions(await addIlce(data.il, v)) : undefined}
-                onRemoveOption={
-                  data.il
-                    ? async (v) => {
-                        setIlceOptions(await removeIlce(data.il, v));
-                        if (data.ilce === v) onChange({ ilce: "", mahalle: "", koy: "" });
-                      }
-                    : undefined
-                }
-                className="xl:col-span-1"
-              />
-              <ComboboxField
-                label="Mahalle"
-                value={data.mahalle}
-                options={mahalleOptions}
-                placeholder={data.ilce ? "Ara veya seçin..." : "Önce ilçe seçin"}
-                onChange={(v) => onChange({ mahalle: v })}
-                onAddNew={
-                  data.il && data.ilce
-                    ? async (v) => setMahalleOptions(await addMahalle(data.il, data.ilce, v))
-                    : undefined
-                }
-                onRemoveOption={
-                  data.il && data.ilce
-                    ? async (v) => {
-                        setMahalleOptions(await removeMahalle(data.il, data.ilce, v));
-                        if (data.mahalle === v) onChange({ mahalle: "" });
-                      }
-                    : undefined
-                }
-                className="xl:col-span-1"
-              />
-              <ComboboxField
-                label="Köy"
-                value={data.koy}
-                options={koyOptions}
-                placeholder={data.ilce ? "Ara veya seçin..." : "Önce ilçe seçin"}
-                onChange={(v) => onChange({ koy: v })}
-                onAddNew={
-                  data.il && data.ilce ? async (v) => setKoyOptions(await addKoy(data.il, data.ilce, v)) : undefined
-                }
-                onRemoveOption={
-                  data.il && data.ilce
-                    ? async (v) => {
-                        setKoyOptions(await removeKoy(data.il, data.ilce, v));
-                        if (data.koy === v) onChange({ koy: "" });
-                      }
-                    : undefined
-                }
-                className="xl:col-span-1"
-              />
-              <TextField
-                label="Cadde / Bulvar"
-                value={data.caddeBulvar}
-                onChange={(v) => onChange({ caddeBulvar: v })}
-                className="xl:col-span-1"
-              />
-              <TextField
-                label="Semt / Mevki"
-                value={data.semtMevki}
-                onChange={(v) => onChange({ semtMevki: v })}
-                className="xl:col-span-1"
-              />
-              <TextField
-                label="Sokak"
-                value={data.sokak}
-                onChange={(v) => onChange({ sokak: v })}
-                className="xl:col-span-1"
-              />
-            </div>
-          </FormGroup>
+          <AkiciMetinGrubu
+            baslik="Adres Bilgileri"
+            aciklama="Adres, Numaraj ve Bağımsız Bölüm formları için tek akıcı metin"
+          >
+            <FormGroup title="Adres Bilgileri Formu" akiciMetin={false}>
+              <div className={`${sectionBodyClass} grid grid-cols-1 gap-x-3 gap-y-3 md:grid-cols-2 xl:grid-cols-7`}>
+                <ComboboxField
+                  label="İl"
+                  value={data.il}
+                  options={ilOptions}
+                  onChange={(v) => onChange({ il: v, ilce: "", mahalle: "", koy: "" })}
+                  onAddNew={async (v) => setIlOptions(await addIl(v))}
+                  onRemoveOption={async (v) => {
+                    setIlOptions(await removeIl(v));
+                    if (data.il === v) onChange({ il: "", ilce: "", mahalle: "", koy: "" });
+                  }}
+                  className="xl:col-span-1"
+                />
+                <ComboboxField
+                  label="İlçe"
+                  value={data.ilce}
+                  options={ilceOptions}
+                  placeholder={data.il ? "Ara veya seçin..." : "Önce il seçin"}
+                  onChange={(v) => onChange({ ilce: v, mahalle: "", koy: "" })}
+                  onAddNew={data.il ? async (v) => setIlceOptions(await addIlce(data.il, v)) : undefined}
+                  onRemoveOption={
+                    data.il
+                      ? async (v) => {
+                          setIlceOptions(await removeIlce(data.il, v));
+                          if (data.ilce === v) onChange({ ilce: "", mahalle: "", koy: "" });
+                        }
+                      : undefined
+                  }
+                  className="xl:col-span-1"
+                />
+                <ComboboxField
+                  label="Mahalle"
+                  value={data.mahalle}
+                  options={mahalleOptions}
+                  placeholder={data.ilce ? "Ara veya seçin..." : "Önce ilçe seçin"}
+                  onChange={(v) => onChange({ mahalle: v })}
+                  onAddNew={
+                    data.il && data.ilce
+                      ? async (v) => setMahalleOptions(await addMahalle(data.il, data.ilce, v))
+                      : undefined
+                  }
+                  onRemoveOption={
+                    data.il && data.ilce
+                      ? async (v) => {
+                          setMahalleOptions(await removeMahalle(data.il, data.ilce, v));
+                          if (data.mahalle === v) onChange({ mahalle: "" });
+                        }
+                      : undefined
+                  }
+                  className="xl:col-span-1"
+                />
+                <ComboboxField
+                  label="Köy"
+                  value={data.koy}
+                  options={koyOptions}
+                  placeholder={data.ilce ? "Ara veya seçin..." : "Önce ilçe seçin"}
+                  onChange={(v) => onChange({ koy: v })}
+                  onAddNew={
+                    data.il && data.ilce ? async (v) => setKoyOptions(await addKoy(data.il, data.ilce, v)) : undefined
+                  }
+                  onRemoveOption={
+                    data.il && data.ilce
+                      ? async (v) => {
+                          setKoyOptions(await removeKoy(data.il, data.ilce, v));
+                          if (data.koy === v) onChange({ koy: "" });
+                        }
+                      : undefined
+                  }
+                  className="xl:col-span-1"
+                />
+                <TextField
+                  label="Cadde / Bulvar"
+                  value={data.caddeBulvar}
+                  onChange={(v) => onChange({ caddeBulvar: v })}
+                  className="xl:col-span-1"
+                />
+                <TextField
+                  label="Semt / Mevki"
+                  value={data.semtMevki}
+                  onChange={(v) => onChange({ semtMevki: v })}
+                  className="xl:col-span-1"
+                />
+                <TextField
+                  label="Sokak"
+                  value={data.sokak}
+                  onChange={(v) => onChange({ sokak: v })}
+                  className="xl:col-span-1"
+                />
+              </div>
+            </FormGroup>
 
-          <FormGroup title="Numaraj Bilgileri Formu">
-            <div className={`${sectionBodyClass} grid grid-cols-1 gap-x-3 gap-y-3 md:grid-cols-2 xl:grid-cols-12`}>
-              <TextField
-                label="Kimlik No"
-                value={data.numarajKimlikNo}
-                onChange={(v) => onChange({ numarajKimlikNo: v })}
-                className="xl:col-span-3"
-              />
-              <TextField
-                label="Ada"
-                value={data.ada}
-                onChange={(v) => onChange({ ada: v })}
-                className="xl:col-span-1"
-              />
-              <TextField
-                label="Parsel"
-                value={data.parsel}
-                onChange={(v) => onChange({ parsel: v })}
-                className="xl:col-span-1"
-              />
-              <TextField
-                label="Pafta"
-                value={data.pafta}
-                onChange={(v) => onChange({ pafta: v })}
-                className="xl:col-span-2"
-              />
-              <TextField
-                label="Posta Kod"
-                value={data.postaKodu}
-                onChange={(v) => onChange({ postaKodu: v })}
-                className="xl:col-span-1"
-              />
-              <TextField
-                label="Dış Kapı"
-                value={data.disKapi}
-                onChange={(v) => onChange({ disKapi: v })}
-                className="xl:col-span-1"
-              />
-              <TextField
-                label="Numaraj Tipi"
-                value={data.numarajTipi}
-                onChange={(v) => onChange({ numarajTipi: v })}
-                className="xl:col-span-3"
-              />
-              <TextField
-                label="Site Adı"
-                value={data.siteAdi}
-                onChange={(v) => onChange({ siteAdi: v })}
-                className="xl:col-span-6"
-              />
-              <TextField
-                label="Apartman / Blok Adı"
-                value={data.apartmanBlokAdi}
-                onChange={(v) => onChange({ apartmanBlokAdi: v })}
-                className="xl:col-span-6"
-              />
-            </div>
-          </FormGroup>
+            <FormGroup title="Numaraj Bilgileri Formu" akiciMetin={false}>
+              <div className={`${sectionBodyClass} grid grid-cols-1 gap-x-3 gap-y-3 md:grid-cols-2 xl:grid-cols-12`}>
+                <TextField
+                  label="Kimlik No"
+                  value={data.numarajKimlikNo}
+                  onChange={(v) => onChange({ numarajKimlikNo: v })}
+                  className="xl:col-span-3"
+                />
+                <TextField
+                  label="Ada"
+                  value={data.ada}
+                  onChange={(v) => onChange({ ada: v })}
+                  className="xl:col-span-1"
+                />
+                <TextField
+                  label="Parsel"
+                  value={data.parsel}
+                  onChange={(v) => onChange({ parsel: v })}
+                  className="xl:col-span-1"
+                />
+                <TextField
+                  label="Pafta"
+                  value={data.pafta}
+                  onChange={(v) => onChange({ pafta: v })}
+                  className="xl:col-span-2"
+                />
+                <TextField
+                  label="Posta Kod"
+                  value={data.postaKodu}
+                  onChange={(v) => onChange({ postaKodu: v })}
+                  className="xl:col-span-1"
+                />
+                <TextField
+                  label="Dış Kapı"
+                  value={data.disKapi}
+                  onChange={(v) => onChange({ disKapi: v })}
+                  className="xl:col-span-1"
+                />
+                <TextField
+                  label="Numaraj Tipi"
+                  value={data.numarajTipi}
+                  onChange={(v) => onChange({ numarajTipi: v })}
+                  className="xl:col-span-3"
+                />
+                <TextField
+                  label="Site Adı"
+                  value={data.siteAdi}
+                  onChange={(v) => onChange({ siteAdi: v })}
+                  className="xl:col-span-6"
+                />
+                <TextField
+                  label="Apartman / Blok Adı"
+                  value={data.apartmanBlokAdi}
+                  onChange={(v) => onChange({ apartmanBlokAdi: v })}
+                  className="xl:col-span-6"
+                />
+              </div>
+            </FormGroup>
 
-          <FormGroup title="Bağımsız Bölüm Bilgileri Formu">
-            <div className={`${sectionBodyClass} grid grid-cols-1 gap-x-3 gap-y-3 xl:grid-cols-6`}>
-              <TextField
-                label="Kimlik No"
-                value={data.bagimsizBolumKimlikNo}
-                onChange={(v) => onChange({ bagimsizBolumKimlikNo: v })}
-              />
-              <TextField label="İç Kapı" value={data.icKapi} onChange={(v) => onChange({ icKapi: v })} />
-              <TextField
-                label="Kullanım Amacı"
-                value={data.kullanimAmaci}
-                onChange={(v) => onChange({ kullanimAmaci: v })}
-              />
-              <TextField label="Tip" value={data.tip} onChange={(v) => onChange({ tip: v })} />
-              <TextField label="Durum" value={data.durum} onChange={(v) => onChange({ durum: v })} />
-              <TextField label="Tapu No" value={data.tapuNo} onChange={(v) => onChange({ tapuNo: v })} />
-            </div>
-          </FormGroup>
+            <FormGroup title="Bağımsız Bölüm Bilgileri Formu" akiciMetin={false}>
+              <div className={`${sectionBodyClass} grid grid-cols-1 gap-x-3 gap-y-3 xl:grid-cols-6`}>
+                <TextField
+                  label="Kimlik No"
+                  value={data.bagimsizBolumKimlikNo}
+                  onChange={(v) => onChange({ bagimsizBolumKimlikNo: v })}
+                />
+                <TextField label="İç Kapı" value={data.icKapi} onChange={(v) => onChange({ icKapi: v })} />
+                <TextField
+                  label="Kullanım Amacı"
+                  value={data.kullanimAmaci}
+                  onChange={(v) => onChange({ kullanimAmaci: v })}
+                />
+                <TextField label="Tip" value={data.tip} onChange={(v) => onChange({ tip: v })} />
+                <TextField label="Durum" value={data.durum} onChange={(v) => onChange({ durum: v })} />
+                <TextField label="Tapu No" value={data.tapuNo} onChange={(v) => onChange({ tapuNo: v })} />
+              </div>
+            </FormGroup>
+          </AkiciMetinGrubu>
         </>
       )}
 

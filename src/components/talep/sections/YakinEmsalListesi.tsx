@@ -183,7 +183,7 @@ export default function YakinEmsalListesi({
 
   if (konular.length === 0) {
     return (
-      <SectionCard title="Yakın Emsal Listesi">
+      <SectionCard title="Yakın Emsal Listesi" akiciMetin={false}>
         <div className="flex flex-col items-center gap-2 rounded-xl border-2 border-dashed border-slate-200 px-6 py-12 text-center">
           <MapPinned className="h-7 w-7 text-slate-300" />
           <p className="text-sm font-medium text-slate-700">Konu taşınmazın konumu yok</p>
@@ -198,7 +198,7 @@ export default function YakinEmsalListesi({
 
   return (
     <div className="space-y-4">
-      <SectionCard title="Yakın Emsal Listesi">
+      <SectionCard title="Yakın Emsal Listesi" akiciMetin={false}>
         <p className="mb-3 text-xs text-slate-500">
           Emsal Haritası&apos;ndaki kayıtlardan, KML ile yüklenen konu taşınmaza yakın olanlar. Listeden ya da haritadan
           seçip Satılık / Kiralık sekmelerine aktarabilirsiniz.

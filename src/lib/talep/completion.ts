@@ -8,7 +8,7 @@ function isFilled(value: unknown): boolean {
   return false;
 }
 
-function isSectionFilled(section: unknown): boolean {
+export function isSectionFilled(section: unknown): boolean {
   if (Array.isArray(section)) return section.length > 0;
   if (section && typeof section === "object") {
     return Object.entries(section as Record<string, unknown>).some(([key, value]) => {
@@ -27,7 +27,8 @@ export function getTapuCompletion(tapu: Tapu, options?: { excludeSharedSections?
     ...(options?.excludeSharedSections ? [] : [tapu.kurumIncelemeleri]),
     tapu.projeIncelemeleri,
     tapu.imarDurumu,
-    tapu.anaGayrimenkul,
+    // Land (tarla, bağ, bahçe) fills the Ana Gayrimenkul tab with the arazi form.
+    tapu.talepDetayi.tasinmazNiteligi === "TARLA, BAĞ, BAHÇE VB." ? tapu.araziOzellikleri : tapu.anaGayrimenkul,
     tapu.bagimsizBolum,
     tapu.degerleme,
     tapu.emsaller,

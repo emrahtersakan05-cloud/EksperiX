@@ -9,7 +9,14 @@ import YeniTalepButton from "@/components/talep/YeniTalepButton";
 import { listTalepler } from "@/lib/talep/service";
 import type { Talep } from "@/lib/talep/types";
 
-export default function RecentTaleplerCard({ limit = 10 }: { limit?: number }) {
+export default function RecentTaleplerCard({
+  limit = 10,
+  onDegisti,
+}: {
+  limit?: number;
+  // Lets the Ana Sayfa refresh its figures after a talep is deleted here.
+  onDegisti?: () => void;
+}) {
   const [talepler, setTalepler] = useState<Talep[] | null>(null);
 
   function reload() {
@@ -53,7 +60,13 @@ export default function RecentTaleplerCard({ limit = 10 }: { limit?: number }) {
           <YeniTalepButton />
         </div>
       ) : (
-        <TalepTable talepler={talepler.slice(0, limit)} onDeleted={reload} />
+        <TalepTable
+          talepler={talepler.slice(0, limit)}
+          onDeleted={() => {
+            reload();
+            onDegisti?.();
+          }}
+        />
       )}
     </Card>
   );

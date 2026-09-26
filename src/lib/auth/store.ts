@@ -127,13 +127,68 @@ export async function findById(id: string): Promise<StoredUser | undefined> {
   return (await readAll()).find((u) => u.id === id);
 }
 
+// Compared against when the username doesn't exist, so an unknown username
+// takes as long as a wrong password and response time can't reveal which
+// usernames are registered.
+let bosHash: string | undefined;
+
 export async function verifyCredentials(
   username: string,
   password: string,
 ): Promise<StoredUser | null> {
   const user = await findByUsername(username);
-  if (!user) return null;
+  if (!user) {
+    bosHash ??= bcrypt.hashSync("eksperix-yok", 10);
+    bcrypt.compareSync(password, bosHash);
+    return null;
+  }
   return bcrypt.compareSync(password, user.passwordHash) ? user : null;
+}
+
+// ---- Login throttling -------------------------------------------------------
+// Failed attempts per username; after GIRIS_SINIRI failures within the window
+// the username is locked until the window expires. Redis when configured (so
+// all serverless instances share the count), otherwise in memory.
+
+export const GIRIS_SINIRI = 8;
+const GIRIS_PENCERESI_SN = 15 * 60;
+const bellekDenemeleri = new Map<string, { adet: number; bitis: number }>();
+
+const denemeAnahtari = (username: string) => `eksperix:giris-deneme:${username.trim().toLowerCase()}`;
+
+// Seconds until the lock lifts, or 0 when the username may try.
+export async function girisKilitSuresi(username: string): Promise<number> {
+  const redis = getRedis();
+  const anahtar = denemeAnahtari(username);
+  if (redis) {
+    const adet = (await redis.get<number>(anahtar)) ?? 0;
+    if (adet < GIRIS_SINIRI) return 0;
+    return Math.max(1, await redis.ttl(anahtar));
+  }
+  const kayit = bellekDenemeleri.get(anahtar);
+  if (!kayit || kayit.bitis <= Date.now()) return 0;
+  return kayit.adet >= GIRIS_SINIRI ? Math.ceil((kayit.bitis - Date.now()) / 1000) : 0;
+}
+
+export async function hataliGirisKaydet(username: string): Promise<void> {
+  const redis = getRedis();
+  const anahtar = denemeAnahtari(username);
+  if (redis) {
+    const adet = await redis.incr(anahtar);
+    if (adet === 1) await redis.expire(anahtar, GIRIS_PENCERESI_SN);
+    return;
+  }
+  const simdi = Date.now();
+  const kayit = bellekDenemeleri.get(anahtar);
+  if (!kayit || kayit.bitis <= simdi) bellekDenemeleri.set(anahtar, { adet: 1, bitis: simdi + GIRIS_PENCERESI_SN * 1000 });
+  else kayit.adet += 1;
+}
+
+export async function girisDenemeleriniSifirla(username: string): Promise<void> {
+  const redis = getRedis();
+  const anahtar = denemeAnahtari(username);
+  if (redis) await redis.del(anahtar);
+  else bellekDenemeleri.delete(anahtar);
 }
 
 export async function createUser(input: {
@@ -167,19 +222,31 @@ export async function updateUser(
   const all = await readAll();
   const idx = all.findIndex((u) => u.id === id);
   if (idx === -1) return undefined;
+  // Never leave the system without an admin (nobody could manage users then).
+  if (patch.role && patch.role !== "admin" && all[idx].role === "admin" && all.filter((u) => u.role === "admin").length === 1) {
+    throw new Error("Sistemde en az bir yönetici kalmalı; son yöneticinin rolü değiştirilemez.");
+  }
   all[idx] = { ...all[idx], ...patch };
   await writeAll(all);
   return toPublic(all[idx]);
 }
 
-export async function resetPassword(id: string, newPassword: string): Promise<void> {
+// Returns the user's new session version (see StoredUser.oturumSurumu).
+export async function resetPassword(id: string, newPassword: string): Promise<number | undefined> {
   const all = await readAll();
   const idx = all.findIndex((u) => u.id === id);
-  if (idx === -1) return;
-  all[idx] = { ...all[idx], passwordHash: bcrypt.hashSync(newPassword, 10) };
+  if (idx === -1) return undefined;
+  const oturumSurumu = (all[idx].oturumSurumu ?? 0) + 1;
+  all[idx] = { ...all[idx], passwordHash: bcrypt.hashSync(newPassword, 10), oturumSurumu };
   await writeAll(all);
+  return oturumSurumu;
 }
 
 export async function deleteUser(id: string): Promise<void> {
-  await writeAll((await readAll()).filter((u) => u.id !== id));
+  const all = await readAll();
+  const hedef = all.find((u) => u.id === id);
+  if (hedef?.role === "admin" && all.filter((u) => u.role === "admin").length === 1) {
+    throw new Error("Son yönetici silinemez.");
+  }
+  await writeAll(all.filter((u) => u.id !== id));
 }

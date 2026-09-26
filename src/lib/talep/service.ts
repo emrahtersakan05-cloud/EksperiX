@@ -22,7 +22,11 @@ function normalizeHesaplamalar(stored: unknown, empty: DegerHesaplamalari): Dege
   const s = (stored && typeof stored === "object" ? stored : {}) as Partial<Record<keyof DegerHesaplamalari, unknown>>;
   const obj = (value: unknown) => (value && typeof value === "object" && !Array.isArray(value) ? value : {});
   const hisseli = obj(s.hisseli) as Partial<DegerHesaplamalari["hisseli"]>;
+  const yontemler: DegerHesaplamalari["esasYontem"][] = ["normal", "alanFarki", "seviyeli", "hisseli"];
   return {
+    esasYontem: yontemler.includes(s.esasYontem as DegerHesaplamalari["esasYontem"])
+      ? (s.esasYontem as DegerHesaplamalari["esasYontem"])
+      : "",
     normal: { ...empty.normal, ...obj(s.normal) },
     alanFarki: { ...empty.alanFarki, ...obj(s.alanFarki) },
     seviyeli: { ...empty.seviyeli, ...obj(s.seviyeli) },
@@ -84,23 +88,116 @@ function normalizeTapu(tapu: Tapu): Tapu {
       kiralik2: { ...empty.emsaller.kiralik2, ...tapu.emsaller?.kiralik2 },
     },
     raporSonucu: { ...empty.raporSonucu, ...tapu.raporSonucu },
+    akiciMetinler: { ...(tapu.akiciMetinler ?? {}) },
   };
 }
 
-function readAll(): Talep[] {
-  if (typeof window === "undefined") return [];
+// ---- Storage ----------------------------------------------------------------
+// Talepler live in the browser. They used to be one JSON array in
+// localStorage, which browsers cap at ~5 MB — and talepler embed the uploaded
+// UAVT images and tapu PDFs as data URLs, so a handful of documents hit the
+// cap and every later save threw QuotaExceededError (edits silently lost).
+// They now live in IndexedDB (quota in the hundreds of MB), one record per
+// talep. The localStorage array is migrated on first open, then removed.
+// Browsers without IndexedDB keep using localStorage.
+
+const DB_ADI = "eksperix";
+const DB_SURUMU = 1;
+const DEPO = "talepler";
+
+let dbSozu: Promise<IDBDatabase | null> | null = null;
+
+function istek<T>(r: IDBRequest<T>): Promise<T> {
+  return new Promise((resolve, reject) => {
+    r.onsuccess = () => resolve(r.result);
+    r.onerror = () => reject(r.error);
+  });
+}
+
+function islemBitti(tx: IDBTransaction): Promise<void> {
+  return new Promise((resolve, reject) => {
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+    tx.onabort = () => reject(tx.error ?? new Error("IndexedDB işlemi iptal edildi."));
+  });
+}
+
+function localStorageOku(): Talep[] {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const talepler = JSON.parse(raw) as Talep[];
-    return talepler.map((t) => ({ ...t, tapular: t.tapular.map(normalizeTapu) }));
+    return raw ? (JSON.parse(raw) as Talep[]) : [];
   } catch {
     return [];
   }
 }
 
-function writeAll(talepler: Talep[]): void {
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(talepler));
+async function dbAc(): Promise<IDBDatabase | null> {
+  if (typeof window === "undefined" || !("indexedDB" in window)) return null;
+  dbSozu ??= (async () => {
+    try {
+      const acma = window.indexedDB.open(DB_ADI, DB_SURUMU);
+      acma.onupgradeneeded = () => {
+        if (!acma.result.objectStoreNames.contains(DEPO)) acma.result.createObjectStore(DEPO, { keyPath: "id" });
+      };
+      const db = await istek(acma);
+      // One-time move of the old localStorage array.
+      const eski = localStorageOku();
+      if (eski.length > 0) {
+        const tx = db.transaction(DEPO, "readwrite");
+        const depo = tx.objectStore(DEPO);
+        for (const t of eski) depo.put(t);
+        await islemBitti(tx);
+        window.localStorage.removeItem(STORAGE_KEY);
+      }
+      return db;
+    } catch {
+      return null;
+    }
+  })();
+  return dbSozu;
+}
+
+// Operations run one after another, so two quick edits of the same talep
+// can't both read the old version and overwrite each other.
+let kuyruk: Promise<unknown> = Promise.resolve();
+function sirayla<T>(is: () => Promise<T>): Promise<T> {
+  const sonuc = kuyruk.then(is, is);
+  kuyruk = sonuc.catch(() => undefined);
+  return sonuc;
+}
+
+async function readAll(): Promise<Talep[]> {
+  if (typeof window === "undefined") return [];
+  const db = await dbAc();
+  const ham = db ? await istek(db.transaction(DEPO).objectStore(DEPO).getAll() as IDBRequest<Talep[]>) : localStorageOku();
+  return ham.map((t) => ({ ...t, tapular: t.tapular.map(normalizeTapu) }));
+}
+
+async function kaydet(talep: Talep): Promise<void> {
+  const db = await dbAc();
+  if (db) {
+    const tx = db.transaction(DEPO, "readwrite");
+    tx.objectStore(DEPO).put(talep);
+    await islemBitti(tx);
+    return;
+  }
+  const hepsi = localStorageOku().filter((t) => t.id !== talep.id);
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify([...hepsi, talep]));
+}
+
+async function kaldir(id: string): Promise<void> {
+  const db = await dbAc();
+  if (db) {
+    const tx = db.transaction(DEPO, "readwrite");
+    tx.objectStore(DEPO).delete(id);
+    await islemBitti(tx);
+    return;
+  }
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(localStorageOku().filter((t) => t.id !== id)));
+}
+
+async function tekTalep(id: string): Promise<Talep | undefined> {
+  return (await readAll()).find((t) => t.id === id);
 }
 
 function nextTalepNo(existing: Talep[], degerlemeKurumBanka: string): string {
@@ -115,11 +212,11 @@ function nextTalepNo(existing: Talep[], degerlemeKurumBanka: string): string {
 // real fetch() calls against the Eksperix API without touching callers.
 
 export async function listTalepler(): Promise<Talep[]> {
-  return readAll().sort((a, b) => b.olusturmaTarihi.localeCompare(a.olusturmaTarihi));
+  return sirayla(async () => (await readAll()).sort((a, b) => b.olusturmaTarihi.localeCompare(a.olusturmaTarihi)));
 }
 
 export async function getTalep(id: string): Promise<Talep | undefined> {
-  return readAll().find((t) => t.id === id);
+  return sirayla(() => tekTalep(id));
 }
 
 export async function createTalep(input: {
@@ -129,62 +226,64 @@ export async function createTalep(input: {
   tasinmazNiteligi: string;
   tapuSayisi: number;
 }): Promise<Talep> {
-  const all = readAll();
-  const defaults = {
-    musteriUnvani: input.musteriUnvani,
-    degerlemeFirmasi: input.degerlemeFirmasi,
-    degerlemeKurumBanka: input.degerlemeKurumBanka,
-    tasinmazNiteligi: input.tasinmazNiteligi,
-  };
-  const talep: Talep = {
-    id: newRowId(),
-    talepNo: nextTalepNo(all, input.degerlemeKurumBanka),
-    ...defaults,
-    olusturmaTarihi: new Date().toISOString(),
-    tapular: Array.from({ length: Math.max(1, input.tapuSayisi) }, (_, i) =>
-      createEmptyTapu(i + 1, defaults),
-    ),
-  };
-  writeAll([...all, talep]);
-  return talep;
+  return sirayla(async () => {
+    const all = await readAll();
+    const defaults = {
+      musteriUnvani: input.musteriUnvani,
+      degerlemeFirmasi: input.degerlemeFirmasi,
+      degerlemeKurumBanka: input.degerlemeKurumBanka,
+      tasinmazNiteligi: input.tasinmazNiteligi,
+    };
+    const talep: Talep = {
+      id: newRowId(),
+      talepNo: nextTalepNo(all, input.degerlemeKurumBanka),
+      ...defaults,
+      olusturmaTarihi: new Date().toISOString(),
+      tapular: Array.from({ length: Math.max(1, input.tapuSayisi) }, (_, i) => createEmptyTapu(i + 1, defaults)),
+    };
+    await kaydet(talep);
+    return talep;
+  });
 }
 
 export async function deleteTalep(id: string): Promise<void> {
-  writeAll(readAll().filter((t) => t.id !== id));
+  return sirayla(() => kaldir(id));
+}
+
+// Read → change → write one talep, as a single queued step.
+function talebiDegistir(talepId: string, degistir: (talep: Talep) => void): Promise<Talep | undefined> {
+  return sirayla(async () => {
+    const talep = await tekTalep(talepId);
+    if (!talep) return undefined;
+    degistir(talep);
+    await kaydet(talep);
+    return talep;
+  });
 }
 
 export async function addTapu(talepId: string): Promise<Talep | undefined> {
-  const all = readAll();
-  const talep = all.find((t) => t.id === talepId);
-  if (!talep) return undefined;
-  talep.tapular.push(
-    createEmptyTapu(talep.tapular.length + 1, {
-      musteriUnvani: talep.musteriUnvani,
-      degerlemeFirmasi: talep.degerlemeFirmasi,
-      degerlemeKurumBanka: talep.degerlemeKurumBanka,
-      tasinmazNiteligi: talep.tasinmazNiteligi,
-    }),
-  );
-  writeAll(all);
-  return talep;
+  return talebiDegistir(talepId, (talep) => {
+    talep.tapular.push(
+      createEmptyTapu(talep.tapular.length + 1, {
+        musteriUnvani: talep.musteriUnvani,
+        degerlemeFirmasi: talep.degerlemeFirmasi,
+        degerlemeKurumBanka: talep.degerlemeKurumBanka,
+        tasinmazNiteligi: talep.tasinmazNiteligi,
+      }),
+    );
+  });
 }
 
 export async function removeTapu(talepId: string, tapuId: string): Promise<Talep | undefined> {
-  const all = readAll();
-  const talep = all.find((t) => t.id === talepId);
-  if (!talep) return undefined;
-  talep.tapular = talep.tapular.filter((t) => t.id !== tapuId);
-  writeAll(all);
-  return talep;
+  return talebiDegistir(talepId, (talep) => {
+    talep.tapular = talep.tapular.filter((t) => t.id !== tapuId);
+  });
 }
 
 export async function renameTapu(talepId: string, tapuId: string, ad: string): Promise<Talep | undefined> {
-  const all = readAll();
-  const talep = all.find((t) => t.id === talepId);
-  if (!talep) return undefined;
-  talep.tapular = talep.tapular.map((t) => (t.id === tapuId ? { ...t, ad } : t));
-  writeAll(all);
-  return talep;
+  return talebiDegistir(talepId, (talep) => {
+    talep.tapular = talep.tapular.map((t) => (t.id === tapuId ? { ...t, ad } : t));
+  });
 }
 
 export async function updateTapu(
@@ -192,10 +291,62 @@ export async function updateTapu(
   tapuId: string,
   updater: (tapu: Tapu) => Tapu,
 ): Promise<Talep | undefined> {
-  const all = readAll();
-  const talep = all.find((t) => t.id === talepId);
-  if (!talep) return undefined;
-  talep.tapular = talep.tapular.map((t) => (t.id === tapuId ? updater(t) : t));
-  writeAll(all);
-  return talep;
+  return talebiDegistir(talepId, (talep) => {
+    talep.tapular = talep.tapular.map((t) => (t.id === tapuId ? updater(t) : t));
+  });
+}
+
+// ---- Backup -------------------------------------------------------------------
+// Talepler exist only in this browser, so a downloadable backup is the way to
+// move them to another computer or survive a cleared browser.
+
+export interface TalepYedegi {
+  tur: "eksperix-talep-yedegi";
+  surum: 1;
+  olusturma: string;
+  talepler: Talep[];
+}
+
+export async function yedekOlustur(): Promise<TalepYedegi> {
+  return sirayla(async () => ({
+    tur: "eksperix-talep-yedegi",
+    surum: 1,
+    olusturma: new Date().toISOString(),
+    talepler: await readAll(),
+  }));
+}
+
+export interface YedekOzeti {
+  yeni: number;
+  guncellenecek: number;
+}
+
+function yedegiDogrula(veri: unknown): Talep[] {
+  const y = veri as Partial<TalepYedegi> | null;
+  if (!y || y.tur !== "eksperix-talep-yedegi" || !Array.isArray(y.talepler)) {
+    throw new Error("Bu dosya bir Eksperix talep yedeği değil.");
+  }
+  const gecerli = y.talepler.filter(
+    (t): t is Talep => !!t && typeof t.id === "string" && typeof t.talepNo === "string" && Array.isArray(t.tapular),
+  );
+  if (gecerli.length !== y.talepler.length) throw new Error("Yedek dosyasındaki bazı talepler bozuk.");
+  return gecerli;
+}
+
+// What restoring would do, for the confirmation step.
+export async function yedekOzeti(veri: unknown): Promise<YedekOzeti> {
+  const gelen = yedegiDogrula(veri);
+  const mevcut = new Set((await listTalepler()).map((t) => t.id));
+  const guncellenecek = gelen.filter((t) => mevcut.has(t.id)).length;
+  return { yeni: gelen.length - guncellenecek, guncellenecek };
+}
+
+// Adds the backup's talepler; ones already here (same id) are replaced by the
+// backup's version. Talepler not in the backup are left alone.
+export async function yedektenYukle(veri: unknown): Promise<number> {
+  const gelen = yedegiDogrula(veri);
+  return sirayla(async () => {
+    for (const t of gelen) await kaydet(t);
+    return gelen.length;
+  });
 }

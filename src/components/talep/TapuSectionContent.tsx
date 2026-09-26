@@ -1,5 +1,8 @@
 "use client";
 
+import { useMemo } from "react";
+import { AkiciMetinDeposuSaglayici, type AkiciMetinDeposu } from "@/components/akici-metin/baglam";
+
 import AdresKonumSection from "@/components/talep/sections/AdresKonumSection";
 import AnaGayrimenkulSection from "@/components/talep/sections/AnaGayrimenkulSection";
 import AraziOzellikleriSection from "@/components/talep/sections/AraziOzellikleriSection";
@@ -17,17 +20,38 @@ import YakinRaporlarAdaParselSection from "@/components/talep/sections/YakinRapo
 import YakinRaporlarHaritaSection from "@/components/talep/sections/YakinRaporlarHaritaSection";
 import type { Talep, Tapu, TapuSectionKey } from "@/lib/talep/types";
 
-export default function TapuSectionContent({
-  talep,
-  tapu,
-  sectionKey,
-  onUpdate,
-}: {
+interface SectionProps {
   talep: Talep;
   tapu: Tapu;
   sectionKey: TapuSectionKey;
   onUpdate: (updater: (tapu: Tapu) => Tapu) => void;
-}) {
+}
+
+// Form cards save their Akıcı Metin into this tapu.
+export default function TapuSectionContent(props: SectionProps) {
+  const { tapu, onUpdate } = props;
+  const metinler = tapu.akiciMetinler;
+  const depo = useMemo<AkiciMetinDeposu>(
+    () => ({
+      getir: (baslik) => metinler?.[baslik] ?? "",
+      kaydet: (baslik, metin) =>
+        onUpdate((t) => {
+          const yeni = { ...(t.akiciMetinler ?? {}) };
+          if (metin.trim()) yeni[baslik] = metin;
+          else delete yeni[baslik];
+          return { ...t, akiciMetinler: yeni };
+        }),
+    }),
+    [metinler, onUpdate],
+  );
+  return (
+    <AkiciMetinDeposuSaglayici depo={depo}>
+      <TapuSectionIcerik {...props} />
+    </AkiciMetinDeposuSaglayici>
+  );
+}
+
+function TapuSectionIcerik({ talep, tapu, sectionKey, onUpdate }: SectionProps) {
   // Each onChange merges its patch against the CURRENT tapu the update
   // ultimately runs against (passed in by onUpdate's functional updater),
   // not the `tapu` prop closure captured at render time — otherwise two
@@ -86,6 +110,13 @@ export default function TapuSectionContent({
             data={tapu.araziOzellikleri}
             tapuKaydi={tapu.tapuKaydi}
             onChange={(patch) => onUpdate((t) => ({ ...t, araziOzellikleri: { ...t.araziOzellikleri, ...patch } }))}
+            binaFormu={
+              <AnaGayrimenkulSection
+                baslik="Üzerindeki Yapı Bilgileri"
+                data={tapu.anaGayrimenkul}
+                onChange={(patch) => onUpdate((t) => ({ ...t, anaGayrimenkul: { ...t.anaGayrimenkul, ...patch } }))}
+              />
+            }
           />
         );
       }

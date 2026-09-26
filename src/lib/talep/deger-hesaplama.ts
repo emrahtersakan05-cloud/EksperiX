@@ -1,6 +1,9 @@
-import { parseTrNumber } from "@/lib/emsal/hesaplama";
+import { hesaplaEmsalDegerleri, parseTrNumber } from "@/lib/emsal/hesaplama";
 import type {
   AlanFarkiDegerlemeData,
+  DegerHesaplamalari,
+  EmsalKaydi,
+  HesapYontemi,
   HisseliDegerlemeData,
   NormalDegerlemeData,
   SeviyeliDegerlemeData,
@@ -181,4 +184,163 @@ export function hisseliMetni(d: HisseliDegerlemeData, s: HisseliSonuc): string {
   });
   if (hisseSatirlari.length > 0) lines.push("Hisse Bazlı Bilgi Amaçlı Değeri:", ...hisseSatirlari);
   return lines.join("\n");
+}
+
+// --- Method overview, sensitivity, amount in words, emsal basis ---
+
+export const YONTEM_ADLARI: Record<HesapYontemi, string> = {
+  normal: "Normal Değerleme",
+  alanFarki: "Alan Farkı Değerleme",
+  seviyeli: "Seviyeli Değerleme",
+  hisseli: "Hisseli Değerleme",
+};
+
+// The headline figure of each method — the same one the report quotes.
+export function yontemSonuclari(h: DegerHesaplamalari): Record<HesapYontemi, number | null> {
+  return {
+    normal: hesaplaNormal(h.normal),
+    alanFarki: hesaplaAlanFarki(h.alanFarki)?.toplam ?? null,
+    seviyeli: hesaplaSeviyeli(h.seviyeli).guncel,
+    hisseli: hesaplaHisseli(h.hisseli).durum?.yuvarlanmis ?? null,
+  };
+}
+
+// The unit value a method currently uses (for the sensitivity table and the
+// deviation-from-emsal badge).
+export function yontemBirimi(yontem: HesapYontemi, h: DegerHesaplamalari): number | null {
+  const raw = {
+    normal: h.normal.birimDeger,
+    alanFarki: h.alanFarki.birimDeger,
+    seviyeli: h.seviyeli.birimFiyat,
+    hisseli: h.hisseli.birimFiyat,
+  }[yontem];
+  const n = parseTrNumber(raw);
+  return n === null || n < 0 ? null : n;
+}
+
+// The method's result recomputed with a different unit value, everything
+// else unchanged (seviyeli's remaining cost does not depend on it).
+export function birimleHesapla(yontem: HesapYontemi, h: DegerHesaplamalari, birim: number): number | null {
+  const b = birim.toLocaleString("tr-TR", { useGrouping: false, maximumFractionDigits: 4 });
+  switch (yontem) {
+    case "normal":
+      return hesaplaNormal({ ...h.normal, birimDeger: b });
+    case "alanFarki":
+      return hesaplaAlanFarki({ ...h.alanFarki, birimDeger: b })?.toplam ?? null;
+    case "seviyeli":
+      return hesaplaSeviyeli({ ...h.seviyeli, birimFiyat: b }).guncel;
+    case "hisseli":
+      return hesaplaHisseli({ ...h.hisseli, birimFiyat: b }).durum?.yuvarlanmis ?? null;
+  }
+}
+
+const BIRLER = ["", "bir", "iki", "üç", "dört", "beş", "altı", "yedi", "sekiz", "dokuz"];
+const ONLAR = ["", "on", "yirmi", "otuz", "kırk", "elli", "altmış", "yetmiş", "seksen", "doksan"];
+const BUYUKLER = ["", "bin", "milyon", "milyar", "trilyon"];
+
+function ucBasamak(n: number): string {
+  const yuz = Math.floor(n / 100);
+  const on = Math.floor((n % 100) / 10);
+  const bir = n % 10;
+  // "yüz", not "bir yüz".
+  return [yuz === 0 ? "" : yuz === 1 ? "yüz" : `${BIRLER[yuz]} yüz`, ONLAR[on], BIRLER[bir]].filter(Boolean).join(" ");
+}
+
+// 1565000 → "bir milyon beş yüz altmış beş bin". Integers only.
+export function sayiyiYaziyaCevir(n: number): string {
+  const tam = Math.floor(Math.abs(n));
+  if (tam === 0) return "sıfır";
+  const parcalar: string[] = [];
+  let kalan = tam;
+  for (let i = 0; kalan > 0 && i < BUYUKLER.length; i++) {
+    const grup = kalan % 1000;
+    if (grup > 0) {
+      // "bin", not "bir bin"; but "bir milyon".
+      const soz = i === 1 && grup === 1 ? "" : ucBasamak(grup);
+      parcalar.unshift([soz, BUYUKLER[i]].filter(Boolean).join(" "));
+    }
+    kalan = Math.floor(kalan / 1000);
+  }
+  return (n < 0 ? "eksi " : "") + parcalar.join(" ");
+}
+
+// "Bir milyon beş yüz altmış beş bin Türk Lirası" (+ kuruş when present), as
+// written under the figure in valuation reports.
+export function tutarYaziyla(n: number): string {
+  const kurus = Math.round((Math.abs(n) % 1) * 100);
+  let metin = `${sayiyiYaziyaCevir(n)} Türk Lirası`;
+  if (kurus > 0) metin += ` ${sayiyiYaziyaCevir(kurus)} kuruş`;
+  return metin.charAt(0).toLocaleUpperCase("tr-TR") + metin.slice(1);
+}
+
+export interface EmsalDayanagiSatiri {
+  etiket: string;
+  konum: string;
+  birim: number | null;
+  net: number | null;
+}
+
+export interface EmsalDayanagi {
+  satirlar: EmsalDayanagiSatiri[];
+  // Over the rows that have a value.
+  ortalamaBirim: number | null;
+  ortalamaNet: number | null;
+  medyanNet: number | null;
+  minNet: number | null;
+  maxNet: number | null;
+  // Coefficient of variation of the net unit values (std / mean).
+  degisimKatsayisi: number | null;
+}
+
+function medyan(values: number[]): number | null {
+  if (values.length === 0) return null;
+  const s = [...values].sort((a, b) => a - b);
+  const m = Math.floor(s.length / 2);
+  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
+}
+
+// Summary of the talep's satılık emsaller as the basis for the unit value.
+// Net figures fall back to the plain unit price where no şerefiye was entered.
+export function emsalDayanagi(kayitlar: { etiket: string; kaydi: EmsalKaydi }[]): EmsalDayanagi {
+  const satirlar = kayitlar.map(({ etiket, kaydi }) => {
+    const hesap = hesaplaEmsalDegerleri(kaydi);
+    const birim = parseTrNumber(hesap.birimFiyat);
+    const net = parseTrNumber(hesap.netBirimFiyat) ?? birim;
+    return { etiket, konum: [kaydi.koyMahalle, kaydi.ilce].filter(Boolean).join(", "), birim, net };
+  });
+  const birimler = satirlar.map((s) => s.birim).filter((v): v is number => v !== null);
+  const netler = satirlar.map((s) => s.net).filter((v): v is number => v !== null);
+  const ort = (v: number[]) => (v.length ? v.reduce((t, x) => t + x, 0) / v.length : null);
+  const ortalamaNet = ort(netler);
+  const sapma =
+    ortalamaNet !== null && netler.length > 1
+      ? Math.sqrt(netler.reduce((t, x) => t + (x - ortalamaNet) ** 2, 0) / netler.length)
+      : null;
+  return {
+    satirlar,
+    ortalamaBirim: ort(birimler),
+    ortalamaNet,
+    medyanNet: medyan(netler),
+    minNet: netler.length ? Math.min(...netler) : null,
+    maxNet: netler.length ? Math.max(...netler) : null,
+    degisimKatsayisi: sapma !== null && ortalamaNet ? sapma / ortalamaNet : null,
+  };
+}
+
+export interface OneCikanSonuc {
+  deger: number | null;
+  birim: number | null;
+  yontem: HesapYontemi | null;
+  // Why there is no value: nothing filled in, or several methods and no esas.
+  eksik: "" | "hesaplanmadi" | "esas-secilmedi";
+}
+
+// The single figure a report puts forward: the esas method's result, else the
+// only method filled in. Shared by the report list and the Değer Haritası.
+export function oneCikanSonuc(h: DegerHesaplamalari): OneCikanSonuc {
+  const sonuclar = yontemSonuclari(h);
+  const dolu = (Object.keys(sonuclar) as HesapYontemi[]).filter((y) => sonuclar[y] !== null);
+  const yontem = h.esasYontem && sonuclar[h.esasYontem] !== null ? h.esasYontem : dolu.length === 1 ? dolu[0] : null;
+  if (!yontem) return { deger: null, birim: null, yontem: null, eksik: dolu.length > 1 ? "esas-secilmedi" : "hesaplanmadi" };
+  return { deger: sonuclar[yontem], birim: yontemBirimi(yontem, h), yontem, eksik: "" };
 }

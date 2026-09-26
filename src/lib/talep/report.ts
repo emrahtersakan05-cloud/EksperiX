@@ -9,10 +9,13 @@ import {
   hisseliMetni,
   normalMetni,
   seviyeliMetni,
+  yontemSonuclari,
 } from "./deger-hesaplama";
 import type { KurumIncelemesi, NotKaydi, RuhsatIncelemeData, Talep, Tapu } from "./types";
 
 export interface ValuationReportSection {
+  // Stable key used to attach akıcı metin texts to the right section.
+  id?: string;
   title: string;
   // The tab (menu path) the text is built from; shown in the on-screen report view only.
   source?: string;
@@ -346,13 +349,37 @@ function buildIndependentSectionParagraph(tapu: Tapu): string {
 
 function buildAraziParagraph(tapu: Tapu): string {
   const a = tapu.araziOzellikleri;
+  if (a.mahallindekiNitelik === "bina-var") {
+    return "Taşınmaz mahallinde tarla, bağ, bahçe vb. niteliğinde olup üzerinde yapı bulunmaktadır.";
+  }
   const sekil = a.araziSekli === "Diğer" ? a.araziSekliDiger : a.araziSekli;
-  const yapi = a.araziYapisi === "Diğer" ? a.araziYapisiDiger : a.araziYapisi;
+  const egim = a.araziYapisi === "Diğer" ? a.araziYapisiDiger : a.araziYapisi;
   const sulama = a.sulamaImkani === "Diğer" ? a.sulamaImkaniDiger : a.sulamaImkani;
+  const kucuk = (v: string) => v.toLocaleLowerCase("tr-TR");
+  const cepheler = (a.digerCepheler ?? []).filter((c) => c.yon && c.bilgi.trim());
+  const olculer = [
+    a.parselGenisligi ? `genişliği yaklaşık ${a.parselGenisligi} m` : "",
+    a.parselDerinligi ? `derinliği yaklaşık ${a.parselDerinligi} m` : "",
+  ].filter(Boolean);
   return joinSentence([
-    sekil ? `Arazi şekli ${sekil.toLocaleLowerCase("tr-TR")} olarak tespit edilmiştir.` : "",
-    yapi ? `Arazi yapısı ${yapi.toLocaleLowerCase("tr-TR")} niteliktedir.` : "",
-    sulama ? `Sulama imkânı: ${sulama.toLocaleLowerCase("tr-TR")}.` : "",
+    a.mahallindekiNitelik === "bina-yok" ? "Taşınmaz mahallinde tarla, bağ, bahçe vb. niteliğinde olup üzerinde yapı bulunmamaktadır." : "",
+    sekil ? `Arazi şekli ${kucuk(sekil)} olarak tespit edilmiştir.` : "",
+    egim ? `Arazi eğimi ${kucuk(egim)} niteliktedir.` : "",
+    sulama ? `Sulama imkânı: ${kucuk(sulama)}.` : "",
+    a.mahallindekiNitelik === "bina-yok"
+      ? (a.yolCepheleri ?? []).length
+        ? `Taşınmazın ${(a.yolCepheleri ?? []).map(kucuk).join(", ")} yönünden kadastral yola cephesi bulunmaktadır.`
+        : "Taşınmazın kadastral yola cephesi bulunmamaktadır."
+      : "",
+    cepheler.length ? `Diğer cepheler: ${cepheler.map((c) => `${kucuk(c.yon)} yönünde ${c.bilgi.trim()}`).join("; ")}.` : "",
+    a.ekiliUrun === "Evet"
+      ? `Taşınmaz üzerinde ekili ürün bulunmaktadır${a.ekiliUrunBilgi.trim() ? ` (${a.ekiliUrunBilgi.trim()})` : ""}.`
+      : a.ekiliUrun === "Hayır"
+        ? "Taşınmaz üzerinde ekili ürün bulunmamaktadır."
+        : "",
+    olculer.length ? `Parselin ${olculer.join(", ")} olarak ölçülmüştür.` : "",
+    a.toprakYapisi ? `Toprak yapısı ${kucuk(a.toprakYapisi)}.` : "",
+    a.digerAciklama?.trim() ?? "",
   ]);
 }
 
@@ -415,8 +442,12 @@ function buildDegerHesaplamaParagraphs(tapu: Tapu): string[] {
   ].filter(Boolean);
 }
 
-// The single figure the report can put forward: the result of the only calculation filled in.
+// The single figure the report can put forward: the method chosen as esas in
+// Değer Hesaplaması, otherwise the result of the only calculation filled in.
 function oneCikanDeger(tapu: Tapu): string | null {
+  const h = tapu.degerleme.hesaplamalar;
+  const esas = h.esasYontem ? yontemSonuclari(h)[h.esasYontem] : null;
+  if (esas !== null) return formatTL(esas);
   const sonuclar = degerSonuclari(tapu);
   return sonuclar.length === 1 ? formatTL(sonuclar[0].deger) : null;
 }
@@ -425,6 +456,34 @@ function buildCokluDegerCumlesi(tapu: Tapu): string {
   const sonuclar = degerSonuclari(tapu);
   if (sonuclar.length < 2) return "";
   return `Değer hesaplamaları: ${sonuclar.map((s) => `${s.ad} ${formatTL(s.deger)}`).join("; ")}.`;
+}
+
+// Which report section a form's akıcı metin belongs to, by the form's key
+// (its title, or "<Emsal> · <title>" for emsal slots). Unmatched forms go to
+// "Diğer Akıcı Metinler".
+const AKICI_METIN_BOLUMLERI: [RegExp, string][] = [
+  [/^(Talep Oluşturma Bilgileri|Talep Detayı)$/, "ozet"],
+  [/^(Adres Bilgileri|Bölge Özellikleri)/, "konum"],
+  [/^Tapu Kayıt Bilgileri/, "tapu"],
+  [/(Ruhsat|Proje İnceleme|Kurum İnceleme)/, "ruhsat"],
+  [/(Meri İmar Planı|Kadastro Parsel)/, "imar"],
+  [/(Ana Gayrimenkul|Üzerindeki Yapı|Bağımsız Bölüm Özellikleri|Taşınmaz Özellikleri|İsteğe Bağlı Özellik|^Tapu Bilgileri Formu)/, "yapi"],
+  [/Satış Kabiliyeti/, "satis"],
+  [/Değerleme Açıklama/, "aciklama"],
+  [/Değerleme$/, "deger"],
+  [/Emsal/, "emsal"],
+];
+
+export function akiciMetinBolumu(anahtar: string): string {
+  return AKICI_METIN_BOLUMLERI.find(([re]) => re.test(anahtar))?.[1] ?? "diger";
+}
+
+// A saved akıcı metin as report paragraphs (one per non-empty line).
+function akiciParagraflar(metin: string): string[] {
+  return metin
+    .split(/\n+/)
+    .map((p) => p.trim())
+    .filter(Boolean);
 }
 
 export function generateValuationReport(params: {
@@ -445,6 +504,7 @@ export function generateValuationReport(params: {
   // One entry per tab of the talep, in menu order; `source` names the tab(s) the text comes from.
   const hamSekmeler: ValuationReportSection[] = [
     {
+      id: "ozet",
       title: "Talep ve Taşınmaz Özeti",
       source: "Genel Bilgiler → Talep Detayı",
       paragraphs: [
@@ -463,16 +523,19 @@ export function generateValuationReport(params: {
       ].filter(Boolean),
     },
     {
+      id: "konum",
       title: "Konum ve Çevre Özellikleri",
       source: "Genel Bilgiler → Adres / Konum",
       paragraphs: [isArsaNiteligi(talep, tapu) ? buildArsaLocationParagraph(tapu) : buildLocationParagraph(tapu)].filter(Boolean),
     },
     {
+      id: "tapu",
       title: "Tapu ve Hukuki İnceleme",
       source: "Genel Bilgiler → Tapu Kaydı",
       paragraphs: buildOwnershipParagraphs(tapu).filter(Boolean),
     },
     {
+      id: "ruhsat",
       title: "Ruhsat ve Proje İncelemeleri",
       source: "Kurum İncelemeleri → Ruhsat / Proje İncelemeleri",
       paragraphs: [buildRuhsatParagraph(sharedRuhsat ?? tapu.kurumIncelemeleri), buildProjectParagraph(tapu.projeIncelemeleri)].filter(
@@ -480,11 +543,13 @@ export function generateValuationReport(params: {
       ),
     },
     {
+      id: "imar",
       title: "İmar Durumu",
       source: "Kurum İncelemeleri → İmar Durumu",
       paragraphs: [buildPlanningParagraph(tapu)].filter(Boolean),
     },
     {
+      id: "yapi",
       title: isArazi(tapu) ? "Arazi Özellikleri" : "Yapı ve Bağımsız Bölüm Özellikleri",
       source: isArazi(tapu) ? "Özellikler → Ana Gayrimenkul (Arazi)" : "Özellikler → Ana Gayrimenkul / Bağımsız Bölüm",
       paragraphs: (isArazi(tapu)
@@ -493,26 +558,31 @@ export function generateValuationReport(params: {
       ).filter(Boolean),
     },
     {
+      id: "satis",
       title: "Satış Kabiliyeti",
       source: "Değerleme → Satış Kabiliyeti Açıklaması",
       paragraphs: buildNotParagraphs(tapu.degerleme.satisKabiliyetiNotlari),
     },
     {
+      id: "aciklama",
       title: "Değerleme Açıklamaları",
       source: "Değerleme → Değerleme Açıklaması",
       paragraphs: buildNotParagraphs(tapu.degerleme.degerlemeAciklamaNotlari),
     },
     {
+      id: "deger",
       title: "Değerleme Analizi",
       source: "Değerleme → Değer Hesaplaması",
       paragraphs: buildDegerHesaplamaParagraphs(tapu),
     },
     {
+      id: "emsal",
       title: "Emsal Analizi",
       source: "Araştırma → Emsal Girişleri",
       paragraphs: buildEmsalParagraphs(tapu),
     },
     {
+      id: "sonuc",
       title: "Genel Sonuç ve Kanaat",
       source: "Rapor Sonucu",
       paragraphs: [
@@ -530,6 +600,32 @@ export function generateValuationReport(params: {
       ].filter(Boolean),
     },
   ];
+
+  // Texts chosen from Akıcı Metin Şablonları take the place of the automatic
+  // wording of their section (the user picked how it should read); forms
+  // without a matching section get their own section before the conclusion.
+  const akiciGruplar = new Map<string, string[]>();
+  for (const [anahtar, metin] of Object.entries(tapu.akiciMetinler ?? {})) {
+    const paragraflar = akiciParagraflar(metin);
+    if (!paragraflar.length) continue;
+    const bolum = akiciMetinBolumu(anahtar);
+    akiciGruplar.set(bolum, [...(akiciGruplar.get(bolum) ?? []), ...paragraflar]);
+  }
+  for (const sekme of hamSekmeler) {
+    const metinler = sekme.id ? akiciGruplar.get(sekme.id) : undefined;
+    if (!metinler) continue;
+    sekme.paragraphs = metinler;
+    sekme.source = `${sekme.source ?? ""} · Akıcı Metin Şablonu`;
+  }
+  const digerAkici = akiciGruplar.get("diger");
+  if (digerAkici) {
+    hamSekmeler.splice(hamSekmeler.length - 1, 0, {
+      id: "diger",
+      title: "Diğer Tespitler",
+      source: "Akıcı Metin Şablonları",
+      paragraphs: digerAkici,
+    });
+  }
 
   const numarala = (list: ValuationReportSection[]) =>
     list.map((section, index) => ({ ...section, title: `${index + 1}. ${section.title}` }));

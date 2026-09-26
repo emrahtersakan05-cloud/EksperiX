@@ -5,7 +5,16 @@ import { randomUUID } from "node:crypto";
 import { Redis } from "@upstash/redis";
 import type { EmsalHaritaKaydi } from "./types";
 
+// v1 kept every record in one JSON array under REDIS_KEY and rewrote it on
+// each change: two eksperler saving at once lost one of the records (last
+// write wins), and the single value grows toward Upstash's request-size
+// limit. Records now live one per field of a hash, so writes touch only their
+// own record. The v1 key is migrated on first read and left as a backup.
 const REDIS_KEY = "eksperix:emsal-haritasi";
+const REDIS_HASH = "eksperix:emsal-haritasi:kayitlar";
+// Set once the v1 array has been copied, so an emptied hash (every record
+// deleted) is never refilled from the old backup.
+const TASINDI_ISARETI = "eksperix:emsal-haritasi:v1-tasindi";
 const DATA_DIR = path.join(process.cwd(), "data");
 const DATA_FILE = path.join(DATA_DIR, "emsaller.json");
 
@@ -48,11 +57,25 @@ function assertStorageConfigured(): void {
   }
 }
 
+// One-time copy of the v1 array into the hash. HSET per id is idempotent, so
+// two instances migrating at once is harmless.
+async function v1Tasi(redis: Redis): Promise<EmsalHaritaKaydi[]> {
+  if (await redis.get(TASINDI_ISARETI)) return [];
+  const eski = (await redis.get<EmsalHaritaKaydi[]>(REDIS_KEY)) ?? [];
+  if (eski.length > 0) {
+    await redis.hset(REDIS_HASH, Object.fromEntries(eski.map((r) => [r.id, r])));
+  }
+  await redis.set(TASINDI_ISARETI, new Date().toISOString());
+  return eski;
+}
+
 async function readAll(): Promise<EmsalHaritaKaydi[]> {
   assertStorageConfigured();
   const redis = getRedis();
   if (redis) {
-    return (await redis.get<EmsalHaritaKaydi[]>(REDIS_KEY)) ?? [];
+    const hepsi = await redis.hgetall<Record<string, EmsalHaritaKaydi>>(REDIS_HASH);
+    if (hepsi && Object.keys(hepsi).length > 0) return Object.values(hepsi);
+    return v1Tasi(redis);
   }
   if (!fs.existsSync(DATA_FILE)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -61,14 +84,18 @@ async function readAll(): Promise<EmsalHaritaKaydi[]> {
   return JSON.parse(fs.readFileSync(DATA_FILE, "utf-8")) as EmsalHaritaKaydi[];
 }
 
-async function writeAll(records: EmsalHaritaKaydi[]): Promise<void> {
-  const redis = getRedis();
-  if (redis) {
-    await redis.set(REDIS_KEY, records);
-    return;
-  }
+// Local-file mode only (development, one user): the whole list is rewritten.
+function dosyayaYaz(records: EmsalHaritaKaydi[]): void {
   fs.writeFileSync(DATA_FILE, JSON.stringify(records, null, 2), "utf-8");
 }
+
+// Makes sure a v1 array has been moved into the hash before a single-record
+// write, so the first write after deploy doesn't hide the old records.
+async function hashHazirla(redis: Redis): Promise<void> {
+  if ((await redis.hlen(REDIS_HASH)) === 0) await v1Tasi(redis);
+}
+// (v1Tasi is a no-op once TASINDI_ISARETI is set, so these checks stay cheap
+// reads after the first migration.)
 
 export async function listEmsalKayitlari(): Promise<EmsalHaritaKaydi[]> {
   return (await readAll()).sort((a, b) => b.olusturmaTarihi.localeCompare(a.olusturmaTarihi));
@@ -77,18 +104,37 @@ export async function listEmsalKayitlari(): Promise<EmsalHaritaKaydi[]> {
 export async function createEmsalKaydi(
   input: Omit<EmsalHaritaKaydi, "id" | "olusturmaTarihi" | "guncellemeTarihi">,
 ): Promise<EmsalHaritaKaydi> {
-  const all = await readAll();
+  assertStorageConfigured();
   const now = new Date().toISOString();
   const record: EmsalHaritaKaydi = { ...input, id: randomUUID(), olusturmaTarihi: now, guncellemeTarihi: now };
-  await writeAll([...all, record]);
+  const redis = getRedis();
+  if (redis) {
+    await hashHazirla(redis);
+    await redis.hset(REDIS_HASH, { [record.id]: record });
+  } else {
+    dosyayaYaz([...(await readAll()), record]);
+  }
   return record;
 }
 
 export async function deleteEmsalKaydi(id: string): Promise<void> {
-  await writeAll((await readAll()).filter((r) => r.id !== id));
+  assertStorageConfigured();
+  const redis = getRedis();
+  if (redis) {
+    await hashHazirla(redis);
+    await redis.hdel(REDIS_HASH, id);
+    return;
+  }
+  dosyayaYaz((await readAll()).filter((r) => r.id !== id));
 }
 
 export async function getEmsalKaydi(id: string): Promise<EmsalHaritaKaydi | null> {
+  assertStorageConfigured();
+  const redis = getRedis();
+  if (redis) {
+    await hashHazirla(redis);
+    return (await redis.hget<EmsalHaritaKaydi>(REDIS_HASH, id)) ?? null;
+  }
   return (await readAll()).find((r) => r.id === id) ?? null;
 }
 
@@ -99,11 +145,15 @@ export type EmsalKaydiGuncelleme = Omit<
 >;
 
 export async function updateEmsalKaydi(id: string, changes: EmsalKaydiGuncelleme): Promise<EmsalHaritaKaydi | null> {
-  const all = await readAll();
-  const index = all.findIndex((r) => r.id === id);
-  if (index === -1) return null;
-  const updated: EmsalHaritaKaydi = { ...all[index], ...changes, guncellemeTarihi: new Date().toISOString() };
-  all[index] = updated;
-  await writeAll(all);
+  const mevcut = await getEmsalKaydi(id);
+  if (!mevcut) return null;
+  const updated: EmsalHaritaKaydi = { ...mevcut, ...changes, guncellemeTarihi: new Date().toISOString() };
+  const redis = getRedis();
+  if (redis) {
+    await redis.hset(REDIS_HASH, { [id]: updated });
+  } else {
+    const all = await readAll();
+    dosyayaYaz(all.map((r) => (r.id === id ? updated : r)));
+  }
   return updated;
 }

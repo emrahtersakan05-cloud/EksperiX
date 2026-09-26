@@ -103,7 +103,7 @@ export default function UygulamaEklentileriPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold text-slate-900">Uygulama Eklentileri</h1>
-        <p className="mt-1 text-sm text-slate-500">Eksperix ile birlikte calisan yardimci tarayici eklentilerini yonetin.</p>
+        <p className="mt-1 text-sm text-slate-500">Eksperix ile birlikte çalışan yardımcı tarayıcı eklentilerini yönetin.</p>
       </div>
 
       <div className="rounded-3xl border border-slate-200 bg-gradient-to-br from-white via-slate-50 to-lime-50/40 p-6 shadow-sm">
@@ -111,7 +111,7 @@ export default function UygulamaEklentileriPage() {
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-lime-200 bg-lime-50 px-3 py-1 text-xs font-semibold text-lime-700">
               <ShieldCheck className="h-3.5 w-3.5" />
-              Hazir Kurulum
+              Hazır Kurulum
             </div>
             <div className="mt-4 flex items-start gap-4">
               <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-slate-900 text-lime-300 shadow-[0_0_32px_-8px] shadow-lime-400/30">

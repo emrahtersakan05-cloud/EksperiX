@@ -1,6 +1,13 @@
 "use client";
 
-import { ComboboxField, SectionGrid, SelectField, TextAreaField, TextField } from "@/components/talep/form-fields";
+import {
+  ComboboxField,
+  SectionCard,
+  SectionGrid,
+  SelectField,
+  TextAreaField,
+  TextField,
+} from "@/components/talep/form-fields";
 import { oncelikOptions, talepTuruOptions } from "@/lib/talep/options";
 import {
   degerlemeFirmasiOptions,
@@ -8,6 +15,17 @@ import {
   tasinmazNiteligiOptions,
 } from "@/lib/talep/reference-lists";
 import type { TalepDetayiData } from "@/lib/talep/types";
+
+// Hedef Teslim Tarihi follows Talep Tarihi by this many days.
+const TESLIM_SURESI_GUN = 2;
+
+// "2026-09-25" + n days, in calendar days (no time zone drift).
+function gunEkle(tarih: string, gun: number): string {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(tarih);
+  if (!m) return "";
+  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]) + gun));
+  return d.toISOString().slice(0, 10);
+}
 
 export default function TalepDetayiSection({
   data,
@@ -18,10 +36,7 @@ export default function TalepDetayiSection({
 }) {
   return (
     <div className="space-y-4">
-      <div>
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
-          Talep Oluşturma Bilgileri
-        </p>
+      <SectionCard title="Talep Oluşturma Bilgileri">
         <SectionGrid>
           <TextField
             label="Müşteri Unvanı"
@@ -47,10 +62,9 @@ export default function TalepDetayiSection({
             onChange={(v) => onChange({ tasinmazNiteligi: v })}
           />
         </SectionGrid>
-      </div>
+      </SectionCard>
 
-      <div>
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Talep Detayı</p>
+      <SectionCard title="Talep Detayı">
         <SectionGrid>
           <SelectField
             label="Talep Türü"
@@ -75,7 +89,14 @@ export default function TalepDetayiSection({
             label="Talep Tarihi"
             type="date"
             value={data.talepTarihi}
-            onChange={(v) => onChange({ talepTarihi: v })}
+            onChange={(v) => {
+              // Fill the target date, unless the user has set one by hand
+              // (i.e. it no longer matches the previous automatic value).
+              const otomatik =
+                !data.hedefTeslimTarihi || data.hedefTeslimTarihi === gunEkle(data.talepTarihi, TESLIM_SURESI_GUN);
+              const hedef = gunEkle(v, TESLIM_SURESI_GUN);
+              onChange(otomatik && hedef ? { talepTarihi: v, hedefTeslimTarihi: hedef } : { talepTarihi: v });
+            }}
           />
           <TextField
             label="Hedef Teslim Tarihi"
@@ -96,7 +117,7 @@ export default function TalepDetayiSection({
             className="sm:col-span-2"
           />
         </SectionGrid>
-      </div>
+      </SectionCard>
     </div>
   );
 }

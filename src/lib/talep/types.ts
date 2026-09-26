@@ -205,13 +205,35 @@ export interface AnaGayrimenkulData {
 
 // TARLA, BAĞ, BAHÇE VB. taşınmaz niteliğinde Ana Gayrimenkul sekmesinde
 // AnaGayrimenkulData yerine gösterilir; Tapu Bilgileri kısmı tapuKaydi'ndan okunur.
+export type MahallindekiNitelik = "bina-var" | "bina-yok";
+
+export interface DigerCephe {
+  id: string;
+  yon: string;
+  bilgi: string;
+}
+
 export interface AraziOzellikleriData {
+  // Mahallindeki niteliği: with a building the building form is shown,
+  // without one the land form below.
+  mahallindekiNitelik: MahallindekiNitelik | "";
   araziSekli: string;
   araziSekliDiger: string;
+  // Shown as "Arazi Eğimi" (kept under its original name for saved data).
   araziYapisi: string;
   araziYapisiDiger: string;
   sulamaImkani: string;
   sulamaImkaniDiger: string;
+  // Directions with frontage on a cadastral road (multi-select).
+  yolCepheleri: string[];
+  digerCepheler: DigerCephe[];
+  ekiliUrun: "Evet" | "Hayır" | "";
+  ekiliUrunBilgi: string;
+  // İsteğe bağlı özellik girişleri
+  parselGenisligi: string;
+  parselDerinligi: string;
+  toprakYapisi: string;
+  digerAciklama: string;
 }
 
 export interface BagimsizBolumData {
@@ -271,7 +293,11 @@ export interface HisseliDegerlemeData {
   satirlar: HisseSatiri[];
 }
 
+export type HesapYontemi = "normal" | "alanFarki" | "seviyeli" | "hisseli";
+
 export interface DegerHesaplamalari {
+  // The method whose result the report puts forward when several are filled.
+  esasYontem: HesapYontemi | "";
   normal: NormalDegerlemeData;
   alanFarki: AlanFarkiDegerlemeData;
   seviyeli: SeviyeliDegerlemeData;
@@ -370,6 +396,8 @@ export interface Tapu {
   degerleme: DegerlemeData;
   emsaller: EmsallerData;
   raporSonucu: RaporSonucuData;
+  // Akıcı metin written from a form's template, keyed by the form's title.
+  akiciMetinler: Record<string, string>;
 }
 
 export type TapuSectionKey =
@@ -571,12 +599,21 @@ export function createEmptyTapu(index: number, defaults?: TalepDetayiDefaults): 
       iskanDurumu: "",
     },
     araziOzellikleri: {
+      mahallindekiNitelik: "",
       araziSekli: "",
       araziSekliDiger: "",
       araziYapisi: "",
       araziYapisiDiger: "",
       sulamaImkani: "",
       sulamaImkaniDiger: "",
+      yolCepheleri: [],
+      digerCepheler: [],
+      ekiliUrun: "",
+      ekiliUrunBilgi: "",
+      parselGenisligi: "",
+      parselDerinligi: "",
+      toprakYapisi: "",
+      digerAciklama: "",
     },
     bagimsizBolum: {
       bagimsizBolumNo: "",
@@ -596,6 +633,7 @@ export function createEmptyTapu(index: number, defaults?: TalepDetayiDefaults): 
       satisKabiliyetiNotlari: [],
       degerlemeAciklamaNotlari: [],
       hesaplamalar: {
+        esasYontem: "",
         normal: { alanM2: "", birimDeger: "" },
         alanFarki: { resmiAlanM2: "", fiiliAlanM2: "", birimDeger: "", farkKatsayisi: "" },
         seviyeli: { alanM2: "", birimFiyat: "", maliyetBirimFiyat: "", seviyeOrani: "" },
@@ -634,6 +672,7 @@ export function createEmptyTapu(index: number, defaults?: TalepDetayiDefaults): 
       raporMetni: "",
       teslimTarihi: "",
     },
+    akiciMetinler: {},
   };
 }
 

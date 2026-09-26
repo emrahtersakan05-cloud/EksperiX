@@ -618,7 +618,7 @@ export default function KmlMapPanel({
   const polygonCount = properties.filter((p) => p.hasPolygon).length;
 
   return (
-    <SectionCard title="Taşınmaz Konum Haritası (KML)">
+    <SectionCard title="Taşınmaz Konum Haritası (KML)" akiciMetin={false}>
       <div className={`${sectionBodyClass} space-y-4`}>
         <div>
           <p className="mb-2 text-[11px] font-semibold tracking-wide text-slate-500 uppercase">
