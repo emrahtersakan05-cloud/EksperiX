@@ -1,8 +1,8 @@
 import { normalizeLabel } from "@/lib/text/normalize-tr";
-import type { ImarDurumuData } from "./types";
+import type { ImarDurumuData, ImarMetinAlani } from "./types";
 
 export type ParsedImarFields = Partial<ImarDurumuData>;
-type ImarField = keyof ImarDurumuData;
+type ImarField = ImarMetinAlani;
 
 // Field labels as they render on Netcad-based "e-imar" result pages (the
 // platform behind keos.<il>.bel.tr/imardurumu/... and similar municipal

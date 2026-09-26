@@ -1,4 +1,4 @@
-import type { ImarDurumuData, TapuKaydiData } from "./types";
+import type { ImarDurumuData, ImarMetinAlani, PlanNotu, TapuKaydiData } from "./types";
 
 // "0,30" / "0.30" / "1.250,50" / "Emsal: 1.5" / "%30" → number (or null).
 export function sayiOku(deger: string): number | null {
@@ -49,7 +49,7 @@ export interface TapuFarki {
 
 const KARSILASTIRMALAR: {
   etiket: string;
-  imar: keyof ImarDurumuData;
+  imar: ImarMetinAlani;
   tapu: keyof TapuKaydiData;
   ayni: (a: string, b: string) => boolean;
 }[] = [
@@ -70,7 +70,7 @@ export function tapuFarklari(d: ImarDurumuData, t: TapuKaydiData): TapuFarki[] {
 
 // The empty imar fields the Tapu Kaydı can fill (hesap alanı from the parsel yüzölçümü).
 export function tapudanDoldurulacaklar(d: ImarDurumuData, t: TapuKaydiData): Partial<ImarDurumuData> {
-  const kaynak: Partial<ImarDurumuData> = {
+  const kaynak: Partial<Record<ImarMetinAlani, string>> = {
     ada: t.ada,
     parsel: t.parsel,
     ilce: t.ilce,
@@ -78,7 +78,7 @@ export function tapudanDoldurulacaklar(d: ImarDurumuData, t: TapuKaydiData): Par
     hesapAlani: t.atYuzolcum,
   };
   return Object.fromEntries(
-    Object.entries(kaynak).filter(([k, v]) => v?.trim() && !d[k as keyof ImarDurumuData].trim()),
+    Object.entries(kaynak).filter(([k, v]) => v?.trim() && !d[k as ImarMetinAlani].trim()),
   ) as Partial<ImarDurumuData>;
 }
 
@@ -127,4 +127,34 @@ export function imarMetni(d: ImarDurumuData): string {
   ]
     .filter(Boolean)
     .join(" ");
+}
+
+// ---- Plan notları -------------------------------------------------------------
+
+// Splits pasted plan notes into items at their numbering ("1.", "2-", "3)",
+// "a)"); text without numbering is split at blank lines.
+export function planNotlariniAyir(metin: string): string[] {
+  const temiz = metin.replace(/\r/g, "").trim();
+  if (!temiz) return [];
+  const numara = /^\s*(?:\d{1,3}|[a-zçğıöşü])\s*[.)\-–]\s+/i;
+  const satirlar = temiz.split("\n");
+  if (satirlar.some((l) => numara.test(l))) {
+    const maddeler: string[] = [];
+    for (const satir of satirlar) {
+      if (numara.test(satir) || maddeler.length === 0) maddeler.push(satir.replace(numara, ""));
+      else maddeler[maddeler.length - 1] += ` ${satir.trim()}`;
+    }
+    return maddeler.map((m) => m.replace(/\s+/g, " ").trim()).filter(Boolean);
+  }
+  return temiz
+    .split(/\n\s*\n/)
+    .map((m) => m.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+}
+
+// The plan notes paragraph of the report.
+export function planNotlariMetni(notlar: PlanNotu[]): string {
+  const dolu = notlar.map((n) => n.metin.trim()).filter(Boolean);
+  if (dolu.length === 0) return "";
+  return `Plan notları: ${dolu.map((m, i) => `${i + 1}) ${/[.!?]$/.test(m) ? m : `${m}.`}`).join(" ")}`;
 }

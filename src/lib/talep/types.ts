@@ -197,7 +197,17 @@ export interface ImarDurumuData {
   projeksiyon: string;
   kartezyenKoordinat: string;
   cografiKoordinat: string;
+  // Plan Not Bilgileri: the plan hükümleri, one per item
+  planNotlari: PlanNotu[];
 }
+
+export interface PlanNotu {
+  id: string;
+  metin: string;
+}
+
+// The single-value İmar Durumu fields (everything but the plan notları list).
+export type ImarMetinAlani = Exclude<keyof ImarDurumuData, "planNotlari">;
 
 export interface AnaGayrimenkulData {
   binaTuru: BinaTuru | "";
@@ -692,6 +702,7 @@ export function createEmptyTapu(index: number, defaults?: TalepDetayiDefaults): 
       projeksiyon: "",
       kartezyenKoordinat: "",
       cografiKoordinat: "",
+      planNotlari: [],
     },
     anaGayrimenkul: {
       binaTuru: "",

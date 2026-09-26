@@ -22,7 +22,7 @@ import {
   yontemSonuclari,
 } from "./deger-hesaplama";
 import type { NotKaydi, Talep, Tapu } from "./types";
-import { imarMetni } from "./imar";
+import { imarMetni, planNotlariMetni } from "./imar";
 import { projeMetni } from "./proje";
 
 export interface ValuationReportSection {
@@ -434,7 +434,7 @@ const AKICI_METIN_BOLUMLERI: [RegExp, string][] = [
   [/^(Adres Bilgileri|Bölge Özellikleri)/, "konum"],
   [/^Tapu Kayıt Bilgileri/, "tapu"],
   [/(Ruhsat|Proje İnceleme|Kurum İnceleme|^Mimari Projesine Göre Aykırılık$)/, "ruhsat"],
-  [/(Meri İmar Planı|Kadastro Parsel)/, "imar"],
+  [/(Meri İmar Planı|Kadastro Parsel|Plan Not)/, "imar"],
   [
     /(Ana Gayrimenkul|Üzerindeki Yapı|Bağımsız Bölüm Özellikleri|Taşınmaz Özellikleri|İsteğe Bağlı Özellik|^Tapu Bilgileri( Formu)?$|^Konum Tespiti$|^Proje Özellikleri$|^Kat Dağılım Bilgisi$|^Bina Özellikleri$)/,
     "yapi",
@@ -514,7 +514,7 @@ export function generateValuationReport(params: {
       id: "imar",
       title: "İmar Durumu",
       source: "Kurum İncelemeleri → İmar Durumu",
-      paragraphs: [buildPlanningParagraph(tapu)].filter(Boolean),
+      paragraphs: [buildPlanningParagraph(tapu), planNotlariMetni(tapu.imarDurumu.planNotlari ?? [])].filter(Boolean),
     },
     {
       id: "yapi",
