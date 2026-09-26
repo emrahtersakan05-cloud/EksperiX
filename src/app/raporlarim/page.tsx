@@ -95,9 +95,9 @@ function raporDegeri(tapu: Tapu): { deger: number | null; not: string } {
 
 function satirlar(talepler: Talep[]): RaporSatiri[] {
   return talepler.flatMap((talep) =>
-    talep.tapular.map((tapu, i) => {
+    talep.tapular.map((tapu) => {
       const { deger, not } = raporDegeri(tapu);
-      const c = getTapuCompletion(tapu, { excludeSharedSections: i > 0 });
+      const c = getTapuCompletion(tapu);
       return {
         talep,
         tapu,
@@ -262,7 +262,7 @@ export default function RaporlarimPage() {
     setIndiriliyor(anahtar);
     setHata(null);
     try {
-      const rapor = generateValuationReport({ talep: s.talep, tapu: s.tapu, sharedRuhsat: s.talep.tapular[0]?.kurumIncelemeleri });
+      const rapor = generateValuationReport({ talep: s.talep, tapu: s.tapu });
       await (tur === "docx" ? exportReportAsDocx(rapor) : exportReportAsPdf(rapor));
     } catch {
       setHata(`${s.talep.talepNo} raporu oluşturulamadı.`);

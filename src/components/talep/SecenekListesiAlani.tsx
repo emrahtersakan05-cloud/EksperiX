@@ -6,7 +6,7 @@ import { ArrowDown, ArrowUp, Check, ListChecks, Loader2, PencilLine, Plus, Rotat
 import { useAkiciAlan } from "@/components/akici-metin/baglam";
 import { inputClass } from "@/components/talep/form-fields";
 import { secenekListeleriniOkuAction, secenekListesiKaydetAction, type SecenekListeleriSonucu } from "@/lib/secenekler/actions";
-import { secenekListesiTanimi, type SecenekListesiKey } from "@/lib/secenekler/varsayilan";
+import { secenekCumlesi, secenekListesiTanimi, type SecenekListesiKey } from "@/lib/secenekler/varsayilan";
 
 // All lists are fetched once per page and shared by every field; an admin's
 // save updates every open field at once.
@@ -195,20 +195,78 @@ export default function SecenekListesiAlani({
   value,
   onChange,
   className = "",
+  kompakt = false,
+  akiciEtiket,
+  ariaLabel,
+  bosMetin = "Seçiniz",
+  etiketGoster = false,
 }: {
   listeKey: SecenekListesiKey;
   value: string;
   onChange: (v: string) => void;
   className?: string;
+  // Inline use (no label above; a small edit icon for the admin).
+  kompakt?: boolean;
+  // Akıcı metin label; "" keeps this field out of the templates.
+  akiciEtiket?: string;
+  ariaLabel?: string;
+  bosMetin?: string;
+  // Compact mode: a small label above the select.
+  etiketGoster?: boolean;
 }) {
   const tanim = secenekListesiTanimi(listeKey);
-  useAkiciAlan(tanim.ad, value);
+  // Templates get the whole sentence ("Binanın çatısı … örtülüdür.").
+  useAkiciAlan(akiciEtiket ?? tanim.ad, secenekCumlesi(listeKey, value));
   const durum = useSecenekListeleri();
   const [duzenleniyor, setDuzenleniyor] = useState(false);
   const secenekler = durum?.listeler[listeKey] ?? tanim.varsayilan;
   // A saved choice that was since removed from the list stays visible.
   const liste = value && !secenekler.includes(value) ? [value, ...secenekler] : secenekler;
   const id = `secenek-${listeKey}`;
+  const duzenleyici =
+    duzenleniyor && durum ? (
+      <ListeDuzenleyici listeKey={listeKey} mevcut={secenekler} durum={durum} onKapat={() => setDuzenleniyor(false)} />
+    ) : null;
+
+  if (kompakt) {
+    const satir = (
+      <div className={`flex min-w-0 items-center gap-1 ${etiketGoster ? "" : className}`}>
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          aria-label={ariaLabel ?? tanim.ad}
+          className="h-8 w-full min-w-0 appearance-none rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-800 focus:border-slate-400 focus:outline-none"
+        >
+          <option value="">{bosMetin}</option>
+          {liste.map((o) => (
+            <option key={o} value={o}>
+              {o}
+            </option>
+          ))}
+        </select>
+        {durum?.duzenleyebilir && (
+          <button
+            type="button"
+            onClick={() => setDuzenleniyor(true)}
+            className="flex h-8 w-6 shrink-0 items-center justify-center rounded text-slate-300 hover:bg-slate-100 hover:text-slate-700"
+            title={`${tanim.ad} listesini düzenle (yalnızca Sistem Yöneticisi)`}
+            aria-label={`${tanim.ad} listesini düzenle`}
+          >
+            <PencilLine className="h-3.5 w-3.5" />
+          </button>
+        )}
+        {duzenleyici}
+      </div>
+    );
+    return etiketGoster ? (
+      <div className={className}>
+        <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-slate-400">{tanim.ad}</p>
+        {satir}
+      </div>
+    ) : (
+      satir
+    );
+  }
 
   return (
     <div className={className}>
@@ -236,9 +294,7 @@ export default function SecenekListesiAlani({
           </option>
         ))}
       </select>
-      {duzenleniyor && durum && (
-        <ListeDuzenleyici listeKey={listeKey} mevcut={secenekler} durum={durum} onKapat={() => setDuzenleniyor(false)} />
-      )}
+      {duzenleyici}
     </div>
   );
 }

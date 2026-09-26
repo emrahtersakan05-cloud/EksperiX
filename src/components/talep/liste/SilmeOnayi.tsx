@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { inputClass } from "@/components/talep/form-fields";
 import { normalizeLabel } from "@/lib/text/normalize-tr";
 import { AlertTriangle, Loader2, Trash2, X } from "lucide-react";
 
@@ -114,7 +115,7 @@ export default function SilmeOnayi({
               onKeyDown={(e) => e.key === "Enter" && sil()}
               autoComplete="off"
               spellCheck={false}
-              className="mt-1.5 w-full rounded-xl border border-slate-200 px-3.5 py-2.5 font-mono text-sm text-slate-900 focus:border-rose-300 focus:outline-none focus:ring-4 focus:ring-rose-100"
+              className={`${inputClass} mt-1.5 font-mono`}
             />
           </label>
           {hata && <p className="text-sm font-medium text-rose-600">{hata}</p>}

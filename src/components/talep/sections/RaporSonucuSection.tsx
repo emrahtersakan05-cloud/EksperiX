@@ -15,27 +15,25 @@ import {
 import { exportReportAsDocx, exportReportAsPdf } from "@/lib/talep/report-export";
 import { raporDurumOptions } from "@/lib/talep/options";
 import { generateValuationReport, type GeneratedValuationReport } from "@/lib/talep/report";
-import type { RaporSonucuData, RuhsatIncelemeData, Talep, Tapu } from "@/lib/talep/types";
+import type { RaporSonucuData, Talep, Tapu } from "@/lib/talep/types";
 
 export default function RaporSonucuSection({
   data,
   talep,
   tapu,
-  sharedRuhsat,
   onChange,
 }: {
   data: RaporSonucuData;
   talep: Talep;
   tapu: Tapu;
-  sharedRuhsat?: RuhsatIncelemeData;
   onChange: (patch: Partial<RaporSonucuData>) => void;
 }) {
   const [isGenerating, setIsGenerating] = useState(false);
   const [exportingType, setExportingType] = useState<"docx" | "pdf" | null>(null);
 
   const generatedReport = useMemo(
-    () => generateValuationReport({ talep, tapu, sharedRuhsat }),
-    [sharedRuhsat, talep, tapu],
+    () => generateValuationReport({ talep, tapu }),
+    [talep, tapu],
   );
 
   function getGeneratedReport(): GeneratedValuationReport {

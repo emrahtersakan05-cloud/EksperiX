@@ -2,11 +2,12 @@ import { ortalamaEmsalBirimFiyatlari } from "@/lib/emsal/hesaplama";
 import {
   KONUT_MAHALLINDEKI_NITELIKLER,
   binaGirisCumlesi,
+  binaOzellikleriMetni,
   blokAdi,
   blokTespitiCumlesi,
   insaatNizamiOzeti,
+  katDagilimiMetni,
   konutMu,
-  projeKatlariMetni,
 } from "./konut";
 import {
   alanFarkiMetni,
@@ -20,7 +21,9 @@ import {
   seviyeliMetni,
   yontemSonuclari,
 } from "./deger-hesaplama";
-import type { KurumIncelemesi, NotKaydi, RuhsatIncelemeData, Talep, Tapu } from "./types";
+import type { NotKaydi, Talep, Tapu } from "./types";
+import { imarMetni, planNotlariMetni } from "./imar";
+import { projeMetni } from "./proje";
 
 export interface ValuationReportSection {
   // Stable key used to attach akıcı metin texts to the right section.
@@ -253,78 +256,9 @@ function buildOwnershipParagraphs(tapu: Tapu): string[] {
   return paragraphs;
 }
 
-function buildRuhsatParagraph(ruhsat: RuhsatIncelemeData): string {
-  if (ruhsat.ruhsatResmiEvrakVarMi === "Hayır") {
-    return "Ruhsat ve resmi evrak incelemesinde herhangi bir belge ibraz edilmediği işaretlenmiştir.";
-  }
-
-  if (ruhsat.ruhsatResmiEvrakVarMi !== "Evet") {
-    return "Ruhsat ve resmi evrak inceleme bilgileri henüz tamamlanmamıştır.";
-  }
-
-  const belgeSummary =
-    ruhsat.belgeler.length > 0
-      ? ruhsat.belgeler
-          .map((item) =>
-            joinWithComma([
-              item.belgeCinsi,
-              item.belgeTarihi ? `tarih: ${formatDate(item.belgeTarihi)}` : "",
-              item.belgeNo ? `no: ${item.belgeNo}` : "",
-            ]),
-          )
-          .filter(Boolean)
-          .join("; ")
-      : "";
-
-  return joinSentence([
-    ruhsat.incelenenKurumAdi ? `İnceleme ${ruhsat.incelenenKurumAdi} nezdinde gerçekleştirilmiştir.` : "",
-    belgeSummary ? `İbraz edilen belgeler: ${belgeSummary}.` : "Belge satırları henüz detaylandırılmamıştır.",
-  ]);
-}
-
-function buildProjectParagraph(items: KurumIncelemesi[]): string {
-  if (items.length === 0) {
-    return "Proje incelemeleri bölümünde kayıtlı veri bulunmamaktadır.";
-  }
-
-  const lines = items
-    .map((item) =>
-      joinSentence([
-        item.kurum ? `${item.kurum} nezdinde` : "",
-        item.incelemeTuru ? `${item.incelemeTuru} incelemesi` : "inceleme kaydı",
-        item.durum ? `${item.durum.toLocaleLowerCase("tr-TR")} durumundadır.` : "oluşturulmuştur.",
-        item.tarih ? `Tarih ${formatDate(item.tarih)}.` : "",
-        item.notlar ? `Not: ${item.notlar}.` : "",
-      ]),
-    )
-    .filter(Boolean);
-
-  return lines.join(" ");
-}
 
 function buildPlanningParagraph(tapu: Tapu): string {
-  return joinSentence([
-    tapu.imarDurumu.meriImarPlani ? `Taşınmaz ${tapu.imarDurumu.meriImarPlani} kapsamında kalmaktadır.` : "",
-    tapu.imarDurumu.fonksiyon ? `Fonksiyon ${tapu.imarDurumu.fonksiyon} olarak belirtilmiştir.` : "",
-    tapu.imarDurumu.tasdikTarihi ? `Tasdik tarihi ${formatDate(tapu.imarDurumu.tasdikTarihi)}.` : "",
-    tapu.imarDurumu.pafta || tapu.imarDurumu.ada || tapu.imarDurumu.parsel
-      ? joinSentence([
-          tapu.imarDurumu.pafta ? `Pafta ${tapu.imarDurumu.pafta}` : "",
-          tapu.imarDurumu.ada ? `ada ${tapu.imarDurumu.ada}` : "",
-          tapu.imarDurumu.parsel ? `parsel ${tapu.imarDurumu.parsel}` : "",
-        ]).replace(/\.$/, "") + " olarak kayıtlıdır."
-      : "",
-    tapu.imarDurumu.ilce || tapu.imarDurumu.mahalle
-      ? `${[tapu.imarDurumu.mahalle, tapu.imarDurumu.ilce].filter(Boolean).join(" mahallesi, ")} sınırları içinde yer almaktadır.`
-      : "",
-    tapu.imarDurumu.hesapAlani ? `Hesap alanı ${tapu.imarDurumu.hesapAlani} m² olarak belirlenmiştir.` : "",
-    tapu.imarDurumu.katAdedi ? `Kat adedi ${tapu.imarDurumu.katAdedi}.` : "",
-    tapu.imarDurumu.binaYuksekligi ? `Bina yüksekliği ${tapu.imarDurumu.binaYuksekligi}.` : "",
-    tapu.imarDurumu.insaatNizami ? `İnşaat nizamı ${tapu.imarDurumu.insaatNizami} olarak belirtilmiştir.` : "",
-    tapu.imarDurumu.taks ? `TAKS ${tapu.imarDurumu.taks}.` : "",
-    tapu.imarDurumu.kaks ? `KAKS (Emsal) ${tapu.imarDurumu.kaks}.` : "",
-    tapu.imarDurumu.kotAlinacakNokta ? `Kot alınacak nokta: ${tapu.imarDurumu.kotAlinacakNokta}.` : "",
-  ]);
+  return imarMetni(tapu.imarDurumu);
 }
 
 function buildBuildingParagraph(tapu: Tapu): string {
@@ -357,21 +291,13 @@ function buildKonutParagraph(tapu: Tapu): string {
     binaGirisCumlesi(k),
     k.yapiSinifi ? `Yapı sınıfı ${k.yapiSinifi}.` : "",
     nizam ? `İnşaat nizamı: ${nizam}.` : "",
+    // Fields of the earlier Bina Özellikleri form, kept when already filled.
     k.binaGirisiTespit,
     k.binaGirisKapisi,
-    k.katHoluSahanlik,
-    k.merdivenBasamaklari,
-    k.merdivenKorkuluklari,
-    k.binaIciDuvarlar,
-    k.binaDisCephesi,
-    k.binaCatisi,
+    binaOzellikleriMetni(k),
   ]);
 }
 
-function buildKonutProjeParagraph(tapu: Tapu): string {
-  const metin = projeKatlariMetni(tapu.konutOzellikleri);
-  return metin ? `Onaylı projesine göre; ${metin}` : "";
-}
 
 function buildIndependentSectionParagraph(tapu: Tapu): string {
   return joinSentence([
@@ -507,10 +433,10 @@ const AKICI_METIN_BOLUMLERI: [RegExp, string][] = [
   [/^(Talep Oluşturma Bilgileri|Talep Detayı)$/, "ozet"],
   [/^(Adres Bilgileri|Bölge Özellikleri)/, "konum"],
   [/^Tapu Kayıt Bilgileri/, "tapu"],
-  [/(Ruhsat|Proje İnceleme|Kurum İnceleme)/, "ruhsat"],
-  [/(Meri İmar Planı|Kadastro Parsel)/, "imar"],
+  [/(Ruhsat|Proje İnceleme|Kurum İnceleme|^Mimari Projesine Göre Aykırılık$)/, "ruhsat"],
+  [/(Meri İmar Planı|Kadastro Parsel|Plan Not)/, "imar"],
   [
-    /(Ana Gayrimenkul|Üzerindeki Yapı|Bağımsız Bölüm Özellikleri|Taşınmaz Özellikleri|İsteğe Bağlı Özellik|^Tapu Bilgileri( Formu)?$|^Konum Tespiti$|^Proje Özellikleri$|^Bina Özellikleri$)/,
+    /(Ana Gayrimenkul|Üzerindeki Yapı|Bağımsız Bölüm Özellikleri|Taşınmaz Özellikleri|İsteğe Bağlı Özellik|^Tapu Bilgileri( Formu)?$|^Konum Tespiti$|^Proje Özellikleri$|^Kat Dağılım Bilgisi$|^Bina Özellikleri$)/,
     "yapi",
   ],
   [/Satış Kabiliyeti/, "satis"],
@@ -534,9 +460,8 @@ function akiciParagraflar(metin: string): string[] {
 export function generateValuationReport(params: {
   talep: Talep;
   tapu: Tapu;
-  sharedRuhsat?: RuhsatIncelemeData;
 }): GeneratedValuationReport {
-  const { talep, tapu, sharedRuhsat } = params;
+  const { talep, tapu } = params;
   const title = joinWithComma([
     "Eksperix Değerleme Raporu",
     tapu.raporSonucu.raporNo || talep.talepNo,
@@ -581,17 +506,15 @@ export function generateValuationReport(params: {
     },
     {
       id: "ruhsat",
-      title: "Ruhsat ve Proje İncelemeleri",
-      source: "Kurum İncelemeleri → Ruhsat / Proje İncelemeleri",
-      paragraphs: [buildRuhsatParagraph(sharedRuhsat ?? tapu.kurumIncelemeleri), buildProjectParagraph(tapu.projeIncelemeleri)].filter(
-        Boolean,
-      ),
+      title: "Proje İncelemeleri",
+      source: "Kurum İncelemeleri → Proje İncelemeleri",
+      paragraphs: [projeMetni(tapu.projeIncelemeleri)].filter(Boolean),
     },
     {
       id: "imar",
       title: "İmar Durumu",
       source: "Kurum İncelemeleri → İmar Durumu",
-      paragraphs: [buildPlanningParagraph(tapu)].filter(Boolean),
+      paragraphs: [buildPlanningParagraph(tapu), planNotlariMetni(tapu.imarDurumu.planNotlari ?? [])].filter(Boolean),
     },
     {
       id: "yapi",
@@ -600,7 +523,7 @@ export function generateValuationReport(params: {
       paragraphs: (isArazi(tapu)
         ? [buildAraziParagraph(tapu), buildIndependentSectionParagraph(tapu)]
         : isKonut(tapu)
-          ? [buildKonutParagraph(tapu), buildKonutProjeParagraph(tapu), buildIndependentSectionParagraph(tapu)]
+          ? [buildKonutParagraph(tapu), katDagilimiMetni(tapu.konutOzellikleri), buildIndependentSectionParagraph(tapu)]
           : [buildBuildingParagraph(tapu), buildIndependentSectionParagraph(tapu)]
       ).filter(Boolean),
     },

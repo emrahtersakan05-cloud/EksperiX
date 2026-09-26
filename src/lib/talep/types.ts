@@ -7,7 +7,6 @@ import type {
   IsitmaTipi,
   IskanDurumu,
   KullanimSekli,
-  KurumIncelemeDurum,
   Oncelik,
   RaporDurum,
   TalepTuru,
@@ -140,13 +139,24 @@ export interface TapuKaydiData {
   rehinler: RehinKaydi[];
 }
 
-export interface KurumIncelemesi {
-  id: string;
-  kurum: string;
-  incelemeTuru: string;
-  durum: KurumIncelemeDurum | "";
-  tarih: string;
-  notlar: string;
+// Proje İncelemeleri: the approved project against what was found on site.
+// Each uyum answer "Hayır" opens a note explaining the difference.
+export interface ProjeIncelemeData {
+  incelenenKurum: string;
+  tarihSayiVarMi: EvetHayirSecimi;
+  projeTarihi: string;
+  projeSayisi: string;
+  blokKonumUyumu: EvetHayirSecimi;
+  blokKonumAciklama: string;
+  blokAlanUyumu: EvetHayirSecimi;
+  blokAlanAciklama: string;
+  bbKonumUyumu: EvetHayirSecimi;
+  bbKonumAciklama: string;
+  bbAlanUyumu: EvetHayirSecimi;
+  bbAlanAciklama: string;
+  // Mimari projesine göre aykırılık (moved here from the konut form)
+  aykirilik: EvetHayirSecimi;
+  aykirilikAciklama: string;
 }
 
 export interface RuhsatBelgeKaydi {
@@ -166,6 +176,8 @@ export interface ImarDurumuData {
   // Meri İmar Planı
   meriImarPlani: string;
   fonksiyon: string;
+  // Does the fonksiyon match the plan paftası?
+  fonksiyonPaftaUyumu: "Uyumludur" | "Uyumsuzdur" | "";
   tasdikTarihi: string;
   pafta: string;
   olcek: string;
@@ -187,7 +199,17 @@ export interface ImarDurumuData {
   projeksiyon: string;
   kartezyenKoordinat: string;
   cografiKoordinat: string;
+  // Plan Not Bilgileri: the plan hükümleri, one per item
+  planNotlari: PlanNotu[];
 }
+
+export interface PlanNotu {
+  id: string;
+  metin: string;
+}
+
+// The single-value İmar Durumu fields (everything but the plan notları list).
+export type ImarMetinAlani = Exclude<keyof ImarDurumuData, "planNotlari">;
 
 export interface AnaGayrimenkulData {
   binaTuru: BinaTuru | "";
@@ -254,7 +276,22 @@ export interface BinaGirisi {
   yon: string;
   yol: string;
   tur: string;
+  // Floor the entrance opens on, e.g. "Zemin Kat".
+  kat?: string;
+  // Door description from the admin list, e.g. "camlı demir doğramadır."
+  kapi?: string;
 }
+
+// One floor of the kat dağılımı: its floor, the rooms/spaces on it and, for
+// kısımlı buildings, the kısım it belongs to.
+export interface KatDagilimi {
+  id: string;
+  kisim: string;
+  kat: string;
+  icHacimler: string[];
+}
+
+export type KatDagilimTuru = "tekDuzen" | "kisimli" | "manuel";
 
 export interface ProjeKati {
   id: string;
@@ -282,7 +319,11 @@ export interface KonutOzellikleriData {
   // Bloksuz / müstakil: one nizam for the building
   insaatNizami: string;
   insaatNizamiDiger: string;
-  // Proje Özellikleri
+  // Kat Dağılım Bilgisi
+  katDagilimTuru: KatDagilimTuru | "";
+  katDagilimlari: KatDagilimi[];
+  manuelKatDagilimi: string;
+  // Earlier OCR rows; read once into manuelKatDagilimi.
   projeKatlari: ProjeKati[];
   // Bina Özellikleri
   binaGirisiTespit: string;
@@ -293,6 +334,10 @@ export interface KonutOzellikleriData {
   binaIciDuvarlar: string;
   binaDisCephesi: string;
   binaCatisi: string;
+  cevreDuzenlemesi: string;
+  asansor: string;
+  ilaveAnlatim: EvetHayirSecimi;
+  ilaveAnlatimMetni: string;
 }
 
 export interface BagimsizBolumData {
@@ -447,7 +492,7 @@ export interface Tapu {
   adresKonum: AdresKonumData;
   tapuKaydi: TapuKaydiData;
   kurumIncelemeleri: RuhsatIncelemeData;
-  projeIncelemeleri: KurumIncelemesi[];
+  projeIncelemeleri: ProjeIncelemeData;
   imarDurumu: ImarDurumuData;
   anaGayrimenkul: AnaGayrimenkulData;
   araziOzellikleri: AraziOzellikleriData;
@@ -620,10 +665,26 @@ export function createEmptyTapu(index: number, defaults?: TalepDetayiDefaults): 
       incelenenKurumAdi: "",
       belgeler: [],
     },
-    projeIncelemeleri: [],
+    projeIncelemeleri: {
+      incelenenKurum: "",
+      tarihSayiVarMi: "",
+      projeTarihi: "",
+      projeSayisi: "",
+      blokKonumUyumu: "",
+      blokKonumAciklama: "",
+      blokAlanUyumu: "",
+      blokAlanAciklama: "",
+      bbKonumUyumu: "",
+      bbKonumAciklama: "",
+      bbAlanUyumu: "",
+      bbAlanAciklama: "",
+      aykirilik: "",
+      aykirilikAciklama: "",
+    },
     imarDurumu: {
       meriImarPlani: "",
       fonksiyon: "",
+      fonksiyonPaftaUyumu: "",
       tasdikTarihi: "",
       pafta: "",
       olcek: "",
@@ -644,6 +705,7 @@ export function createEmptyTapu(index: number, defaults?: TalepDetayiDefaults): 
       projeksiyon: "",
       kartezyenKoordinat: "",
       cografiKoordinat: "",
+      planNotlari: [],
     },
     anaGayrimenkul: {
       binaTuru: "",
@@ -690,6 +752,9 @@ export function createEmptyTapu(index: number, defaults?: TalepDetayiDefaults): 
       nizamAtamalari: [],
       insaatNizami: "",
       insaatNizamiDiger: "",
+      katDagilimTuru: "",
+      katDagilimlari: [],
+      manuelKatDagilimi: "",
       projeKatlari: [],
       binaGirisiTespit: "",
       binaGirisKapisi: "",
@@ -699,6 +764,10 @@ export function createEmptyTapu(index: number, defaults?: TalepDetayiDefaults): 
       binaIciDuvarlar: "",
       binaDisCephesi: "",
       binaCatisi: "",
+      cevreDuzenlemesi: "",
+      asansor: "",
+      ilaveAnlatim: "",
+      ilaveAnlatimMetni: "",
     },
     bagimsizBolum: {
       bagimsizBolumNo: "",

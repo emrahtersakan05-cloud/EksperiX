@@ -4,6 +4,7 @@ import {
   newRowId,
   type DegerHesaplamalari,
   type KonutOzellikleriData,
+  type ProjeIncelemeData,
   type RuhsatIncelemeData,
   type Talep,
   type Tapu,
@@ -19,7 +20,15 @@ function konutuTasi(k: KonutOzellikleriData): KonutOzellikleriData {
   if (!sonuc.binaGirisleri.length && k.binaGirisYonleri?.length) {
     sonuc.binaGirisleri = k.binaGirisYonleri.map((yon, i) => ({ id: `giris-${i}-${yon}`, yon, yol: "", tur: i === 0 ? "Ana giriş" : "" }));
   }
-  return { ...sonuc, blokYonleri: [], binaGirisYonleri: [] };
+  // OCR floor rows from the earlier Proje Özellikleri become manual text.
+  if (!sonuc.katDagilimTuru && k.projeKatlari?.length) {
+    sonuc.katDagilimTuru = "manuel";
+    sonuc.manuelKatDagilimi = k.projeKatlari
+      .filter((p) => p.kat.trim() || p.aciklama.trim())
+      .map((p) => (p.kat.trim() ? `${p.kat.trim()}: ${p.aciklama.trim()}` : p.aciklama.trim()))
+      .join("\n");
+  }
+  return { ...sonuc, blokYonleri: [], binaGirisYonleri: [], projeKatlari: [] };
 }
 
 // Backfills any section fields missing from a stored Tapu against the
@@ -51,6 +60,20 @@ function normalizeHesaplamalar(stored: unknown, empty: DegerHesaplamalari): Dege
   };
 }
 
+// The earlier list of project rows gives way to one form; the mimari
+// aykırılık answer, once on the konut form, is carried over.
+function projeyiTasi(tapu: Tapu, bos: ProjeIncelemeData): ProjeIncelemeData {
+  const eski: unknown = tapu.projeIncelemeleri;
+  const proje = { ...bos, ...(eski && !Array.isArray(eski) ? (eski as Partial<ProjeIncelemeData>) : {}) };
+  if (Array.isArray(eski) && !proje.incelenenKurum) proje.incelenenKurum = (eski[0] as { kurum?: string } | undefined)?.kurum ?? "";
+  const konut = tapu.konutOzellikleri as Partial<Pick<ProjeIncelemeData, "aykirilik" | "aykirilikAciklama">> | undefined;
+  if (!proje.aykirilik && konut?.aykirilik) {
+    proje.aykirilik = konut.aykirilik;
+    proje.aykirilikAciklama = konut.aykirilikAciklama ?? "";
+  }
+  return proje;
+}
+
 function normalizeTapu(tapu: Tapu): Tapu {
   const empty = createEmptyTapu(0);
   const legacyKurumIncelemeleri = Array.isArray(tapu.kurumIncelemeleri) ? tapu.kurumIncelemeleri : null;
@@ -78,7 +101,7 @@ function normalizeTapu(tapu: Tapu): Tapu {
       ...normalizedKurumIncelemeleri,
       belgeler: normalizedKurumIncelemeleri.belgeler ?? [],
     },
-    projeIncelemeleri: tapu.projeIncelemeleri ?? [],
+    projeIncelemeleri: projeyiTasi(tapu, empty.projeIncelemeleri),
     imarDurumu: { ...empty.imarDurumu, ...tapu.imarDurumu },
     anaGayrimenkul: { ...empty.anaGayrimenkul, ...tapu.anaGayrimenkul },
     araziOzellikleri: { ...empty.araziOzellikleri, ...tapu.araziOzellikleri },

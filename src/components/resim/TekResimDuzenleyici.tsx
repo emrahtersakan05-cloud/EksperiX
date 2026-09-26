@@ -15,6 +15,7 @@ import {
   X,
 } from "lucide-react";
 import Card from "@/components/card";
+import { inputClass } from "@/components/talep/form-fields";
 import { boyutYaz } from "@/lib/dosyalar/depo";
 
 // Everything happens on a canvas in the browser; the photo never leaves it.
@@ -480,7 +481,7 @@ export default function TekResimDuzenleyici({ aktif = true }: { aktif?: boolean 
                 <select
                   value={a.enGenislik ?? ""}
                   onChange={(e) => guncelle({ enGenislik: e.target.value ? Number(e.target.value) : null })}
-                  className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700"
+                  className={`${inputClass} mt-1`}
                 >
                   {GENISLIKLER.map((g) => (
                     <option key={g ?? "asil"} value={g ?? ""}>

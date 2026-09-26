@@ -5,12 +5,11 @@ import { createPortal } from "react-dom";
 import { Check, ChevronDown, Plus, Search, Trash2, X } from "lucide-react";
 import { AlanKaydiSaglayici, BolumSaglayici, useAkiciAlan } from "@/components/akici-metin/baglam";
 import { useAkiciMetinKarti } from "@/components/akici-metin/kart";
+import { inputClass } from "@/lib/ui/girdi";
 
-export const inputClass =
-  "min-h-[42px] w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 transition-colors placeholder:text-slate-400 hover:border-slate-300 focus:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-200";
+export { inputClass };
 
-export const tableInputClass =
-  "w-full min-w-0 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-800 transition-colors placeholder:text-slate-400 hover:border-slate-300 focus:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-200";
+export const tableInputClass = `${inputClass} min-w-0`;
 
 export const sectionCardClass = "min-w-0 rounded-xl border border-slate-200 bg-white p-4";
 export const sectionBodyClass = "min-w-0 rounded-lg border border-slate-100 p-3";

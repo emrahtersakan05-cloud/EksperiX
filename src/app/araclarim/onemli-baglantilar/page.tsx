@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { ExternalLink, Link2, Plus, Search, Star, Trash2 } from "lucide-react";
 import Card from "@/components/card";
+import { inputClass } from "@/components/talep/form-fields";
 import { normalizeLabel } from "@/lib/text/normalize-tr";
 
 interface Baglanti {
@@ -174,8 +175,7 @@ export default function OnemliBaglantilarPage() {
   const favoriListesi = [...ozel, ...HAZIR].filter((b) => favoriler.includes(b.url) && eslesir(b));
   const hicYok = [...ozel, ...HAZIR].every((b) => !eslesir(b));
 
-  const girdi =
-    "w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 placeholder:text-slate-400 focus:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-200";
+  const girdi = inputClass;
 
   return (
     <div className="space-y-6">

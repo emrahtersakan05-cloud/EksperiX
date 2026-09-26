@@ -73,6 +73,8 @@ function TapuSectionIcerik({ talep, tapu, sectionKey, onUpdate }: SectionProps) 
         <AdresKonumSection
           data={tapu.adresKonum}
           onChange={(patch) => onUpdate((t) => ({ ...t, adresKonum: { ...t.adresKonum, ...patch } }))}
+          tapuKaydi={tapu.tapuKaydi}
+          onTapuKaydiChange={(patch) => onUpdate((t) => ({ ...t, tapuKaydi: { ...t.tapuKaydi, ...patch } }))}
         />
       );
     case "tapuKaydi":
@@ -83,25 +85,20 @@ function TapuSectionIcerik({ talep, tapu, sectionKey, onUpdate }: SectionProps) 
         />
       );
     case "kurumIncelemeleri":
-      return (
-        <KurumIncelemeleriSection
-          data={tapu.kurumIncelemeleri}
-          onChange={(patch) => onUpdate((t) => ({ ...t, kurumIncelemeleri: { ...t.kurumIncelemeleri, ...patch } }))}
-          city={tapu.adresKonum.il}
-          district={tapu.adresKonum.ilce}
-        />
-      );
+      return <KurumIncelemeleriSection />;
     case "projeIncelemeleri":
       return (
         <ProjeIncelemeleriSection
-          items={tapu.projeIncelemeleri}
-          onChange={(items) => onUpdate((t) => ({ ...t, projeIncelemeleri: items }))}
+          data={tapu.projeIncelemeleri}
+          tapuKaydi={tapu.tapuKaydi}
+          onChange={(patch) => onUpdate((t) => ({ ...t, projeIncelemeleri: { ...t.projeIncelemeleri, ...patch } }))}
         />
       );
     case "imarDurumu":
       return (
         <ImarDurumuSection
           data={tapu.imarDurumu}
+          tapuKaydi={tapu.tapuKaydi}
           onChange={(patch) => onUpdate((t) => ({ ...t, imarDurumu: { ...t.imarDurumu, ...patch } }))}
         />
       );
@@ -176,7 +173,6 @@ function TapuSectionIcerik({ talep, tapu, sectionKey, onUpdate }: SectionProps) 
           data={tapu.raporSonucu}
           talep={talep}
           tapu={tapu}
-          sharedRuhsat={talep.tapular[0]?.kurumIncelemeleri}
           onChange={(patch) => onUpdate((t) => ({ ...t, raporSonucu: { ...t.raporSonucu, ...patch } }))}
         />
       );

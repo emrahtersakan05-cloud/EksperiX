@@ -45,6 +45,7 @@ import EmsalHaritaMap, { type HaritaHedefi, type HaritaKatmani } from "@/compone
 import AdresArama from "@/components/emsal-haritasi/AdresArama";
 import EksperixBridgePaneli from "@/components/emsal-haritasi/EksperixBridgePaneli";
 import EmsalOzetKarti, { type BolgeKarsilastirmasi, type BolumDurumu } from "@/components/emsal-haritasi/EmsalOzetKarti";
+import { normalYazimNesne } from "@/lib/text/buyuk-harf";
 
 const HARITA_SAYFASI = "/deger-haritasi/emsal-haritasi";
 const TASLAK_ANAHTARI = "eksperix:yeni-emsal-taslak:v1";
@@ -311,7 +312,7 @@ export default function EmsalKayitFormu({
   // A listing pushed in by the Eksperix Bridge extension. Only fields the page
   // actually had are written; everything else keeps what the user typed.
   function bridgeUygula(payload: BridgePayload): string[] {
-    const s = bridgeVerisiniAyristir(payload, kategori);
+    const s = normalYazimNesne(bridgeVerisiniAyristir(payload, kategori));
     const kategoriDegisti = !!s.kategori && s.kategori !== kategori;
     if (s.kategori) setKategori(s.kategori);
     setOrtak((prev) => ({
@@ -762,7 +763,7 @@ export default function EmsalKayitFormu({
             >
               <div className="space-y-3">
                 <Field label="İlan Linki">
-                  <div className="flex gap-2">
+                  <div className="flex items-center gap-2">
                     <input
                       type="url"
                       value={ortak.webAdresi}

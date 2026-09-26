@@ -154,7 +154,7 @@ export default function TalepDetayPage() {
         case "kurumIncelemeleri":
           return { ...t, kurumIncelemeleri: emptyTapu.kurumIncelemeleri };
         case "projeIncelemeleri":
-          return { ...t, projeIncelemeleri: [] };
+          return { ...t, projeIncelemeleri: emptyTapu.projeIncelemeleri };
         case "imarDurumu":
           return { ...t, imarDurumu: emptyTapu.imarDurumu };
         case "anaGayrimenkul":

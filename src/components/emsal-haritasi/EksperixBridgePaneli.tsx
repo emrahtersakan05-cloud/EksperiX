@@ -4,21 +4,11 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { CircleCheck, Download, Loader2, PlugZap, TriangleAlert } from "lucide-react";
 import { acknowledgeBridge, readBridgeDetail } from "@/lib/bridge/event-detail";
+import { useBridgeIstegi } from "@/lib/bridge/useBridgeIstegi";
 import type { BridgePayload } from "@/lib/emsal-haritasi/bridge-ayristir";
 
-// Event names shared with extension/uavt-bridge/app-bridge.js.
+// Event name shared with extension/uavt-bridge/app-bridge.js.
 const IMPORT_EVENT = "eksperix:emsal-import";
-const PING_EVENT = "eksperix:bridge-ping";
-const READY_EVENT = "eksperix:bridge-ready";
-const REQUEST_EVENT = "eksperix:bridge-request";
-const RESPONSE_EVENT = "eksperix:bridge-response";
-
-// Extensions before 0.6.0 don't answer the ping but can still push listings
-// from their popup, so "not detected" is a hint, not a hard block.
-const PING_TIMEOUT_MS = 1500;
-const REQUEST_TIMEOUT_MS = 20000;
-
-type EklentiDurumu = "kontrol" | "hazir" | "yok";
 
 interface Mesaj {
   tone: "success" | "error" | "warning";
@@ -33,25 +23,15 @@ export default function EksperixBridgePaneli({
   // Applies an imported listing to the form; returns the labels it filled.
   onVeri: (payload: BridgePayload) => string[];
 }) {
-  const [durum, setDurum] = useState<EklentiDurumu>("kontrol");
-  const [surum, setSurum] = useState<string | null>(null);
-  const [yukleniyor, setYukleniyor] = useState(false);
   const [mesaj, setMesaj] = useState<Mesaj | null>(null);
+  const { durum, surum, yukleniyor, getir } = useBridgeIstegi("emsal", (text) => setMesaj({ tone: "error", text }));
   const onVeriRef = useRef(onVeri);
-  const bekleyenIstekRef = useRef<{ id: string; timer: ReturnType<typeof setTimeout> } | null>(null);
 
   useEffect(() => {
     onVeriRef.current = onVeri;
   }, [onVeri]);
 
   useEffect(() => {
-    let bulundu = false;
-    function hazir(event: Event) {
-      bulundu = true;
-      setDurum("hazir");
-      setSurum(readBridgeDetail<{ version?: string }>(event)?.version ?? null);
-    }
-
     // Listings arrive this way both from the popup's "Bilgileri Getir" and from
     // the in-page button below.
     function veriGeldi(event: Event) {
@@ -75,47 +55,13 @@ export default function EksperixBridgePaneli({
       );
     }
 
-    function yanitGeldi(event: Event) {
-      const yanit = readBridgeDetail<{ requestId?: string; ok?: boolean; error?: string }>(event);
-      const bekleyen = bekleyenIstekRef.current;
-      if (!yanit || !bekleyen || yanit.requestId !== bekleyen.id) return;
-      clearTimeout(bekleyen.timer);
-      bekleyenIstekRef.current = null;
-      setYukleniyor(false);
-      // Success is reported by veriGeldi, which already ran for this request.
-      if (!yanit.ok) setMesaj({ tone: "error", text: yanit.error ?? "İlan getirilemedi." });
-    }
-
-    window.addEventListener(READY_EVENT, hazir);
     window.addEventListener(IMPORT_EVENT, veriGeldi);
-    window.addEventListener(RESPONSE_EVENT, yanitGeldi);
-    window.dispatchEvent(new CustomEvent(PING_EVENT));
-    const timer = setTimeout(() => {
-      if (!bulundu) setDurum("yok");
-    }, PING_TIMEOUT_MS);
-
-    return () => {
-      clearTimeout(timer);
-      window.removeEventListener(READY_EVENT, hazir);
-      window.removeEventListener(IMPORT_EVENT, veriGeldi);
-      window.removeEventListener(RESPONSE_EVENT, yanitGeldi);
-      if (bekleyenIstekRef.current) clearTimeout(bekleyenIstekRef.current.timer);
-    };
+    return () => window.removeEventListener(IMPORT_EVENT, veriGeldi);
   }, []);
 
   function ilanGetir() {
-    const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-    const timer = setTimeout(() => {
-      bekleyenIstekRef.current = null;
-      setYukleniyor(false);
-      setMesaj({ tone: "error", text: "Eklentiden yanıt gelmedi. Eklentiyi yeniden yükleyip bu sayfayı yenileyin." });
-    }, REQUEST_TIMEOUT_MS);
-    bekleyenIstekRef.current = { id, timer };
-    setYukleniyor(true);
     setMesaj(null);
-    window.dispatchEvent(
-      new CustomEvent(REQUEST_EVENT, { detail: JSON.stringify({ requestId: id, kind: "emsal" }) }),
-    );
+    getir();
   }
 
   return (

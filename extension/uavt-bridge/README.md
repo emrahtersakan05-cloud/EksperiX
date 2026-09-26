@@ -18,7 +18,7 @@ extension/uavt-bridge
 ### UAVT (Adres / Konum)
 
 1. Eksperix uygulamasinda ilgili talebin `Adres / Konum` bolumunu acin.
-2. `UAVT Adres Sorgula` ile `https://adres.nvi.gov.tr/VatandasIslemleri/AdresSorgu` sayfasini acin.
+2. `UAVT'yi Aç` ile `https://adres.nvi.gov.tr/VatandasIslemleri/AdresSorgu` sayfasini acin.
 3. UAVT sorgusunu tamamlayin ve sonuc ekraninda kalin.
 4. Tarayici toolbar'indaki `Eksperix Bridge` eklentisini acin.
 5. `Bilgileri Getir` butonuna basin.
@@ -55,6 +55,19 @@ Eklenti canli sitede (`https://eksperi-x.vercel.app`) ve yerelde (`localhost` / 
 
 - hepsiemlak ilan adresleri (`.../daire/171189-3`) artik ilan sekmesi olarak taninir; `Ilan sekmesinden getir` bu sekmeleri de bulur.
 - hepsiemlak'ta veri sayfanin kendi kaydindan (`window.__NUXT__` icindeki `detailData`, sayfanin ana dunyasinda okunur) alinir: ilanin gercek koordinati (metin taramasi en yakin otobus duragini buluyordu), ilan tarihi, danisman telefonu, isinma + yakit, balkon/otopark, ada/parsel, imar durumu vb. Bu okuma basarisiz olursa sayfa metninden okuma devreye girer.
+
+### Adres / Konum: UAVT sekmesinden getir (v0.8.0)
+
+1. Eksperix'te ilgili tapunun `Adres / Konum` bolumunde `Adres` sekmesini acin.
+2. `https://adres.nvi.gov.tr/VatandasIslemleri/AdresSorgu` adresinde UAVT sorgusunu baska bir sekmede tamamlayin.
+3. Adres Ozeti'ndeki `UAVT sekmesinden getir` dugmesine basin — popup'i acmaya gerek yoktur. UAVT gorseli yukleme ve OCR akisi kaldirildi.
+
+### İmar Durumu: E-imar sekmesinden getir (v0.7.0)
+
+1. Eksperix'te ilgili tapunun `İmar Durumu` bolumunu acin.
+2. Belediyenin e-imar portalini baska bir sekmede acip parsel sorgusunu tamamlayin (adresinde `imar` gecen `*.bel.tr` sayfalari).
+3. Bolumdeki `E-imar sekmesinden getir` dugmesine basin — popup'i acmaya gerek yoktur. Sonuc bir `iframe` icindeyse tum cerceveler okunur.
+4. `*.bel.tr` disindaki portallarda sonuc sayfasindayken popup'taki `Bilgileri Getir` kullanilmaya devam eder.
 
 ### Aktarim turu secici (v0.5.0)
 
