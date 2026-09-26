@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import { AkiciMetinGrubu } from "@/components/akici-metin/kart";
 import { acknowledgeBridge, readBridgeDetail } from "@/lib/bridge/event-detail";
 import { surumEnAz, useBridgeIstegi } from "@/lib/bridge/useBridgeIstegi";
-import { ClipboardPaste, Download, ExternalLink, Home, Loader2, MapPinned, Trees, X } from "lucide-react";
+import { ClipboardPaste, Download, ExternalLink, FileText, Home, Loader2, MapPinned, Trees, X } from "lucide-react";
 import {
   ComboboxField,
   SectionCard,
@@ -31,7 +31,8 @@ import {
 } from "@/lib/talep/adres-referans";
 import { parseUavtText, type ParsedUavtFields } from "@/lib/ocr/uavt-extract";
 import { normalYazimNesne } from "@/lib/text/buyuk-harf";
-import type { AdresKonumData } from "@/lib/talep/types";
+import type { AdresKonumData, TapuKaydiData } from "@/lib/talep/types";
+import AdresTapuBilgileri from "@/components/talep/sections/AdresTapuBilgileri";
 import KmlMapPanel from "@/components/talep/sections/KmlMapPanel";
 import { Doluluk, Ozet, OzetBasligi, OzetIzgarasi } from "@/components/talep/sections/tasarim";
 
@@ -105,6 +106,7 @@ function buildEmptyUavtPatch(): ParsedUavtFields {
 const FormGroup = SectionCard;
 const ADRES_KONUM_TABS = [
   { key: "adres", label: "Adres", icon: Home },
+  { key: "tapu", label: "Tapu", icon: FileText },
   { key: "konum", label: "Konum", icon: MapPinned },
   { key: "bolge", label: "Bölge Özellikleri", icon: Trees },
 ] as const;
@@ -240,9 +242,13 @@ function UavtPasteModal({
 export default function AdresKonumSection({
   data,
   onChange,
+  tapuKaydi,
+  onTapuKaydiChange,
 }: {
   data: AdresKonumData;
   onChange: (patch: Partial<AdresKonumData>) => void;
+  tapuKaydi: TapuKaydiData;
+  onTapuKaydiChange: (patch: Partial<TapuKaydiData>) => void;
 }) {
   const [ilOptions, setIlOptions] = useState<string[]>([]);
   const [ilceOptions, setIlceOptions] = useState<string[]>([]);
@@ -672,6 +678,8 @@ export default function AdresKonumSection({
           </AkiciMetinGrubu>
         </>
       )}
+
+      {activeTab === "tapu" && <AdresTapuBilgileri data={tapuKaydi} onChange={onTapuKaydiChange} />}
 
       {activeTab === "konum" && (
         <div className="space-y-4">
