@@ -1,8 +1,10 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import { acknowledgeBridge, readBridgeDetail } from "@/lib/bridge/event-detail";
-import { ClipboardPaste, X } from "lucide-react";
+import { surumEnAz, useBridgeIstegi } from "@/lib/bridge/useBridgeIstegi";
+import { ClipboardPaste, Download, Loader2, X } from "lucide-react";
 import {
   SectionCard,
   SectionGrid,
@@ -17,6 +19,8 @@ import { parseImarDurumuText } from "@/lib/talep/imar-extract";
 import type { ImarDurumuData } from "@/lib/talep/types";
 
 const IMAR_BRIDGE_EVENT = "eksperix:imar-import";
+// The in-page request for e-imar arrived in this extension version.
+const IMAR_ISTEGI_SURUMU = "0.7.0";
 
 type BridgeMessageState = { tone: "success" | "warning" | "error"; text: string } | null;
 type ImarBridgePayload = { text?: string; title?: string; url?: string; capturedAt?: number };
@@ -128,6 +132,13 @@ export default function ImarDurumuSection({
   const [pasteImporting, setPasteImporting] = useState(false);
   const [pasteMessage, setPasteMessage] = useState<BridgeMessageState>(null);
   const onChangeRef = useRef(onChange);
+  const bridge = useBridgeIstegi("imar", (text) => setBridgeMessage({ tone: "error", text }));
+  const bridgeGuncel = bridge.durum === "hazir" && surumEnAz(bridge.surum, IMAR_ISTEGI_SURUMU);
+
+  function eimarGetir() {
+    setBridgeMessage(null);
+    bridge.getir();
+  }
 
   useEffect(() => {
     onChangeRef.current = onChange;
@@ -147,7 +158,7 @@ export default function ImarDurumuSection({
         onChangeRef.current(patch);
         setBridgeMessage({
           tone: "success",
-          text: `${filledCount} alan eklenti üzerinden e-imar sonucundan dolduruldu. Lütfen doğruluğunu kontrol edin.`,
+          text: `${filledCount} alan e-imar sonucundan dolduruldu${detail?.title ? ` (${detail.title})` : ""}. Lütfen doğruluğunu kontrol edin.`,
         });
       } else {
         setBridgeMessage({
@@ -194,32 +205,73 @@ export default function ImarDurumuSection({
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-end">
-        <button
-          type="button"
-          onClick={handleOpenPasteModal}
-          className={`inline-flex items-center gap-1.5 ${secondaryButtonClass}`}
-        >
-          <ClipboardPaste className="h-3.5 w-3.5" />
-          E-imar Sonucu Yapıştır
-        </button>
+      <div className="rounded-xl border border-slate-200 bg-white p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-sm font-semibold text-slate-900">E-imar sonucunu aktar</p>
+              {bridge.durum === "hazir" && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  Eksperix Bridge bağlı{bridge.surum ? ` · v${bridge.surum}` : ""}
+                </span>
+              )}
+              {bridge.durum === "kontrol" && <Loader2 className="h-3 w-3 animate-spin text-slate-400" />}
+            </div>
+            <p className="mt-0.5 text-xs text-slate-500">
+              Belediyenin e-imar sorgusunu başka bir sekmede açıp parseli sorgulayın, sonra sekmeden getirin.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={handleOpenPasteModal}
+              className={`inline-flex items-center gap-1.5 ${secondaryButtonClass}`}
+            >
+              <ClipboardPaste className="h-3.5 w-3.5" />
+              Sonucu Yapıştır
+            </button>
+            <button
+              type="button"
+              onClick={eimarGetir}
+              disabled={!bridgeGuncel || bridge.yukleniyor}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-sm font-semibold text-lime-300 hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {bridge.yukleniyor ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+              E-imar sekmesinden getir
+            </button>
+          </div>
+        </div>
+
+        {(bridge.durum === "yok" || (bridge.durum === "hazir" && !bridgeGuncel)) && (
+          <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            {bridge.durum === "yok"
+              ? "Eksperix Bridge algılanmadı. "
+              : `Bu düğme için eklentinin v${IMAR_ISTEGI_SURUMU} veya üstü gerekir. `}
+            Sonucu yapıştırarak da aktarabilirsiniz.{" "}
+            <Link href="/araclarim/uygulama-eklentileri" className="font-semibold text-lime-700 hover:text-lime-800">
+              Eklentiyi kur / güncelle →
+            </Link>
+          </p>
+        )}
+
+        {bridgeMessage && (
+          <p
+            className={`mt-2 rounded-lg px-3 py-2 text-xs ${
+              bridgeMessage.tone === "success"
+                ? "bg-emerald-50 text-emerald-700"
+                : bridgeMessage.tone === "warning"
+                  ? "bg-amber-50 text-amber-700"
+                  : "bg-rose-50 text-rose-700"
+            }`}
+          >
+            {bridgeMessage.text}
+          </p>
+        )}
       </div>
 
       <SectionCard title="Meri İmar Planı">
         <div className={sectionBodyClass}>
-          {bridgeMessage && (
-            <p
-              className={`mb-3 rounded-lg px-3 py-2 text-xs ${
-                bridgeMessage.tone === "success"
-                  ? "bg-emerald-50 text-emerald-700"
-                  : bridgeMessage.tone === "warning"
-                    ? "bg-amber-50 text-amber-700"
-                    : "bg-rose-50 text-rose-700"
-              }`}
-            >
-              {bridgeMessage.text}
-            </p>
-          )}
           <SectionGrid>
             <TextField
               label="Mer'i İmar Planı"

@@ -56,6 +56,13 @@ Eklenti canli sitede (`https://eksperi-x.vercel.app`) ve yerelde (`localhost` / 
 - hepsiemlak ilan adresleri (`.../daire/171189-3`) artik ilan sekmesi olarak taninir; `Ilan sekmesinden getir` bu sekmeleri de bulur.
 - hepsiemlak'ta veri sayfanin kendi kaydindan (`window.__NUXT__` icindeki `detailData`, sayfanin ana dunyasinda okunur) alinir: ilanin gercek koordinati (metin taramasi en yakin otobus duragini buluyordu), ilan tarihi, danisman telefonu, isinma + yakit, balkon/otopark, ada/parsel, imar durumu vb. Bu okuma basarisiz olursa sayfa metninden okuma devreye girer.
 
+### İmar Durumu: E-imar sekmesinden getir (v0.7.0)
+
+1. Eksperix'te ilgili tapunun `İmar Durumu` bolumunu acin.
+2. Belediyenin e-imar portalini baska bir sekmede acip parsel sorgusunu tamamlayin (adresinde `imar` gecen `*.bel.tr` sayfalari).
+3. Bolumdeki `E-imar sekmesinden getir` dugmesine basin — popup'i acmaya gerek yoktur. Sonuc bir `iframe` icindeyse tum cerceveler okunur.
+4. `*.bel.tr` disindaki portallarda sonuc sayfasindayken popup'taki `Bilgileri Getir` kullanilmaya devam eder.
+
 ### Aktarim turu secici (v0.5.0)
 
 Popup'taki `Aktarim turu` listesi varsayilan olarak `Otomatik`tir: sayfa adresine (UAVT, adresinde `imar` gecen e-imar portallari, emsal ilan siteleri) ve gerekirse sayfa icerigine bakarak turu kendisi belirler. Bilinmeyen bir belediye portali yanlis taninirsa listeden `Imar Durumu` (ya da ilgili turu) secin; secim hatirlanir.
