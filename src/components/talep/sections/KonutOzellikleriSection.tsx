@@ -1,39 +1,17 @@
 "use client";
 
 import { useRef, useState } from "react";
-import {
-  Building,
-  Building2,
-  Check,
-  FileText,
-  Home,
-  ImageUp,
-  Layers,
-  Loader2,
-  MapPin,
-  PencilLine,
-  Plus,
-  ScanText,
-  Trash2,
-  X,
-} from "lucide-react";
+import { Building, Building2, FileText, Home, ImageUp, Loader2, MapPin, Plus, ScanText, Trash2 } from "lucide-react";
 import { AkiciAlan } from "@/components/akici-metin/baglam";
 import SecenekListesiAlani from "@/components/talep/SecenekListesiAlani";
 import KonutTespitleri from "@/components/talep/sections/KonutTespitleri";
-import { SectionCard, TextField, inputClass, sectionBodyClass, sectionCardClass } from "@/components/talep/form-fields";
-import { AltBaslik, NitelikKarti, TapuBilgisi, yeniId } from "@/components/talep/sections/ortak";
-import {
-  KONUT_MAHALLINDEKI_NITELIKLER,
-  NIZAMLAR,
-  blokAdi,
-  insaatNizamiOzeti,
-  projeKatlariMetni,
-} from "@/lib/talep/konut";
-import type { KonutOzellikleriData, NizamAtamasi, TapuKaydiData } from "@/lib/talep/types";
+import { SectionCard, TextField, inputClass, sectionCardClass } from "@/components/talep/form-fields";
+import { NitelikKarti, TapuBilgisi, yeniId } from "@/components/talep/sections/ortak";
+import { KONUT_MAHALLINDEKI_NITELIKLER, insaatNizamiOzeti, projeKatlariMetni } from "@/lib/talep/konut";
+import type { KonutOzellikleriData, TapuKaydiData } from "@/lib/talep/types";
 import type { SecenekListesiKey } from "@/lib/secenekler/varsayilan";
 
 const FormGroup = SectionCard;
-const AZAMI_BLOK = 26;
 
 const BINA_LISTELERI: { key: SecenekListesiKey; alan: keyof KonutOzellikleriData }[] = [
   { key: "binaGirisKapisi", alan: "binaGirisKapisi" },
@@ -44,218 +22,6 @@ const BINA_LISTELERI: { key: SecenekListesiKey; alan: keyof KonutOzellikleriData
   { key: "binaDisCephesi", alan: "binaDisCephesi" },
   { key: "binaCatisi", alan: "binaCatisi" },
 ];
-
-// Side-by-side nizam buttons (Bitişik / Ayrık / Blok / Diğer); "Diğer" asks
-// for the wording.
-function NizamSecici({
-  nizam,
-  diger,
-  onChange,
-}: {
-  nizam: string;
-  diger: string;
-  onChange: (nizam: string, diger: string) => void;
-}) {
-  return (
-    <div className="space-y-2">
-      <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" role="radiogroup" aria-label="İnşaat nizamı">
-        {NIZAMLAR.map((n) => {
-          const aktif = nizam === n;
-          return (
-            <button
-              key={n}
-              type="button"
-              role="radio"
-              aria-checked={aktif}
-              onClick={() => onChange(aktif ? "" : n, n === "Diğer" ? diger : "")}
-              className={`flex items-center justify-center gap-1.5 rounded-xl border-2 px-3 py-2.5 text-sm font-semibold transition-all ${
-                aktif
-                  ? "border-slate-900 bg-slate-900 text-lime-300 shadow-sm"
-                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-300 hover:text-slate-900"
-              }`}
-            >
-              {aktif && <Check className="h-4 w-4" />}
-              {n}
-            </button>
-          );
-        })}
-      </div>
-      {nizam === "Diğer" && (
-        <div className="relative">
-          <PencilLine className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-lime-600" />
-          <input
-            value={diger}
-            onChange={(e) => onChange(nizam, e.target.value)}
-            placeholder="Nizamı yazınız"
-            aria-label="İnşaat nizamı (Diğer)"
-            className={`${inputClass} border-lime-300! bg-lime-50/60! pl-9`}
-          />
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Bloklu: name the blocks, then assign a nizam to one or more of them at a time.
-function BlokNizamlari({ data, onChange }: { data: KonutOzellikleriData; onChange: (p: Partial<KonutOzellikleriData>) => void }) {
-  const [secili, setSecili] = useState<number[]>([]);
-  const [nizam, setNizam] = useState("");
-  const [diger, setDiger] = useState("");
-  const sayi = Math.min(AZAMI_BLOK, Math.max(0, parseInt(data.blokSayisi, 10) || 0));
-  const atanan = new Map<number, NizamAtamasi>();
-  for (const a of data.nizamAtamalari) for (const b of a.bloklar) atanan.set(b, a);
-
-  function sayiDegistir(v: string) {
-    const n = Math.min(AZAMI_BLOK, Math.max(0, parseInt(v, 10) || 0));
-    const adlar = Array.from({ length: n }, (_, i) => data.blokAdlari[i] ?? "");
-    // Drop assignments to blocks that no longer exist.
-    const atamalar = data.nizamAtamalari
-      .map((a) => ({ ...a, bloklar: a.bloklar.filter((b) => b < n) }))
-      .filter((a) => a.bloklar.length);
-    onChange({ blokSayisi: v.replace(/\D/g, "").slice(0, 2), blokAdlari: adlar, nizamAtamalari: atamalar });
-    setSecili((s) => s.filter((b) => b < n));
-  }
-
-  function ekle() {
-    if (!secili.length || !nizam || (nizam === "Diğer" && !diger.trim())) return;
-    onChange({
-      nizamAtamalari: [...data.nizamAtamalari, { id: yeniId(), bloklar: [...secili].sort((a, b) => a - b), nizam, nizamDiger: diger.trim() }],
-    });
-    setSecili([]);
-    setNizam("");
-    setDiger("");
-  }
-
-  const kalan = Array.from({ length: sayi }, (_, i) => i).filter((i) => !atanan.has(i));
-
-  return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <TextField label="Yapı Sınıfı" value={data.yapiSinifi} onChange={(v) => onChange({ yapiSinifi: v })} placeholder="Örn. 3B" />
-        <label className="block">
-          <span className="mb-1 block text-[11px] font-medium text-slate-500">Blok Sayısı</span>
-          <input
-            type="number"
-            min={0}
-            max={AZAMI_BLOK}
-            value={data.blokSayisi}
-            onChange={(e) => sayiDegistir(e.target.value)}
-            placeholder="Örn. 4"
-            className={inputClass}
-          />
-        </label>
-      </div>
-
-      {sayi > 0 && (
-        <>
-          <div>
-            <p className="mb-1.5 text-[11px] font-medium text-slate-500">Blok adları (en fazla 6 karakter)</p>
-            <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
-              {Array.from({ length: sayi }, (_, i) => (
-                <input
-                  key={i}
-                  value={data.blokAdlari[i] ?? ""}
-                  maxLength={6}
-                  onChange={(e) => onChange({ blokAdlari: Array.from({ length: sayi }, (_, j) => (j === i ? e.target.value : (data.blokAdlari[j] ?? ""))) })}
-                  placeholder={String(i + 1)}
-                  aria-label={`${i + 1}. blok adı`}
-                  className={`${inputClass} text-center font-semibold uppercase`}
-                />
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-slate-200 bg-white p-3">
-            <p className="text-sm font-semibold text-slate-900">Blokların nizamını belirleyin</p>
-            <p className="mb-3 text-xs text-slate-500">Bir veya birden fazla blok seçin, nizamı seçip ekleyin; kalan bloklar için tekrarlayın.</p>
-
-            <div className="mb-3 flex flex-wrap gap-1.5" role="group" aria-label="Bloklar">
-              {Array.from({ length: sayi }, (_, i) => {
-                const a = atanan.get(i);
-                const aktif = secili.includes(i);
-                return (
-                  <button
-                    key={i}
-                    type="button"
-                    disabled={!!a}
-                    aria-pressed={aktif}
-                    onClick={() => setSecili(aktif ? secili.filter((x) => x !== i) : [...secili, i])}
-                    title={a ? `${blokAdi(data, i)} bloğu atandı` : `${blokAdi(data, i)} bloğunu seç`}
-                    className={`flex h-11 min-w-11 items-center justify-center rounded-xl border-2 px-2 text-sm font-bold transition-all ${
-                      a
-                        ? "cursor-not-allowed border-lime-200 bg-lime-50 text-lime-700"
-                        : aktif
-                          ? "border-slate-900 bg-slate-900 text-lime-300 shadow-sm"
-                          : "border-slate-200 bg-white text-slate-600 hover:border-slate-400"
-                    }`}
-                  >
-                    {a && <Check className="mr-0.5 h-3.5 w-3.5" />}
-                    {blokAdi(data, i)}
-                  </button>
-                );
-              })}
-            </div>
-
-            {kalan.length > 0 ? (
-              <>
-                <NizamSecici
-                  nizam={nizam}
-                  diger={diger}
-                  onChange={(n, d) => {
-                    setNizam(n);
-                    setDiger(d);
-                  }}
-                />
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-xs text-slate-500">
-                    {secili.length ? `${secili.map((i) => blokAdi(data, i)).join(", ")} seçildi` : "Blok seçilmedi"}
-                  </p>
-                  <button
-                    type="button"
-                    onClick={ekle}
-                    disabled={!secili.length || !nizam || (nizam === "Diğer" && !diger.trim())}
-                    className="inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-lime-300 disabled:opacity-40"
-                  >
-                    <Plus className="h-4 w-4" />
-                    Ekle
-                  </button>
-                </div>
-              </>
-            ) : (
-              <p className="rounded-lg bg-lime-50 px-3 py-2 text-xs font-medium text-lime-800">Tüm blokların nizamı belirlendi.</p>
-            )}
-
-            {data.nizamAtamalari.length > 0 && (
-              <ul className="mt-3 space-y-1.5 border-t border-slate-100 pt-3">
-                {data.nizamAtamalari.map((a) => (
-                  <li key={a.id} className="flex items-center justify-between gap-2 rounded-lg bg-slate-50 px-3 py-2">
-                    <span className="flex flex-wrap items-center gap-1.5 text-sm">
-                      {a.bloklar.map((b) => (
-                        <span key={b} className="rounded-md bg-slate-900 px-2 py-0.5 text-xs font-bold text-lime-300">
-                          {blokAdi(data, b)}
-                        </span>
-                      ))}
-                      <span className="text-slate-400">→</span>
-                      <span className="font-semibold text-slate-900">{a.nizam === "Diğer" ? a.nizamDiger : a.nizam}</span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => onChange({ nizamAtamalari: data.nizamAtamalari.filter((x) => x.id !== a.id) })}
-                      aria-label="Atamayı kaldır"
-                      className="rounded p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </>
-      )}
-    </div>
-  );
-}
 
 // Image of the approved project → OCR → floor rows.
 function ProjeOzellikleri({ data, onChange }: { data: KonutOzellikleriData; onChange: (p: Partial<KonutOzellikleriData>) => void }) {
@@ -498,35 +264,7 @@ export default function KonutOzellikleriSection({
           </FormGroup>
 
           <FormGroup title="Konum Tespiti">
-            <div className="space-y-4">
-              {!bloklu && (
-                <div className={sectionBodyClass}>
-                  <TextField label="Yapı Sınıfı" value={data.yapiSinifi} onChange={(v) => onChange({ yapiSinifi: v })} placeholder="Örn. 3B" />
-                </div>
-              )}
-
-              <KonutTespitleri data={data} tapuKaydi={tapuKaydi} bloklu={bloklu} onChange={onChange} />
-
-              <div className={sectionBodyClass}>
-                <AltBaslik icon={<Layers className="h-4 w-4" />} baslik="İnşaat Nizamı" />
-                {bloklu ? (
-                  <BlokNizamlari data={data} onChange={onChange} />
-                ) : (
-                  <NizamSecici
-                    nizam={data.insaatNizami}
-                    diger={data.insaatNizamiDiger}
-                    onChange={(insaatNizami, insaatNizamiDiger) => onChange({ insaatNizami, insaatNizamiDiger })}
-                  />
-                )}
-              </div>
-            </div>
-            {bloklu && <AkiciAlan etiket="Blok Sayısı" deger={data.blokSayisi} />}
-            {bloklu && (
-              <AkiciAlan
-                etiket="Blok Adları"
-                deger={Array.from({ length: parseInt(data.blokSayisi, 10) || 0 }, (_, i) => blokAdi(data, i)).join(", ")}
-              />
-            )}
+            <KonutTespitleri data={data} tapuKaydi={tapuKaydi} bloklu={bloklu} onChange={onChange} />
             <AkiciAlan etiket="İnşaat Nizamı" deger={insaatNizamiOzeti(data)} />
           </FormGroup>
 
