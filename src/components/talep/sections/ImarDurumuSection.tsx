@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import { acknowledgeBridge, readBridgeDetail } from "@/lib/bridge/event-detail";
 import { surumEnAz, useBridgeIstegi } from "@/lib/bridge/useBridgeIstegi";
 import {
@@ -29,6 +29,7 @@ import {
 import { parseImarDurumuText } from "@/lib/talep/imar-extract";
 import { haritaLinki, imarMetni, tapuFarklari, tapudanDoldurulacaklar, yapilasmaHakki } from "@/lib/talep/imar";
 import PlanNotlari from "@/components/talep/sections/PlanNotlari";
+import { Ozet, Panel } from "@/components/talep/sections/tasarim";
 import type { ImarDurumuData, ImarMetinAlani, TapuKaydiData } from "@/lib/talep/types";
 
 const IMAR_BRIDGE_EVENT = "eksperix:imar-import";
@@ -50,47 +51,7 @@ const TAPUDAN_ETIKET: Record<string, string> = {
   hesapAlani: "Hesap Alanı",
 };
 
-function Panel({
-  baslik,
-  icon,
-  sag,
-  children,
-}: {
-  baslik: string;
-  icon: ReactNode;
-  sag?: ReactNode;
-  children: ReactNode;
-}) {
-  return (
-    <div className="min-w-0 rounded-xl border border-slate-200 bg-slate-50/40 p-3.5">
-      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <p className="inline-flex items-center gap-2 text-xs font-semibold text-slate-700">
-          <span className="flex h-6 w-6 items-center justify-center rounded-md bg-white text-slate-500 shadow-sm ring-1 ring-slate-200">
-            {icon}
-          </span>
-          {baslik}
-        </p>
-        {sag}
-      </div>
-      {children}
-    </div>
-  );
-}
-
 const ikiSutun = "grid grid-cols-1 gap-x-3 gap-y-3 sm:grid-cols-2";
-
-// One figure in the dark summary header.
-function Ozet({ etiket, deger, birim }: { etiket: string; deger: string; birim?: string }) {
-  return (
-    <div className="min-w-0 rounded-lg bg-white/5 px-3 py-2 ring-1 ring-white/10">
-      <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">{etiket}</p>
-      <p className={`truncate text-base font-semibold tabular-nums ${deger ? "text-white" : "text-slate-600"}`} title={deger}>
-        {deger || "—"}
-        {deger && birim ? <span className="ml-0.5 text-xs font-medium text-slate-400">{birim}</span> : null}
-      </p>
-    </div>
-  );
-}
 
 const m2Yaz = (n: number | null) => (n === null ? "" : n.toLocaleString("tr-TR", { maximumFractionDigits: 2 }));
 

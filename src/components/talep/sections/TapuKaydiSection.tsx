@@ -1,15 +1,29 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { ChevronDown, FileText, Sparkles, Upload, X } from "lucide-react";
+import {
+  ChevronDown,
+  DoorOpen,
+  FileText,
+  Landmark,
+  LandPlot,
+  Loader2,
+  MapPinned,
+  ScrollText,
+  Sparkles,
+  TriangleAlert,
+  Upload,
+  Users,
+  X,
+} from "lucide-react";
 import {
   RepeatableTable,
   SectionCard,
-  sectionBodyClass,
   TextField,
   tableInputClass,
   type RepeatableTableColumn,
 } from "@/components/talep/form-fields";
+import { Doluluk, Ozet, OzetBasligi, OzetIzgarasi, Panel } from "@/components/talep/sections/tasarim";
 import { extractPdfText, parseTapuKaydiDocument, type ParsedTapuFields } from "@/lib/pdf/tapu-extract";
 import { newRowId, type MulkiyetKaydi, type RehinKaydi, type SerhBeyanIrtifak, type TapuKaydiData } from "@/lib/talep/types";
 
@@ -34,6 +48,7 @@ function PdfUploadZone({
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showRawText, setShowRawText] = useState(false);
+  const [surukleniyor, setSurukleniyor] = useState(false);
 
   function handleFile(file: File | undefined) {
     if (!file) return;
@@ -49,76 +64,79 @@ function PdfUploadZone({
   };
 
   return (
-    <FormGroup
-      title="Tapu Belgesi Yükleme Formu"
-      className="flex h-full flex-col overflow-hidden border-sky-400/80 bg-gradient-to-br from-sky-200 via-cyan-100 to-emerald-200 shadow-[0_16px_36px_-24px_rgba(2,132,199,0.75)]"
-    >
+    <FormGroup title="Tapu Belgesi Yükleme Formu" akiciMetin={false}>
       {value ? (
-        <div className={`${sectionBodyClass} flex-1 border-sky-300/80 bg-white/85`}>
-          <div className="mb-2 inline-flex items-center gap-1 rounded-full bg-sky-700 px-2 py-1 text-[10px] font-semibold tracking-[0.08em] text-white uppercase">
-            <FileText className="h-3 w-3" />
-            Resmi Belge
+        <div className="flex flex-col gap-3 rounded-xl border border-slate-200 bg-slate-50/40 p-3 sm:flex-row sm:items-center">
+          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-900 text-lime-300">
+            <FileText className="h-5 w-5" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-slate-900">Tapu belgesi yüklendi</p>
+            <p className="text-xs text-slate-500">Bilgileri PDF&apos;ten ayıklayıp formu otomatik doldurabilirsiniz.</p>
           </div>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-sky-800 text-white">
-              <FileText className="h-5 w-5" />
-            </span>
-            <div className="flex flex-1 flex-col gap-1.5">
-              <p className="text-xs font-medium text-slate-800">Yüklenen Tapu Belgesi (PDF)</p>
-              <div className="flex flex-wrap items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={onExtract}
-                  disabled={extracting}
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-gradient-to-r from-sky-800 to-emerald-700 px-3 py-1.5 text-[11px] font-semibold text-white shadow-sm disabled:opacity-60"
-                >
-                  <Sparkles className="h-3.5 w-3.5" />
-                  {extracting ? extractStatus || "Ayıklanıyor..." : "Bilgileri PDF'ten Ayıkla"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onFileChange("")}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-sky-300 bg-white px-3 py-1.5 text-[11px] font-medium text-sky-800 hover:bg-sky-50"
-                >
-                  <X className="h-3.5 w-3.5" />
-                  Kaldır
-                </button>
-              </div>
-              {extractMessage && (
-                <p className={`rounded-lg px-3 py-2 text-xs ${messageTone[extractMessage.tone]}`}>
-                  {extractMessage.text}
-                </p>
-              )}
-              {rawText && (
-                <button
-                  type="button"
-                  onClick={() => setShowRawText((s) => !s)}
-                  className="inline-flex items-center gap-1 self-start text-xs font-medium text-slate-500 hover:text-slate-800"
-                >
-                  <ChevronDown className={`h-3 w-3 transition-transform ${showRawText ? "rotate-180" : ""}`} />
-                  Ham PDF metnini {showRawText ? "gizle" : "gör"}
-                </button>
-              )}
-            </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => onFileChange("")}
+              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-600 hover:border-slate-400"
+            >
+              <X className="h-3.5 w-3.5" />
+              Kaldır
+            </button>
+            <button
+              type="button"
+              onClick={onExtract}
+              disabled={extracting}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3.5 py-2 text-xs font-semibold text-lime-300 hover:bg-slate-800 disabled:opacity-60"
+            >
+              {extracting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+              {extracting ? extractStatus || "Ayıklanıyor..." : "Bilgileri PDF'ten Ayıkla"}
+            </button>
           </div>
-          {rawText && showRawText && (
-            <pre className="mt-2 max-h-32 overflow-auto rounded-lg border border-slate-200 bg-white p-2.5 text-[11px] leading-relaxed whitespace-pre-wrap text-slate-600">
-              {rawText}
-            </pre>
-          )}
         </div>
       ) : (
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          className="flex w-full flex-1 flex-col items-center justify-center gap-1.5 rounded-lg border border-dashed border-sky-500 bg-gradient-to-br from-sky-200 via-cyan-100 to-emerald-200 py-5 text-center transition-colors hover:border-sky-700"
+          onDragOver={(e) => {
+            e.preventDefault();
+            setSurukleniyor(true);
+          }}
+          onDragLeave={() => setSurukleniyor(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setSurukleniyor(false);
+            handleFile(e.dataTransfer.files?.[0]);
+          }}
+          className={`flex w-full flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed px-4 py-6 text-center transition-colors ${
+            surukleniyor ? "border-lime-500 bg-lime-50" : "border-slate-200 bg-slate-50/60 hover:border-slate-400"
+          }`}
         >
-          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-sky-800 text-white">
-            <Upload className="h-4 w-4" />
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-lime-300">
+            <Upload className="h-5 w-5" />
           </span>
-          <span className="text-xs font-medium text-slate-800">Tapu Belgesi Yükle</span>
-          <span className="text-[11px] text-sky-900/75">PDF dosyası seçin</span>
+          <span className="text-sm font-semibold text-slate-800">Tapu belgesini yükleyin</span>
+          <span className="text-xs text-slate-500">PDF dosyasını buraya sürükleyin ya da tıklayıp seçin</span>
         </button>
+      )}
+
+      {extractMessage && (
+        <p className={`mt-3 rounded-lg px-3 py-2 text-xs ${messageTone[extractMessage.tone]}`}>{extractMessage.text}</p>
+      )}
+      {rawText && (
+        <button
+          type="button"
+          onClick={() => setShowRawText((s) => !s)}
+          className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-slate-500 hover:text-slate-800"
+        >
+          <ChevronDown className={`h-3 w-3 transition-transform ${showRawText ? "rotate-180" : ""}`} />
+          Ham PDF metnini {showRawText ? "gizle" : "gör"}
+        </button>
+      )}
+      {rawText && showRawText && (
+        <pre className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap rounded-lg border border-slate-200 bg-white p-2.5 text-[11px] leading-relaxed text-slate-600">
+          {rawText}
+        </pre>
       )}
 
       <input
@@ -168,6 +186,51 @@ function getResetTapuKaydiPatch(tapuBelgesiUrl: string): Partial<TapuKaydiData> 
     serhBeyanIrtifaklar: [],
     rehinler: [],
   };
+}
+
+// Single-value fields of the Tapu Kayıt Bilgileri form (for the fill count).
+const TAPU_ALANLARI = [
+  "tarih",
+  "saat",
+  "zeminTipi",
+  "tasinmazKimlikNo",
+  "il",
+  "ilce",
+  "kurumAdi",
+  "mahalleKoyAdi",
+  "mevkii",
+  "cilt",
+  "sayfaNo",
+  "ada",
+  "parsel",
+  "atYuzolcum",
+  "bagimsizBolumNitelik",
+  "bagimsizBolumBrutYuzolcum",
+  "bagimsizBolumNetYuzolcum",
+  "blok",
+  "kat",
+  "giris",
+  "bbNo",
+  "arsaPay",
+  "arsaPayda",
+  "anaTasinmazNitelik",
+] as const satisfies readonly (keyof TapuKaydiData)[];
+
+const ucSutun = "grid grid-cols-1 gap-x-3 gap-y-3 sm:grid-cols-3";
+
+// Sum of the owners' shares (1 = the whole property), or null without shares.
+function hisseToplami(kayitlar: MulkiyetKaydi[]): number | null {
+  let toplam = 0;
+  let var_ = false;
+  for (const k of kayitlar) {
+    const pay = Number(k.hissePay.replace(",", "."));
+    const payda = Number(k.hissePayda.replace(",", "."));
+    if (pay > 0 && payda > 0) {
+      toplam += pay / payda;
+      var_ = true;
+    }
+  }
+  return var_ ? toplam : null;
 }
 
 function hasMulkiyetValue(item: MulkiyetKaydi): boolean {
@@ -531,8 +594,68 @@ export default function TapuKaydiSection({
     },
   ];
 
+  const alanDegerleri = TAPU_ALANLARI.map((k) => data[k]);
+  const doluAlan = alanDegerleri.filter((v) => v.trim()).length;
+  const malikSayisi = data.mulkiyetKayitlari.filter(hasMulkiyetValue).length;
+  const serhSayisi = data.serhBeyanIrtifaklar.filter(hasSerhValue).length;
+  const rehinSayisi = data.rehinler.filter(hasRehinValue).length;
+  const hisse = hisseToplami(data.mulkiyetKayitlari);
+  const yer = [data.il, data.ilce, data.mahalleKoyAdi].filter(Boolean).join(" / ");
+
   return (
     <div className="space-y-4">
+      <OzetBasligi
+        etiket="Tapu Özeti"
+        ikon={<Landmark className="h-3.5 w-3.5" />}
+        baslik={yer || "Tapu bilgisi girilmedi"}
+        bos={!yer}
+        altBaslik={
+          [
+            (data.ada || data.parsel) && `${data.ada || "—"} ada ${data.parsel || "—"} parsel`,
+            data.mevkii && `${data.mevkii} mevkii`,
+            data.tasinmazKimlikNo && `TKN ${data.tasinmazKimlikNo}`,
+          ]
+            .filter(Boolean)
+            .join(" · ") || "Ada, parsel ve kimlik numarası yok"
+        }
+        alt={
+          <>
+            <Doluluk dolu={doluAlan} toplam={TAPU_ALANLARI.length} />
+            <span className="inline-flex items-center gap-1">
+              <Users className="h-3 w-3" />
+              {malikSayisi} malik
+            </span>
+            {hisse !== null && (
+              <span className={Math.abs(hisse - 1) < 0.0001 ? "text-emerald-300" : "text-amber-300"}>
+                Hisse toplamı {Math.abs(hisse - 1) < 0.0001 ? "tam (1/1)" : `%${(hisse * 100).toLocaleString("tr-TR", { maximumFractionDigits: 2 })}`}
+              </span>
+            )}
+            <span>{serhSayisi} şerh / beyan / irtifak</span>
+            <span className={rehinSayisi > 0 ? "inline-flex items-center gap-1 text-amber-300" : ""}>
+              {rehinSayisi > 0 && <TriangleAlert className="h-3 w-3" />}
+              {rehinSayisi} rehin
+            </span>
+          </>
+        }
+      >
+        <OzetIzgarasi>
+          <Ozet etiket="Ana Taşınmaz Nitelik" deger={data.anaTasinmazNitelik} />
+          <Ozet etiket="Bağımsız Bölüm" deger={data.bagimsizBolumNitelik} />
+          <Ozet
+            etiket="Brüt / Net"
+            deger={[data.bagimsizBolumBrutYuzolcum, data.bagimsizBolumNetYuzolcum].filter(Boolean).join(" / ")}
+            birim="m²"
+          />
+          <Ozet
+            etiket="Blok · Kat · BB"
+            deger={[data.blok && `${data.blok} Blok`, data.kat && `${data.kat}. Kat`, data.bbNo && `BB ${data.bbNo}`]
+              .filter(Boolean)
+              .join(" · ")}
+          />
+          <Ozet etiket="Arsa Payı" deger={data.arsaPay || data.arsaPayda ? `${data.arsaPay || "—"}/${data.arsaPayda || "—"}` : ""} />
+        </OzetIzgarasi>
+      </OzetBasligi>
+
       <PdfUploadZone
         value={data.tapuBelgesiUrl}
         onFileChange={handlePdfFileChange}
@@ -544,62 +667,84 @@ export default function TapuKaydiSection({
       />
 
       <FormGroup title="Tapu Kayıt Bilgileri Formu">
-        <div className={`${sectionBodyClass} grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-2 xl:grid-cols-4`}>
-          <TextField label="Tarih" type="date" value={data.tarih} onChange={(v) => onChange({ tarih: v })} />
-          <TextField label="Saat" type="time" value={data.saat} onChange={(v) => onChange({ saat: v })} />
-          <TextField label="Zemin Tipi" value={data.zeminTipi} onChange={(v) => onChange({ zeminTipi: v })} />
-          <TextField
-            label="Taşınmaz Kimlik No"
-            value={data.tasinmazKimlikNo}
-            onChange={(v) => onChange({ tasinmazKimlikNo: v })}
-          />
-          <TextField label="İl" value={data.il} onChange={(v) => onChange({ il: v })} />
-          <TextField label="İlçe" value={data.ilce} onChange={(v) => onChange({ ilce: v })} />
-          <TextField label="Kurum Adı" value={data.kurumAdi} onChange={(v) => onChange({ kurumAdi: v })} />
-          <TextField
-            label="Mahalle / Köy Adı"
-            value={data.mahalleKoyAdi}
-            onChange={(v) => onChange({ mahalleKoyAdi: v })}
-          />
-          <TextField label="Mevkii" value={data.mevkii} onChange={(v) => onChange({ mevkii: v })} />
-          <TextField label="Cilt" value={data.cilt} onChange={(v) => onChange({ cilt: v })} />
-          <TextField label="Sayfa No" value={data.sayfaNo} onChange={(v) => onChange({ sayfaNo: v })} />
-          <TextField label="Ada" value={data.ada} onChange={(v) => onChange({ ada: v })} />
-          <TextField label="Parsel" value={data.parsel} onChange={(v) => onChange({ parsel: v })} />
-          <TextField
-            label="AT Yüzölçüm (m²)"
-            type="number"
-            value={data.atYuzolcum}
-            onChange={(v) => onChange({ atYuzolcum: v })}
-          />
-          <TextField
-            label="Bağımsız Bölüm Nitelik"
-            value={data.bagimsizBolumNitelik}
-            onChange={(v) => onChange({ bagimsizBolumNitelik: v })}
-          />
-          <TextField
-            label="Bağımsız Bölüm Brüt Yüzölçümü"
-            type="number"
-            value={data.bagimsizBolumBrutYuzolcum}
-            onChange={(v) => onChange({ bagimsizBolumBrutYuzolcum: v })}
-          />
-          <TextField
-            label="Bağımsız Bölüm Net Yüzölçümü"
-            type="number"
-            value={data.bagimsizBolumNetYuzolcum}
-            onChange={(v) => onChange({ bagimsizBolumNetYuzolcum: v })}
-          />
-          <TextField label="Blok" value={data.blok} onChange={(v) => onChange({ blok: v })} />
-          <TextField label="Kat" value={data.kat} onChange={(v) => onChange({ kat: v })} />
-          <TextField label="Giriş" value={data.giris} onChange={(v) => onChange({ giris: v })} />
-          <TextField label="BBNo" value={data.bbNo} onChange={(v) => onChange({ bbNo: v })} />
-          <TextField label="Arsa Pay" value={data.arsaPay} onChange={(v) => onChange({ arsaPay: v })} />
-          <TextField label="Arsa Payda" value={data.arsaPayda} onChange={(v) => onChange({ arsaPayda: v })} />
-          <TextField
-            label="Ana Taşınmaz Nitelik"
-            value={data.anaTasinmazNitelik}
-            onChange={(v) => onChange({ anaTasinmazNitelik: v })}
-          />
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+          <Panel baslik="Kayıt" icon={<ScrollText className="h-3.5 w-3.5" />}>
+            <div className={ucSutun}>
+              <TextField label="Tarih" type="date" value={data.tarih} onChange={(v) => onChange({ tarih: v })} />
+              <TextField label="Saat" type="time" value={data.saat} onChange={(v) => onChange({ saat: v })} />
+              <TextField label="Zemin Tipi" value={data.zeminTipi} onChange={(v) => onChange({ zeminTipi: v })} />
+              <TextField
+                label="Taşınmaz Kimlik No"
+                value={data.tasinmazKimlikNo}
+                onChange={(v) => onChange({ tasinmazKimlikNo: v })}
+              />
+              <TextField label="Cilt" value={data.cilt} onChange={(v) => onChange({ cilt: v })} />
+              <TextField label="Sayfa No" value={data.sayfaNo} onChange={(v) => onChange({ sayfaNo: v })} />
+            </div>
+          </Panel>
+
+          <Panel baslik="Konum" icon={<MapPinned className="h-3.5 w-3.5" />}>
+            <div className={ucSutun}>
+              <TextField label="İl" value={data.il} onChange={(v) => onChange({ il: v })} />
+              <TextField label="İlçe" value={data.ilce} onChange={(v) => onChange({ ilce: v })} />
+              <TextField label="Kurum Adı" value={data.kurumAdi} onChange={(v) => onChange({ kurumAdi: v })} />
+              <TextField
+                label="Mahalle / Köy Adı"
+                value={data.mahalleKoyAdi}
+                onChange={(v) => onChange({ mahalleKoyAdi: v })}
+                className="sm:col-span-2"
+              />
+              <TextField label="Mevkii" value={data.mevkii} onChange={(v) => onChange({ mevkii: v })} />
+            </div>
+          </Panel>
+
+          <Panel baslik="Ana Taşınmaz" icon={<LandPlot className="h-3.5 w-3.5" />}>
+            <div className={ucSutun}>
+              <TextField label="Ada" value={data.ada} onChange={(v) => onChange({ ada: v })} />
+              <TextField label="Parsel" value={data.parsel} onChange={(v) => onChange({ parsel: v })} />
+              <TextField
+                label="AT Yüzölçüm (m²)"
+                type="number"
+                value={data.atYuzolcum}
+                onChange={(v) => onChange({ atYuzolcum: v })}
+              />
+              <TextField
+                label="Ana Taşınmaz Nitelik"
+                value={data.anaTasinmazNitelik}
+                onChange={(v) => onChange({ anaTasinmazNitelik: v })}
+                className="sm:col-span-3"
+              />
+            </div>
+          </Panel>
+
+          <Panel baslik="Bağımsız Bölüm" icon={<DoorOpen className="h-3.5 w-3.5" />}>
+            <div className="grid grid-cols-2 gap-x-3 gap-y-3 sm:grid-cols-4">
+              <TextField
+                label="Nitelik"
+                value={data.bagimsizBolumNitelik}
+                onChange={(v) => onChange({ bagimsizBolumNitelik: v })}
+                className="col-span-2"
+              />
+              <TextField
+                label="Brüt (m²)"
+                type="number"
+                value={data.bagimsizBolumBrutYuzolcum}
+                onChange={(v) => onChange({ bagimsizBolumBrutYuzolcum: v })}
+              />
+              <TextField
+                label="Net (m²)"
+                type="number"
+                value={data.bagimsizBolumNetYuzolcum}
+                onChange={(v) => onChange({ bagimsizBolumNetYuzolcum: v })}
+              />
+              <TextField label="Blok" value={data.blok} onChange={(v) => onChange({ blok: v })} />
+              <TextField label="Kat" value={data.kat} onChange={(v) => onChange({ kat: v })} />
+              <TextField label="Giriş" value={data.giris} onChange={(v) => onChange({ giris: v })} />
+              <TextField label="BBNo" value={data.bbNo} onChange={(v) => onChange({ bbNo: v })} />
+              <TextField label="Arsa Pay" value={data.arsaPay} onChange={(v) => onChange({ arsaPay: v })} />
+              <TextField label="Arsa Payda" value={data.arsaPayda} onChange={(v) => onChange({ arsaPayda: v })} />
+            </div>
+          </Panel>
         </div>
       </FormGroup>
 

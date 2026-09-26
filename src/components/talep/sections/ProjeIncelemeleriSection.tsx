@@ -6,6 +6,7 @@ import { Field, SectionCard, TextField, inputClass } from "@/components/talep/fo
 import { EVET_HAYIR, EvetHayirAciklama, Segment, alan } from "@/components/talep/sections/sade";
 import { aykirilikCumlesi } from "@/lib/talep/konut";
 import { PROJE_UYUMLARI, projeMetni, projeTarihSayiCumlesi, projeUyumCumlesi, type ProjeUyumu } from "@/lib/talep/proje";
+import { Ozet, OzetBasligi, OzetIzgarasi, tarihYaz } from "@/components/talep/sections/tasarim";
 import type { ProjeIncelemeData, TapuKaydiData } from "@/lib/talep/types";
 
 type Degistir = (patch: Partial<ProjeIncelemeData>) => void;
@@ -81,6 +82,52 @@ export default function ProjeIncelemeleriSection({
 
   return (
     <div className="space-y-4">
+      <OzetBasligi
+        etiket="Proje Özeti"
+        ikon={<FileText className="h-3.5 w-3.5" />}
+        baslik={data.incelenenKurum || "Proje incelenen kurum girilmedi"}
+        bos={!data.incelenenKurum}
+        altBaslik={
+          data.tarihSayiVarMi === "Hayır"
+            ? "Projenin tarih ve sayısı yok"
+            : [data.projeTarihi && `${tarihYaz(data.projeTarihi)} tarihli`, data.projeSayisi && `${data.projeSayisi} sayılı`]
+                .filter(Boolean)
+                .join(", ") || "Proje tarihi ve sayısı girilmedi"
+        }
+        alt={
+          <>
+            <span className="tabular-nums">
+              {yanitli}/{PROJE_UYUMLARI.length} uyum sorusu yanıtlandı
+            </span>
+            <span className="h-1 w-24 overflow-hidden rounded-full bg-white/10">
+              <span className="block h-full rounded-full bg-lime-300" style={{ width: `${(yanitli / PROJE_UYUMLARI.length) * 100}%` }} />
+            </span>
+            {uyumsuz > 0 && (
+              <span className="inline-flex items-center gap-1 text-rose-300">
+                <TriangleAlert className="h-3 w-3" />
+                {uyumsuz} uyumsuzluk
+              </span>
+            )}
+          </>
+        }
+      >
+        <OzetIzgarasi>
+          {PROJE_UYUMLARI.map((u) => (
+            <Ozet
+              key={u.alan}
+              etiket={`${u.grup} · ${u.kisa}`}
+              deger={data[u.alan] === "Evet" ? "Uyumlu" : data[u.alan] === "Hayır" ? "Uyumsuz" : ""}
+              ton={data[u.alan] === "Evet" ? "iyi" : "kotu"}
+            />
+          ))}
+          <Ozet
+            etiket="Mimari Aykırılık"
+            deger={data.aykirilik === "Evet" ? "Var" : data.aykirilik === "Hayır" ? "Yok" : ""}
+            ton={data.aykirilik === "Hayır" ? "iyi" : "kotu"}
+          />
+        </OzetIzgarasi>
+      </OzetBasligi>
+
       <SectionCard title="Proje İncelemeleri">
         <div className="space-y-4">
           <div className="grid grid-cols-1 gap-3 md:grid-cols-12">
