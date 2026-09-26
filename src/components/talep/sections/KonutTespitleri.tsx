@@ -1,14 +1,24 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { Building, Building2, DoorOpen, Navigation, Plus, Trash2 } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { DoorOpen, Plus, X } from "lucide-react";
 import { AkiciAlan } from "@/components/akici-metin/baglam";
-import { inputClass, sectionBodyClass } from "@/components/talep/form-fields";
 import { YONLER, yeniId } from "@/components/talep/sections/ortak";
-import { GIRIS_TURLERI, PARSEL_KONUMLARI, blokAdi, blokTespitiCumlesi, binaGirisCumlesi, konumEki } from "@/lib/talep/konut";
+import {
+  GIRIS_TURLERI,
+  NIZAMLAR,
+  PARSEL_KONUMLARI,
+  binaGirisCumlesi,
+  blokAdi,
+  blokTespitiCumlesi,
+  insaatNizamiOzeti,
+  konumEki,
+} from "@/lib/talep/konut";
 import type { BinaGirisi, KonutOzellikleriData, TapuKaydiData } from "@/lib/talep/types";
 
 type Degistir = (p: Partial<KonutOzellikleriData>) => void;
+
+const AZAMI_BLOK = 26;
 
 const KISA: Record<string, string> = {
   Kuzey: "K",
@@ -19,67 +29,125 @@ const KISA: Record<string, string> = {
   Güneybatı: "GB",
   Batı: "B",
   Kuzeybatı: "KB",
-  Orta: "Orta",
+  Orta: "•",
 };
 
-// A detection card: a switch in the header turns it on; once filled in, the
-// header shows a one-line summary so the card can stay collapsed.
-function TespitKarti({
-  icon,
-  baslik,
-  aciklama,
-  acik,
-  onAc,
-  ozet,
+const girdi =
+  "h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none";
+
+function Etiket({ children }: { children: ReactNode }) {
+  return <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-slate-400">{children}</p>;
+}
+
+function Hap({
+  aktif,
+  onClick,
   children,
+  disabled,
+  title,
 }: {
-  icon: ReactNode;
-  baslik: string;
-  aciklama: string;
-  acik: boolean;
-  onAc: (acik: boolean) => void;
-  ozet?: string;
+  aktif: boolean;
+  onClick: () => void;
   children: ReactNode;
+  disabled?: boolean;
+  title?: string;
 }) {
   return (
-    <div className={`overflow-hidden rounded-xl border transition-colors ${acik ? "border-slate-300 bg-white" : "border-slate-100 bg-slate-50/60"}`}>
-      <div className="flex items-center gap-3 p-3">
-        <span
-          className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-colors ${
-            acik ? "bg-slate-900 text-lime-300" : "bg-white text-slate-400 ring-1 ring-slate-200"
-          }`}
-        >
-          {icon}
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-slate-900">{baslik}</p>
-          <p className="truncate text-xs text-slate-500">{acik && ozet ? ozet : aciklama}</p>
-        </div>
-        <button
-          type="button"
-          role="switch"
-          aria-checked={acik}
-          aria-label={baslik}
-          onClick={() => onAc(!acik)}
-          className="flex shrink-0 items-center gap-2 rounded-full py-1 pl-3 pr-1 text-xs font-semibold text-slate-500 hover:bg-slate-100"
-        >
-          <span className={acik ? "text-slate-900" : ""}>{acik ? "Evet" : "Hayır"}</span>
-          <span className={`relative h-6 w-11 rounded-full transition-colors ${acik ? "bg-lime-400" : "bg-slate-300"}`}>
-            <span className={`absolute left-0 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${acik ? "translate-x-5" : "translate-x-0.5"}`} />
-          </span>
-        </button>
+    <button
+      type="button"
+      aria-pressed={aktif}
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      className={`h-8 min-w-8 rounded-full border px-3 text-xs font-semibold transition-colors disabled:cursor-not-allowed ${
+        aktif
+          ? "border-slate-900 bg-slate-900 text-white"
+          : disabled
+            ? "border-slate-100 bg-slate-50 text-slate-300"
+            : "border-slate-200 bg-white text-slate-600 hover:border-slate-400"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
+// Compact segmented control; "Diğer" opens a text box beside it.
+function NizamSecici({ nizam, diger, onChange }: { nizam: string; diger: string; onChange: (n: string, d: string) => void }) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <div className="inline-flex rounded-lg bg-slate-100 p-0.5" role="radiogroup" aria-label="İnşaat nizamı">
+        {NIZAMLAR.map((n) => {
+          const aktif = nizam === n;
+          return (
+            <button
+              key={n}
+              type="button"
+              role="radio"
+              aria-checked={aktif}
+              onClick={() => onChange(aktif ? "" : n, n === "Diğer" ? diger : "")}
+              className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                aktif ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"
+              }`}
+            >
+              {n}
+            </button>
+          );
+        })}
       </div>
-      {acik && <div className="border-t border-slate-100 p-3 sm:p-4">{children}</div>}
+      {nizam === "Diğer" && (
+        <input
+          value={diger}
+          onChange={(e) => onChange(nizam, e.target.value)}
+          placeholder="Nizamı yazınız"
+          aria-label="İnşaat nizamı (Diğer)"
+          className={`${girdi} w-full max-w-[200px]`}
+        />
+      )}
     </div>
   );
 }
 
-function AdimBasligi({ no, children }: { no: number; children: ReactNode }) {
+// One row of the list: title + summary, and a small switch when optional.
+function Satir({
+  baslik,
+  ozet,
+  acik = true,
+  onAc,
+  children,
+}: {
+  baslik: string;
+  ozet?: string;
+  acik?: boolean;
+  onAc?: (a: boolean) => void;
+  children: ReactNode;
+}) {
   return (
-    <p className="mb-2 flex items-center gap-2 text-xs font-semibold text-slate-700">
-      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-slate-900 text-[10px] font-bold text-lime-300">{no}</span>
-      {children}
-    </p>
+    <div className="px-4 py-3">
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-slate-900">{baslik}</p>
+          {ozet && <p className="truncate text-xs text-slate-500">{ozet}</p>}
+        </div>
+        {onAc && (
+          <button
+            type="button"
+            role="switch"
+            aria-checked={acik}
+            aria-label={baslik}
+            onClick={() => onAc(!acik)}
+            className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${acik ? "bg-slate-900" : "bg-slate-200"}`}
+          >
+            <span
+              className={`absolute left-0 top-0.5 h-4 w-4 rounded-full shadow transition-transform ${
+                acik ? "translate-x-[18px] bg-lime-300" : "translate-x-0.5 bg-white"
+              }`}
+            />
+          </button>
+        )}
+      </div>
+      {acik && <div className="pt-3">{children}</div>}
+    </div>
   );
 }
 
@@ -87,90 +155,75 @@ function AdimBasligi({ no, children }: { no: number; children: ReactNode }) {
 
 function BlokTespiti({ data, tapuKaydi, onChange }: { data: KonutOzellikleriData; tapuKaydi: TapuKaydiData; onChange: Degistir }) {
   const sayi = parseInt(data.blokSayisi, 10) || 0;
-  const bloklar = Array.from({ length: sayi }, (_, i) => blokAdi(data, i));
   const tapuBlok = tapuKaydi.blok.trim();
-  const secenekler = [...new Set([...bloklar, ...(tapuBlok ? [tapuBlok] : [])])];
+  const secenekler = [...new Set([...Array.from({ length: sayi }, (_, i) => blokAdi(data, i)), ...(tapuBlok ? [tapuBlok] : [])])];
+  const elle = !!data.konuBlok && !secenekler.includes(data.konuBlok);
+  const [yaz, setYaz] = useState(elle || secenekler.length === 0);
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_260px]">
-      <div>
-        <AdimBasligi no={1}>Bağımsız bölümün bulunduğu blok</AdimBasligi>
-        {secenekler.length > 0 && (
-          <div className="mb-2 flex flex-wrap gap-1.5" role="radiogroup" aria-label="Konu blok">
-            {secenekler.map((b) => {
-              const aktif = data.konuBlok === b;
-              return (
-                <button
-                  key={b}
-                  type="button"
-                  role="radio"
-                  aria-checked={aktif}
-                  onClick={() => onChange({ konuBlok: aktif ? "" : b })}
-                  className={`relative flex h-12 min-w-12 flex-col items-center justify-center rounded-xl border-2 px-2 text-sm font-bold transition-all ${
-                    aktif ? "border-slate-900 bg-slate-900 text-lime-300 shadow" : "border-slate-200 bg-white text-slate-600 hover:border-slate-400"
-                  }`}
-                >
-                  {b}
-                  {b === tapuBlok && <span className={`text-[9px] font-medium ${aktif ? "text-lime-200" : "text-sky-600"}`}>tapu</span>}
-                </button>
-              );
-            })}
-          </div>
-        )}
-        <input
-          value={data.konuBlok}
-          onChange={(e) => onChange({ konuBlok: e.target.value.slice(0, 12) })}
-          placeholder={secenekler.length ? "Listede yoksa blok adını yazın" : "Blok adı (örn. A)"}
-          aria-label="Konu blok adı"
-          className={`${inputClass} max-w-xs`}
-        />
-        {sayi === 0 && (
-          <p className="mt-2 text-[11px] text-slate-400">İpucu: İnşaat Nizamı&apos;nda blok sayısını girerseniz bloklar burada seçilebilir hale gelir.</p>
-        )}
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-8">
+      <div className="min-w-0 flex-1">
+        <Etiket>Blok</Etiket>
+        <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Konu blok">
+          {secenekler.map((b) => (
+            <Hap
+              key={b}
+              aktif={data.konuBlok === b}
+              onClick={() => {
+                onChange({ konuBlok: data.konuBlok === b ? "" : b });
+                setYaz(false);
+              }}
+              title={b === tapuBlok ? "Tapu Kaydı'ndaki blok" : undefined}
+            >
+              {b}
+              {b === tapuBlok && <span className="ml-1 font-normal opacity-60">tapu</span>}
+            </Hap>
+          ))}
+          {yaz ? (
+            <input
+              value={data.konuBlok}
+              onChange={(e) => onChange({ konuBlok: e.target.value.slice(0, 12) })}
+              placeholder="Blok adı"
+              aria-label="Konu blok adı"
+              autoFocus={secenekler.length > 0}
+              className={`${girdi} h-8 w-24 rounded-full`}
+            />
+          ) : (
+            <button type="button" onClick={() => setYaz(true)} className="h-8 rounded-full px-2 text-xs font-medium text-slate-400 hover:text-slate-700">
+              + başka
+            </button>
+          )}
+        </div>
       </div>
 
-      <div>
-        <AdimBasligi no={2}>Bloğun parsel içindeki konumu</AdimBasligi>
-        <div className="relative mx-auto mt-5 w-full max-w-[240px]">
-          <span className="absolute -top-1 right-1 flex -translate-y-full items-center gap-0.5 text-[10px] font-bold text-slate-400">
-            <Navigation className="h-3 w-3 fill-slate-400" /> K
-          </span>
-          <div
-            className="grid aspect-square grid-cols-3 gap-1.5 rounded-2xl border-2 border-dashed border-lime-500/60 bg-lime-50/50 p-1.5"
-            role="radiogroup"
-            aria-label="Bloğun parsel içindeki konumu"
-          >
-            {PARSEL_KONUMLARI.map((k) => {
-              const aktif = data.blokKonumu === k;
-              return (
-                <button
-                  key={k}
-                  type="button"
-                  role="radio"
-                  aria-checked={aktif}
-                  aria-label={k}
-                  title={k}
-                  onClick={() => onChange({ blokKonumu: aktif ? "" : k })}
-                  className={`flex flex-col items-center justify-center rounded-lg text-[11px] font-semibold transition-all ${
-                    aktif
-                      ? "bg-slate-900 text-lime-300 shadow-md"
-                      : "bg-white/70 text-slate-400 hover:bg-white hover:text-slate-700"
-                  }`}
-                >
-                  {aktif ? (
-                    <>
-                      <Building2 className="mb-0.5 h-5 w-5" />
-                      <span className="max-w-full truncate px-1">{data.konuBlok.trim() ? `${data.konuBlok.trim()} Blok` : KISA[k]}</span>
-                    </>
-                  ) : (
-                    KISA[k]
-                  )}
-                </button>
-              );
-            })}
-          </div>
-          <p className="mt-1.5 text-center text-[10px] text-slate-400">Parsel (kuzey yukarıda)</p>
+      <div className="w-fit">
+        <Etiket>Parseldeki konumu</Etiket>
+        <div
+          className="grid w-[132px] grid-cols-3 gap-1 rounded-lg border border-dashed border-slate-300 p-1"
+          role="radiogroup"
+          aria-label="Bloğun parsel içindeki konumu"
+        >
+          {PARSEL_KONUMLARI.map((k) => {
+            const aktif = data.blokKonumu === k;
+            return (
+              <button
+                key={k}
+                type="button"
+                role="radio"
+                aria-checked={aktif}
+                aria-label={k}
+                title={k}
+                onClick={() => onChange({ blokKonumu: aktif ? "" : k })}
+                className={`flex aspect-square items-center justify-center rounded text-[10px] font-semibold transition-colors ${
+                  aktif ? "bg-slate-900 text-lime-300" : "bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                }`}
+              >
+                {aktif ? data.konuBlok.trim().slice(0, 3) || KISA[k] : KISA[k]}
+              </button>
+            );
+          })}
         </div>
+        <p className="mt-1 text-center text-[10px] text-slate-400">↑ Kuzey</p>
       </div>
     </div>
   );
@@ -178,7 +231,6 @@ function BlokTespiti({ data, tapuKaydi, onChange }: { data: KonutOzellikleriData
 
 // ---- Bina giriş tespiti ---------------------------------------------------------
 
-// Door slots around the building footprint: edges and corners.
 const KAPI_YERLERI: Record<string, { left: string; top: string }> = {
   Kuzey: { left: "50%", top: "0%" },
   Kuzeydoğu: { left: "100%", top: "0%" },
@@ -206,109 +258,236 @@ function BinaGirisTespiti({ data, onChange }: { data: KonutOzellikleriData; onCh
     onChange({ binaGirisleri: girisler.map((g) => (g.id === id ? { ...g, ...p } : g)) });
   }
 
-  // Entrances listed in compass order.
   const sirali = [...girisler].sort((a, b) => YONLER.indexOf(a.yon) - YONLER.indexOf(b.yon));
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[240px_minmax(0,1fr)]">
-      <div>
-        <AdimBasligi no={1}>Girişin olduğu cepheye kapı ekleyin</AdimBasligi>
-        <div className="relative mx-auto aspect-square w-full max-w-[220px] p-5">
-          <span className="absolute right-0 top-0 flex items-center gap-0.5 text-[10px] font-bold text-slate-400">
-            <Navigation className="h-3 w-3 fill-slate-400" /> K
-          </span>
-          <div className="relative h-full w-full rounded-lg border-4 border-slate-800 bg-[repeating-linear-gradient(45deg,#f8fafc_0_8px,#f1f5f9_8px_16px)]">
-            <span className="absolute inset-0 flex flex-col items-center justify-center text-[11px] font-bold text-slate-500">
-              <Building className="mb-0.5 h-6 w-6 text-slate-400" />
-              Bina
-            </span>
-            {YONLER.map((yon) => {
-              const g = girisler.find((x) => x.yon === yon);
-              const yer = KAPI_YERLERI[yon];
-              return (
-                <button
-                  key={yon}
-                  type="button"
-                  aria-pressed={!!g}
-                  aria-label={`${yon} cephesinde giriş`}
-                  title={g ? `${yon}: ${g.tur || "Giriş"} (kaldırmak için tıklayın)` : `${yon} cephesine giriş ekle`}
-                  onClick={() => yonDegistir(yon)}
-                  style={{ left: yer.left, top: yer.top }}
-                  className={`absolute flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-lg border-2 text-[10px] font-bold transition-all ${
-                    g
-                      ? "border-lime-500 bg-lime-400 text-slate-900 shadow-md"
-                      : "border-dashed border-slate-300 bg-white text-slate-400 hover:border-slate-500 hover:text-slate-700"
-                  }`}
-                >
-                  {g ? <DoorOpen className="h-4 w-4" /> : KISA[yon]}
-                </button>
-              );
-            })}
-          </div>
+    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-8">
+      <div className="w-fit shrink-0">
+        <Etiket>Giriş cephesi</Etiket>
+        <div className="relative mx-3 my-3 h-[108px] w-[108px] rounded border-2 border-slate-700 bg-slate-50">
+          <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold text-slate-400">Bina</span>
+          {YONLER.map((yon) => {
+            const g = girisler.find((x) => x.yon === yon);
+            const yer = KAPI_YERLERI[yon];
+            return (
+              <button
+                key={yon}
+                type="button"
+                aria-pressed={!!g}
+                aria-label={`${yon} cephesinde giriş`}
+                title={yon}
+                onClick={() => yonDegistir(yon)}
+                style={{ left: yer.left, top: yer.top }}
+                className={`absolute flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded text-[9px] font-bold transition-colors ${
+                  g ? "bg-lime-400 text-slate-900" : "border border-slate-300 bg-white text-slate-400 hover:border-slate-500 hover:text-slate-700"
+                }`}
+              >
+                {g ? <DoorOpen className="h-3.5 w-3.5" /> : KISA[yon]}
+              </button>
+            );
+          })}
         </div>
+        <p className="text-center text-[10px] text-slate-400">↑ Kuzey</p>
       </div>
 
-      <div>
-        <AdimBasligi no={2}>Giriş bilgileri</AdimBasligi>
+      <div className="min-w-0 flex-1">
+        <Etiket>Girişler</Etiket>
         {sirali.length === 0 ? (
-          <p className="rounded-lg border border-dashed border-slate-200 px-3 py-6 text-center text-sm text-slate-500">
-            Bina planında girişin bulunduğu cepheye tıklayın; her giriş için yol ve türü buradan girilir.
-          </p>
+          <p className="text-xs text-slate-400">Plandan girişin olduğu cepheyi seçin.</p>
         ) : (
-          <ul className="space-y-2">
+          <ul className="divide-y divide-slate-100">
             {sirali.map((g) => (
-              <li key={g.id} className="rounded-xl border border-slate-100 bg-slate-50/60 p-2.5">
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <span className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-2 py-1 text-xs font-bold text-lime-300">
-                    <DoorOpen className="h-3.5 w-3.5" />
-                    {g.yon} cephesi
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => onChange({ binaGirisleri: girisler.filter((x) => x.id !== g.id) })}
-                    aria-label={`${g.yon} girişini kaldır`}
-                    className="rounded p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-                <div className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_170px]">
-                  <input
-                    value={g.yol}
-                    onChange={(e) => guncelle(g.id, { yol: e.target.value })}
-                    placeholder="Cephe aldığı yol (örn. Atatürk Caddesi)"
-                    aria-label={`${g.yon} girişinin yolu`}
-                    className={inputClass}
-                  />
-                  <select
-                    value={g.tur}
-                    onChange={(e) => guncelle(g.id, { tur: e.target.value })}
-                    aria-label={`${g.yon} girişinin türü`}
-                    className={`${inputClass} appearance-none`}
-                  >
-                    <option value="">Giriş türü</option>
-                    {GIRIS_TURLERI.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <li
+                key={g.id}
+                className="grid grid-cols-[72px_minmax(0,1fr)_28px] items-center gap-2 py-1.5 sm:grid-cols-[84px_minmax(0,1fr)_132px_28px]"
+              >
+                <span className="text-xs font-semibold text-slate-700">{g.yon}</span>
+                <input
+                  value={g.yol}
+                  onChange={(e) => guncelle(g.id, { yol: e.target.value })}
+                  placeholder="Yol / sokak"
+                  aria-label={`${g.yon} girişinin yolu`}
+                  className={`${girdi} w-full`}
+                />
+                <select
+                  value={g.tur}
+                  onChange={(e) => guncelle(g.id, { tur: e.target.value })}
+                  aria-label={`${g.yon} girişinin türü`}
+                  className={`${girdi} order-last col-span-2 col-start-2 w-full appearance-none sm:order-none sm:col-span-1 sm:col-start-auto`}
+                >
+                  <option value="">Tür</option>
+                  {GIRIS_TURLERI.map((t) => (
+                    <option key={t} value={t}>
+                      {t}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => onChange({ binaGirisleri: girisler.filter((x) => x.id !== g.id) })}
+                  aria-label={`${g.yon} girişini kaldır`}
+                  className="flex h-7 w-7 items-center justify-center rounded text-slate-300 hover:bg-rose-50 hover:text-rose-600"
+                >
+                  <X className="h-4 w-4" />
+                </button>
               </li>
             ))}
           </ul>
-        )}
-        {sirali.length > 0 && sirali.length < YONLER.length && (
-          <p className="mt-2 inline-flex items-center gap-1 text-[11px] text-slate-400">
-            <Plus className="h-3 w-3" />
-            Başka giriş için plandaki boş kapı yerlerine tıklayın.
-          </p>
         )}
       </div>
     </div>
   );
 }
 
+// ---- İnşaat nizamı --------------------------------------------------------------
+
+function YapiSinifi({ data, onChange }: { data: KonutOzellikleriData; onChange: Degistir }) {
+  return (
+    <label className="block">
+      <Etiket>Yapı sınıfı</Etiket>
+      <input
+        value={data.yapiSinifi}
+        onChange={(e) => onChange({ yapiSinifi: e.target.value })}
+        placeholder="3B"
+        aria-label="Yapı sınıfı"
+        className={`${girdi} w-20`}
+      />
+    </label>
+  );
+}
+
+function BlokNizamlari({ data, onChange }: { data: KonutOzellikleriData; onChange: Degistir }) {
+  const [secili, setSecili] = useState<number[]>([]);
+  const [nizam, setNizam] = useState("");
+  const [diger, setDiger] = useState("");
+  const sayi = Math.min(AZAMI_BLOK, Math.max(0, parseInt(data.blokSayisi, 10) || 0));
+  const atanan = new Set(data.nizamAtamalari.flatMap((a) => a.bloklar));
+  const kalan = Array.from({ length: sayi }, (_, i) => i).filter((i) => !atanan.has(i));
+  const eklenebilir = secili.length > 0 && !!nizam && (nizam !== "Diğer" || !!diger.trim());
+
+  function sayiDegistir(v: string) {
+    const n = Math.min(AZAMI_BLOK, Math.max(0, parseInt(v, 10) || 0));
+    onChange({
+      blokSayisi: v.replace(/\D/g, "").slice(0, 2),
+      blokAdlari: Array.from({ length: n }, (_, i) => data.blokAdlari[i] ?? ""),
+      nizamAtamalari: data.nizamAtamalari.map((a) => ({ ...a, bloklar: a.bloklar.filter((b) => b < n) })).filter((a) => a.bloklar.length),
+    });
+    setSecili((s) => s.filter((b) => b < n));
+  }
+
+  function ekle() {
+    if (!eklenebilir) return;
+    onChange({
+      nizamAtamalari: [...data.nizamAtamalari, { id: yeniId(), bloklar: [...secili].sort((a, b) => a - b), nizam, nizamDiger: diger.trim() }],
+    });
+    setSecili([]);
+    setNizam("");
+    setDiger("");
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-start gap-4">
+        <YapiSinifi data={data} onChange={onChange} />
+        <label className="block">
+          <Etiket>Blok sayısı</Etiket>
+          <input
+            type="number"
+            min={0}
+            max={AZAMI_BLOK}
+            value={data.blokSayisi}
+            onChange={(e) => sayiDegistir(e.target.value)}
+            placeholder="0"
+            className={`${girdi} w-20`}
+          />
+        </label>
+        {sayi > 0 && (
+          <div className="min-w-0 basis-full sm:basis-auto sm:flex-1">
+            <Etiket>Blok adları</Etiket>
+            <div className="flex flex-wrap gap-1.5">
+              {Array.from({ length: sayi }, (_, i) => (
+                <input
+                  key={i}
+                  value={data.blokAdlari[i] ?? ""}
+                  maxLength={6}
+                  onChange={(e) =>
+                    onChange({ blokAdlari: Array.from({ length: sayi }, (_, j) => (j === i ? e.target.value : (data.blokAdlari[j] ?? ""))) })
+                  }
+                  placeholder={String(i + 1)}
+                  aria-label={`${i + 1}. blok adı`}
+                  className={`${girdi} w-16 text-center font-semibold uppercase`}
+                />
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {sayi > 0 && (
+        <div>
+          <Etiket>Nizam</Etiket>
+          {kalan.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap gap-1" role="group" aria-label="Bloklar">
+                {Array.from({ length: sayi }, (_, i) => (
+                  <Hap
+                    key={i}
+                    aktif={secili.includes(i)}
+                    disabled={atanan.has(i)}
+                    onClick={() => setSecili(secili.includes(i) ? secili.filter((x) => x !== i) : [...secili, i])}
+                    title={atanan.has(i) ? "Nizamı belirlendi" : undefined}
+                  >
+                    {blokAdi(data, i)}
+                  </Hap>
+                ))}
+              </div>
+              <span className="text-slate-300">→</span>
+              <NizamSecici
+                nizam={nizam}
+                diger={diger}
+                onChange={(n, d) => {
+                  setNizam(n);
+                  setDiger(d);
+                }}
+              />
+              <button
+                type="button"
+                onClick={ekle}
+                disabled={!eklenebilir}
+                className="inline-flex h-8 items-center gap-1 rounded-full bg-slate-900 px-3 text-xs font-semibold text-white disabled:bg-slate-200 disabled:text-slate-400"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Ekle
+              </button>
+            </div>
+          )}
+          {data.nizamAtamalari.length > 0 && (
+            <div className={`flex flex-wrap gap-1.5 ${kalan.length ? "mt-3" : ""}`}>
+              {data.nizamAtamalari.map((a) => (
+                <span key={a.id} className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 py-1 pl-3 pr-1 text-xs text-slate-700">
+                  <strong className="font-semibold text-slate-900">{a.bloklar.map((b) => blokAdi(data, b)).join(", ")}</strong>
+                  {a.nizam === "Diğer" ? a.nizamDiger : a.nizam}
+                  <button
+                    type="button"
+                    onClick={() => onChange({ nizamAtamalari: data.nizamAtamalari.filter((x) => x.id !== a.id) })}
+                    aria-label="Atamayı kaldır"
+                    className="rounded-full p-0.5 text-slate-400 hover:bg-white hover:text-rose-600"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+          {kalan.length === 0 && <p className="mt-2 text-xs text-slate-400">Tüm blokların nizamı belirlendi.</p>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Konum Tespiti as one quiet list: Blok Tespiti (bloklu), Bina Giriş Tespiti
+// and İnşaat Nizamı, each a row with a summary.
 export default function KonutTespitleri({
   data,
   tapuKaydi,
@@ -327,33 +506,55 @@ export default function KonutTespitleri({
     .filter((g) => g.yon)
     .map((g) => `${g.yon}${g.tur ? ` (${g.tur.toLocaleLowerCase("tr-TR")})` : ""}`)
     .join(", ");
+  const nizamOzet = [data.yapiSinifi.trim() && `Yapı sınıfı ${data.yapiSinifi.trim()}`, insaatNizamiOzeti(data)].filter(Boolean).join(" · ");
 
   return (
-    <div className={`${sectionBodyClass} space-y-3`}>
+    <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white">
       {bloklu && (
-        <TespitKarti
-          icon={<Building2 className="h-5 w-5" />}
+        <Satir
           baslik="Blok Tespiti"
-          aciklama="Bağımsız bölümün hangi blokta ve bloğun parselin neresinde olduğu"
+          ozet={data.blokTespiti === "Evet" ? blokOzet || "Blok ve konumunu seçin" : "Tespit yapılmayacak"}
           acik={data.blokTespiti === "Evet"}
           onAc={(a) => onChange({ blokTespiti: a ? "Evet" : "Hayır" })}
-          ozet={blokOzet || "Blok ve konum seçin"}
         >
           <BlokTespiti data={data} tapuKaydi={tapuKaydi} onChange={onChange} />
-        </TespitKarti>
+        </Satir>
       )}
-      <TespitKarti
-        icon={<DoorOpen className="h-5 w-5" />}
+      <Satir
         baslik="Bina Giriş Tespiti"
-        aciklama="Binaya hangi cepheden, hangi yoldan girildiği"
+        ozet={data.binaGirisTespiti === "Evet" ? girisOzet || "Giriş cephesini seçin" : "Tespit yapılmayacak"}
         acik={data.binaGirisTespiti === "Evet"}
         onAc={(a) => onChange({ binaGirisTespiti: a ? "Evet" : "Hayır" })}
-        ozet={girisOzet || "Bina planında giriş cephesini seçin"}
       >
         <BinaGirisTespiti data={data} onChange={onChange} />
-      </TespitKarti>
+      </Satir>
+      <Satir baslik="İnşaat Nizamı" ozet={nizamOzet || undefined}>
+        {bloklu ? (
+          <BlokNizamlari data={data} onChange={onChange} />
+        ) : (
+          <div className="flex flex-wrap items-start gap-4">
+            <YapiSinifi data={data} onChange={onChange} />
+            <div>
+              <Etiket>Nizam</Etiket>
+              <NizamSecici
+                nizam={data.insaatNizami}
+                diger={data.insaatNizamiDiger}
+                onChange={(insaatNizami, insaatNizamiDiger) => onChange({ insaatNizami, insaatNizamiDiger })}
+              />
+            </div>
+          </div>
+        )}
+      </Satir>
       <AkiciAlan etiket="Blok Tespiti" deger={blokTespitiCumlesi(data)} />
       <AkiciAlan etiket="Bina Giriş Tespiti" deger={binaGirisCumlesi(data)} />
+      <AkiciAlan etiket="Yapı Sınıfı" deger={data.yapiSinifi} />
+      {bloklu && <AkiciAlan etiket="Blok Sayısı" deger={data.blokSayisi} />}
+      {bloklu && (
+        <AkiciAlan
+          etiket="Blok Adları"
+          deger={Array.from({ length: parseInt(data.blokSayisi, 10) || 0 }, (_, i) => blokAdi(data, i)).join(", ")}
+        />
+      )}
     </div>
   );
 }
