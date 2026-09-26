@@ -61,7 +61,7 @@ function AkiciMetinlerKarti({ tapu, report }: { tapu: Tapu; report: GeneratedVal
               <textarea
                 value={metin}
                 onChange={(e) => depo?.kaydet(anahtar, e.target.value)}
-                rows={Math.min(8, Math.max(3, metin.split("\n").length + 1))}
+                rows={Math.min(10, Math.max(4, metin.split("\n").length + 1))}
                 aria-label={`${anahtar} akıcı metni`}
                 className="w-full resize-y rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm leading-relaxed text-slate-800 focus:border-lime-300 focus:outline-none focus:ring-2 focus:ring-lime-200"
               />
