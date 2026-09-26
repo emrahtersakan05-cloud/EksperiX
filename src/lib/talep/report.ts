@@ -22,7 +22,8 @@ import {
   seviyeliMetni,
   yontemSonuclari,
 } from "./deger-hesaplama";
-import type { KurumIncelemesi, NotKaydi, Talep, Tapu } from "./types";
+import type { NotKaydi, ProjeIncelemeData, Talep, Tapu } from "./types";
+import { PROJE_UYUMLARI, projeKurumCumlesi, projeTarihSayiCumlesi, projeUyumCumlesi } from "./proje";
 
 export interface ValuationReportSection {
   // Stable key used to attach akıcı metin texts to the right section.
@@ -255,24 +256,13 @@ function buildOwnershipParagraphs(tapu: Tapu): string[] {
   return paragraphs;
 }
 
-function buildProjectParagraph(items: KurumIncelemesi[]): string {
-  if (items.length === 0) {
-    return "Proje incelemeleri bölümünde kayıtlı veri bulunmamaktadır.";
-  }
-
-  const lines = items
-    .map((item) =>
-      joinSentence([
-        item.kurum ? `${item.kurum} nezdinde` : "",
-        item.incelemeTuru ? `${item.incelemeTuru} incelemesi` : "inceleme kaydı",
-        item.durum ? `${item.durum.toLocaleLowerCase("tr-TR")} durumundadır.` : "oluşturulmuştur.",
-        item.tarih ? `Tarih ${formatDate(item.tarih)}.` : "",
-        item.notlar ? `Not: ${item.notlar}.` : "",
-      ]),
-    )
-    .filter(Boolean);
-
-  return lines.join(" ");
+function buildProjectParagraph(p: ProjeIncelemeData): string {
+  return joinSentence([
+    projeKurumCumlesi(p),
+    projeTarihSayiCumlesi(p),
+    ...PROJE_UYUMLARI.map((u) => projeUyumCumlesi(p, u)),
+    aykirilikCumlesi(p),
+  ]);
 }
 
 function buildPlanningParagraph(tapu: Tapu): string {
@@ -345,11 +335,6 @@ function buildKonutParagraph(tapu: Tapu): string {
   ]);
 }
 
-// Kat dağılımı and the mimari proje check.
-function buildKonutProjeParagraph(tapu: Tapu): string {
-  const k = tapu.konutOzellikleri;
-  return joinSentence([katDagilimiMetni(k), aykirilikCumlesi(k)]);
-}
 
 function buildIndependentSectionParagraph(tapu: Tapu): string {
   return joinSentence([
@@ -485,10 +470,10 @@ const AKICI_METIN_BOLUMLERI: [RegExp, string][] = [
   [/^(Talep Oluşturma Bilgileri|Talep Detayı)$/, "ozet"],
   [/^(Adres Bilgileri|Bölge Özellikleri)/, "konum"],
   [/^Tapu Kayıt Bilgileri/, "tapu"],
-  [/(Ruhsat|Proje İnceleme|Kurum İnceleme)/, "ruhsat"],
+  [/(Ruhsat|Proje İnceleme|Kurum İnceleme|^Mimari Projesine Göre Aykırılık$)/, "ruhsat"],
   [/(Meri İmar Planı|Kadastro Parsel)/, "imar"],
   [
-    /(Ana Gayrimenkul|Üzerindeki Yapı|Bağımsız Bölüm Özellikleri|Taşınmaz Özellikleri|İsteğe Bağlı Özellik|^Tapu Bilgileri( Formu)?$|^Konum Tespiti$|^Proje Özellikleri$|^Kat Dağılım Bilgisi$|^Mimari Projesine Göre Aykırılık$|^Bina Özellikleri$)/,
+    /(Ana Gayrimenkul|Üzerindeki Yapı|Bağımsız Bölüm Özellikleri|Taşınmaz Özellikleri|İsteğe Bağlı Özellik|^Tapu Bilgileri( Formu)?$|^Konum Tespiti$|^Proje Özellikleri$|^Kat Dağılım Bilgisi$|^Bina Özellikleri$)/,
     "yapi",
   ],
   [/Satış Kabiliyeti/, "satis"],
@@ -558,7 +543,7 @@ export function generateValuationReport(params: {
     },
     {
       id: "ruhsat",
-      title: "Ruhsat ve Proje İncelemeleri",
+      title: "Proje İncelemeleri",
       source: "Kurum İncelemeleri → Proje İncelemeleri",
       paragraphs: [buildProjectParagraph(tapu.projeIncelemeleri)].filter(Boolean),
     },
@@ -575,7 +560,7 @@ export function generateValuationReport(params: {
       paragraphs: (isArazi(tapu)
         ? [buildAraziParagraph(tapu), buildIndependentSectionParagraph(tapu)]
         : isKonut(tapu)
-          ? [buildKonutParagraph(tapu), buildKonutProjeParagraph(tapu), buildIndependentSectionParagraph(tapu)]
+          ? [buildKonutParagraph(tapu), katDagilimiMetni(tapu.konutOzellikleri), buildIndependentSectionParagraph(tapu)]
           : [buildBuildingParagraph(tapu), buildIndependentSectionParagraph(tapu)]
       ).filter(Boolean),
     },

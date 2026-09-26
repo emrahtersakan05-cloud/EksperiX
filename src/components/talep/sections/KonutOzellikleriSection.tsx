@@ -3,7 +3,7 @@
 import { Building, Building2, FileText, Home, MapPin } from "lucide-react";
 import { AkiciAlan } from "@/components/akici-metin/baglam";
 import KonutTespitleri from "@/components/talep/sections/KonutTespitleri";
-import { BinaOzellikleri, KatDagilimBilgisi, MimariAykirilik } from "@/components/talep/sections/KonutProjeBina";
+import { BinaOzellikleri, KatDagilimBilgisi } from "@/components/talep/sections/KonutProjeBina";
 import { SectionCard, sectionCardClass } from "@/components/talep/form-fields";
 import { NitelikKarti, TapuBilgisi } from "@/components/talep/sections/ortak";
 import { KONUT_MAHALLINDEKI_NITELIKLER, insaatNizamiOzeti } from "@/lib/talep/konut";
@@ -101,10 +101,6 @@ export default function KonutOzellikleriSection({
 
           <FormGroup title="Kat Dağılım Bilgisi">
             <KatDagilimBilgisi data={data} onChange={onChange} />
-          </FormGroup>
-
-          <FormGroup title="Mimari Projesine Göre Aykırılık">
-            <MimariAykirilik data={data} onChange={onChange} />
           </FormGroup>
 
           <FormGroup title="Bina Özellikleri">

@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import type { EvetHayirSecimi } from "@/lib/talep/types";
 
 // Small, quiet form pieces for the konut Ana Gayrimenkul cards.
 
@@ -86,3 +87,39 @@ export const EVET_HAYIR = [
 
 export const alan =
   "w-full rounded-md border border-slate-200 bg-white px-2 py-1.5 text-xs leading-relaxed text-slate-800 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none";
+
+// Evet/Hayır question whose note opens on one answer (`acan`, "Evet" by default).
+export function EvetHayirAciklama({
+  soru,
+  deger,
+  aciklama,
+  yerTutucu,
+  onChange,
+  acan = "Evet",
+}: {
+  soru: string;
+  deger: EvetHayirSecimi;
+  aciklama: string;
+  yerTutucu: string;
+  onChange: (deger: EvetHayirSecimi, aciklama: string) => void;
+  acan?: "Evet" | "Hayır";
+}) {
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs font-medium text-slate-700">{soru}</p>
+        <Segment secenekler={EVET_HAYIR} deger={deger} onChange={(v) => onChange(v, v === acan ? aciklama : "")} etiket={soru} />
+      </div>
+      {deger === acan && (
+        <textarea
+          value={aciklama}
+          onChange={(e) => onChange(deger, e.target.value)}
+          rows={3}
+          placeholder={yerTutucu}
+          aria-label={soru}
+          className={`${alan} resize-y`}
+        />
+      )}
+    </div>
+  );
+}

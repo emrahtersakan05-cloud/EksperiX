@@ -5,8 +5,8 @@ import { Loader2, Plus, ScanText, X } from "lucide-react";
 import { AkiciAlan } from "@/components/akici-metin/baglam";
 import SecenekListesiAlani from "@/components/talep/SecenekListesiAlani";
 import { yeniId } from "@/components/talep/sections/ortak";
-import { EVET_HAYIR, Etiket, Segment, alan, girdi } from "@/components/talep/sections/sade";
-import { KATLAR, KAT_DAGILIM_TURLERI, aykirilikCumlesi, katDagilimiMetni } from "@/lib/talep/konut";
+import { Etiket, EvetHayirAciklama, Segment, alan, girdi } from "@/components/talep/sections/sade";
+import { KATLAR, KAT_DAGILIM_TURLERI, katDagilimiMetni } from "@/lib/talep/konut";
 import type { SecenekListesiKey } from "@/lib/secenekler/varsayilan";
 import type { KatDagilimi, KonutOzellikleriData } from "@/lib/talep/types";
 
@@ -218,56 +218,6 @@ export function KatDagilimBilgisi({ data, onChange }: { data: KonutOzellikleriDa
       {data.katDagilimTuru === "manuel" && <ManuelKatDagilimi data={data} onChange={onChange} />}
       <AkiciAlan etiket="Kat Dağılımı" deger={katDagilimiMetni(data)} />
     </div>
-  );
-}
-
-// ---- Evet/Hayır + açıklama --------------------------------------------------------
-
-function EvetHayirAciklama({
-  soru,
-  deger,
-  aciklama,
-  yerTutucu,
-  onChange,
-}: {
-  soru: string;
-  deger: KonutOzellikleriData["aykirilik"];
-  aciklama: string;
-  yerTutucu: string;
-  onChange: (deger: KonutOzellikleriData["aykirilik"], aciklama: string) => void;
-}) {
-  return (
-    <div className="space-y-2">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs font-medium text-slate-700">{soru}</p>
-        <Segment secenekler={EVET_HAYIR} deger={deger} onChange={(v) => onChange(v, v === "Evet" ? aciklama : "")} etiket={soru} />
-      </div>
-      {deger === "Evet" && (
-        <textarea
-          value={aciklama}
-          onChange={(e) => onChange(deger, e.target.value)}
-          rows={3}
-          placeholder={yerTutucu}
-          aria-label={soru}
-          className={`${alan} resize-y`}
-        />
-      )}
-    </div>
-  );
-}
-
-export function MimariAykirilik({ data, onChange }: { data: KonutOzellikleriData; onChange: Degistir }) {
-  return (
-    <>
-      <EvetHayirAciklama
-        soru="Mimari projesine göre aykırılık var mı?"
-        deger={data.aykirilik}
-        aciklama={data.aykirilikAciklama}
-        yerTutucu="Aykırılığı açıklayın (örn. zemin katta projede dükkan olarak görünen alan konut olarak kullanılmaktadır)."
-        onChange={(aykirilik, aykirilikAciklama) => onChange({ aykirilik, aykirilikAciklama })}
-      />
-      <AkiciAlan etiket="Mimari Projeye Aykırılık" deger={aykirilikCumlesi(data)} />
-    </>
   );
 }
 

@@ -4,9 +4,6 @@ export type TalepTuru = (typeof talepTuruOptions)[number];
 export const oncelikOptions = ["Düşük", "Normal", "Yüksek", "Acil"] as const;
 export type Oncelik = (typeof oncelikOptions)[number];
 
-export const kurumIncelemeDurumOptions = ["Bekliyor", "Tamamlandı", "Olumsuz"] as const;
-export type KurumIncelemeDurum = (typeof kurumIncelemeDurumOptions)[number];
-
 export const evetHayirOptions = ["Evet", "Hayır"] as const;
 export type EvetHayir = (typeof evetHayirOptions)[number];
 

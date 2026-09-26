@@ -1,4 +1,4 @@
-import type { KatDagilimTuru, KonutMahallindekiNitelik, KonutOzellikleriData } from "./types";
+import type { KatDagilimTuru, KonutMahallindekiNitelik, KonutOzellikleriData, ProjeIncelemeData } from "./types";
 
 // KONUT taşınmaz niteliği: its Ana Gayrimenkul tab is the konut form.
 export const KONUT_NITELIGI = "KONUT (APARTMAN DAİRESİ, VİLLA, GECEKONDU, MESKEN, ÜÇ KATA KADAR HER TÜRLÜ KONUT)";
@@ -169,7 +169,7 @@ export function katDagilimiMetni(k: KonutOzellikleriData): string {
   return "";
 }
 
-export function aykirilikCumlesi(k: KonutOzellikleriData): string {
+export function aykirilikCumlesi(k: Pick<ProjeIncelemeData, "aykirilik" | "aykirilikAciklama">): string {
   if (k.aykirilik === "Hayır") return "Yerinde yapılan incelemede mimari projesine aykırı bir duruma rastlanmamıştır.";
   if (k.aykirilik !== "Evet") return "";
   const a = k.aykirilikAciklama.trim();

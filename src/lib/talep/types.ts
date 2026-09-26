@@ -7,7 +7,6 @@ import type {
   IsitmaTipi,
   IskanDurumu,
   KullanimSekli,
-  KurumIncelemeDurum,
   Oncelik,
   RaporDurum,
   TalepTuru,
@@ -140,13 +139,24 @@ export interface TapuKaydiData {
   rehinler: RehinKaydi[];
 }
 
-export interface KurumIncelemesi {
-  id: string;
-  kurum: string;
-  incelemeTuru: string;
-  durum: KurumIncelemeDurum | "";
-  tarih: string;
-  notlar: string;
+// Proje İncelemeleri: the approved project against what was found on site.
+// Each uyum answer "Hayır" opens a note explaining the difference.
+export interface ProjeIncelemeData {
+  incelenenKurum: string;
+  tarihSayiVarMi: EvetHayirSecimi;
+  projeTarihi: string;
+  projeSayisi: string;
+  blokKonumUyumu: EvetHayirSecimi;
+  blokKonumAciklama: string;
+  blokAlanUyumu: EvetHayirSecimi;
+  blokAlanAciklama: string;
+  bbKonumUyumu: EvetHayirSecimi;
+  bbKonumAciklama: string;
+  bbAlanUyumu: EvetHayirSecimi;
+  bbAlanAciklama: string;
+  // Mimari projesine göre aykırılık (moved here from the konut form)
+  aykirilik: EvetHayirSecimi;
+  aykirilikAciklama: string;
 }
 
 export interface RuhsatBelgeKaydi {
@@ -301,9 +311,6 @@ export interface KonutOzellikleriData {
   katDagilimTuru: KatDagilimTuru | "";
   katDagilimlari: KatDagilimi[];
   manuelKatDagilimi: string;
-  // Mimari projesine göre aykırılık
-  aykirilik: EvetHayirSecimi;
-  aykirilikAciklama: string;
   // Earlier OCR rows; read once into manuelKatDagilimi.
   projeKatlari: ProjeKati[];
   // Bina Özellikleri
@@ -473,7 +480,7 @@ export interface Tapu {
   adresKonum: AdresKonumData;
   tapuKaydi: TapuKaydiData;
   kurumIncelemeleri: RuhsatIncelemeData;
-  projeIncelemeleri: KurumIncelemesi[];
+  projeIncelemeleri: ProjeIncelemeData;
   imarDurumu: ImarDurumuData;
   anaGayrimenkul: AnaGayrimenkulData;
   araziOzellikleri: AraziOzellikleriData;
@@ -646,7 +653,22 @@ export function createEmptyTapu(index: number, defaults?: TalepDetayiDefaults): 
       incelenenKurumAdi: "",
       belgeler: [],
     },
-    projeIncelemeleri: [],
+    projeIncelemeleri: {
+      incelenenKurum: "",
+      tarihSayiVarMi: "",
+      projeTarihi: "",
+      projeSayisi: "",
+      blokKonumUyumu: "",
+      blokKonumAciklama: "",
+      blokAlanUyumu: "",
+      blokAlanAciklama: "",
+      bbKonumUyumu: "",
+      bbKonumAciklama: "",
+      bbAlanUyumu: "",
+      bbAlanAciklama: "",
+      aykirilik: "",
+      aykirilikAciklama: "",
+    },
     imarDurumu: {
       meriImarPlani: "",
       fonksiyon: "",
@@ -719,8 +741,6 @@ export function createEmptyTapu(index: number, defaults?: TalepDetayiDefaults): 
       katDagilimTuru: "",
       katDagilimlari: [],
       manuelKatDagilimi: "",
-      aykirilik: "",
-      aykirilikAciklama: "",
       projeKatlari: [],
       binaGirisiTespit: "",
       binaGirisKapisi: "",
