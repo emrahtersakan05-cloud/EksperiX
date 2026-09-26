@@ -24,6 +24,8 @@ import {
   type RepeatableTableColumn,
 } from "@/components/talep/form-fields";
 import { Doluluk, Ozet, OzetBasligi, OzetIzgarasi, Panel } from "@/components/talep/sections/tasarim";
+import { AkiciAlan } from "@/components/akici-metin/baglam";
+import { mulkiyetAlanlari, rehinAlanlari, serhAlanlari } from "@/lib/talep/tapu-metin";
 import { normalYazimNesne } from "@/lib/text/buyuk-harf";
 import { extractPdfText, parseTapuKaydiDocument, type ParsedTapuFields } from "@/lib/pdf/tapu-extract";
 import { newRowId, type MulkiyetKaydi, type RehinKaydi, type SerhBeyanIrtifak, type TapuKaydiData } from "@/lib/talep/types";
@@ -750,6 +752,9 @@ export default function TapuKaydiSection({
       </FormGroup>
 
       <FormGroup title="Tapu Mülkiyet Bilgileri Formu">
+        {mulkiyetAlanlari(data.mulkiyetKayitlari).map((a) => (
+          <AkiciAlan key={a.etiket} etiket={a.etiket} deger={a.deger} />
+        ))}
         <RepeatableTable
           items={data.mulkiyetKayitlari}
           columns={mulkiyetColumns}
@@ -779,6 +784,9 @@ export default function TapuKaydiSection({
       </FormGroup>
 
       <FormGroup title="Taşınmaza Ait Şerh / Beyan / İrtifak Bilgileri Formu">
+        {serhAlanlari(data.serhBeyanIrtifaklar).map((a) => (
+          <AkiciAlan key={a.etiket} etiket={a.etiket} deger={a.deger} />
+        ))}
         <RepeatableTable
           items={data.serhBeyanIrtifaklar}
           columns={serhColumns}
@@ -799,6 +807,9 @@ export default function TapuKaydiSection({
       </FormGroup>
 
       <FormGroup title="Taşınmaza Ait Rehin Bilgileri Formu">
+        {rehinAlanlari(data.rehinler).map((a) => (
+          <AkiciAlan key={a.etiket} etiket={a.etiket} deger={a.deger} />
+        ))}
         <RepeatableTable
           items={data.rehinler}
           columns={rehinColumns}
