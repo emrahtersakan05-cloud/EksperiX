@@ -158,9 +158,10 @@ function Satir({
 // ---- Blok tespiti ---------------------------------------------------------------
 
 function BlokTespiti({ data, tapuKaydi, onChange }: { data: KonutOzellikleriData; tapuKaydi: TapuKaydiData; onChange: Degistir }) {
-  const sayi = parseInt(data.blokSayisi, 10) || 0;
+  // Independent of İnşaat Nizamı's blocks: only the Tapu Kaydı block is
+  // offered; anything else is typed.
   const tapuBlok = tapuKaydi.blok.trim();
-  const secenekler = [...new Set([...Array.from({ length: sayi }, (_, i) => blokAdi(data, i)), ...(tapuBlok ? [tapuBlok] : [])])];
+  const secenekler = tapuBlok ? [tapuBlok] : [];
   const elle = !!data.konuBlok && !secenekler.includes(data.konuBlok);
   const [yaz, setYaz] = useState(elle || secenekler.length === 0);
 
