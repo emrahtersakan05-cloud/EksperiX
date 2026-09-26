@@ -89,8 +89,6 @@ function TapuSectionIcerik({ talep, tapu, sectionKey, onUpdate }: SectionProps) 
         <ProjeIncelemeleriSection
           data={tapu.projeIncelemeleri}
           onChange={(patch) => onUpdate((t) => ({ ...t, projeIncelemeleri: { ...t.projeIncelemeleri, ...patch } }))}
-          city={tapu.adresKonum.il}
-          district={tapu.adresKonum.ilce}
         />
       );
     case "imarDurumu":
