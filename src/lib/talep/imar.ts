@@ -112,6 +112,7 @@ export function imarMetni(d: ImarDurumuData): string {
   return [
     d.meriImarPlani && `Taşınmaz ${d.meriImarPlani} kapsamında kalmaktadır.`,
     d.fonksiyon && `Fonksiyon ${d.fonksiyon} olarak belirtilmiştir.`,
+    d.fonksiyonPaftaUyumu && `Fonksiyonu imar paftasıyla ${d.fonksiyonPaftaUyumu === "Uyumludur" ? "uyumludur" : "uyumsuzdur"}.`,
     d.tasdikTarihi && `Tasdik tarihi ${tarihYaz(d.tasdikTarihi)}.`,
     parsel && `${parsel} olarak kayıtlıdır.`,
     (d.ilce || d.mahalle) && `${[d.mahalle, d.ilce].filter(Boolean).join(" mahallesi, ")} sınırları içinde yer almaktadır.`,

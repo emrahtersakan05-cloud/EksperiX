@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import {
   SectionCard,
+  SelectField,
   TextField,
   inputClass,
   modalCardClass,
@@ -41,8 +42,10 @@ type BridgeMessageState = { tone: "success" | "warning" | "error"; text: string 
 type ImarBridgePayload = { text?: string; title?: string; url?: string; capturedAt?: number };
 
 // The e-imar fields (the kadastro coordinates aside).
+const PAFTA_UYUMU = ["Uyumludur", "Uyumsuzdur"] as const;
+
 const KADASTRO_ALANLARI: ImarMetinAlani[] = ["projeksiyon", "kartezyenKoordinat", "cografiKoordinat"];
-const ALAN_SAYISI = 20;
+const ALAN_SAYISI = 21;
 
 const TAPUDAN_ETIKET: Record<string, string> = {
   ada: "Ada",
@@ -459,7 +462,12 @@ export default function ImarDurumuSection({
                     value={data.fonksiyon}
                     onChange={(v) => onChange({ fonksiyon: v })}
                     placeholder="örn. Konut Alanı"
-                    className="sm:col-span-2"
+                  />
+                  <SelectField
+                    label="Paftasıyla Uyumlu mu?"
+                    value={data.fonksiyonPaftaUyumu}
+                    options={PAFTA_UYUMU}
+                    onChange={(v) => onChange({ fonksiyonPaftaUyumu: v })}
                   />
                   <TextField label="Tasdik Tarihi" type="date" value={data.tasdikTarihi} onChange={(v) => onChange({ tasdikTarihi: v })} />
                   <TextField label="Ölçek" value={data.olcek} onChange={(v) => onChange({ olcek: v })} placeholder="1/1000" />

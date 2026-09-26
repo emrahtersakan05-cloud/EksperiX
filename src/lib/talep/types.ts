@@ -176,6 +176,8 @@ export interface ImarDurumuData {
   // Meri İmar Planı
   meriImarPlani: string;
   fonksiyon: string;
+  // Does the fonksiyon match the plan paftası?
+  fonksiyonPaftaUyumu: "Uyumludur" | "Uyumsuzdur" | "";
   tasdikTarihi: string;
   pafta: string;
   olcek: string;
@@ -682,6 +684,7 @@ export function createEmptyTapu(index: number, defaults?: TalepDetayiDefaults): 
     imarDurumu: {
       meriImarPlani: "",
       fonksiyon: "",
+      fonksiyonPaftaUyumu: "",
       tasdikTarihi: "",
       pafta: "",
       olcek: "",
