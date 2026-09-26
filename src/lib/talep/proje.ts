@@ -1,3 +1,4 @@
+import { aykirilikCumlesi } from "./konut";
 import type { ProjeIncelemeData } from "./types";
 
 type UyumAlani = "blokKonumUyumu" | "blokAlanUyumu" | "bbKonumUyumu" | "bbAlanUyumu";
@@ -6,8 +7,9 @@ type AciklamaAlani = "blokKonumAciklama" | "blokAlanAciklama" | "bbKonumAciklama
 export interface ProjeUyumu {
   alan: UyumAlani;
   aciklama: AciklamaAlani;
-  soru: string;
   etiket: string;
+  grup: "Blok / Bina" | "Bağımsız Bölüm";
+  kisa: "Konum" | "Alan";
   // Subject of the report sentence ("Blok/bina konum açısından …").
   ozne: string;
 }
@@ -16,29 +18,33 @@ export interface ProjeUyumu {
 export const PROJE_UYUMLARI: ProjeUyumu[] = [
   {
     alan: "blokKonumUyumu",
+    grup: "Blok / Bina",
+    kisa: "Konum",
     aciklama: "blokKonumAciklama",
-    soru: "Blok/bina konum açısından uyumlu mu?",
     etiket: "Blok/Bina Konum Uyumu",
     ozne: "Blok/bina konum açısından",
   },
   {
     alan: "blokAlanUyumu",
+    grup: "Blok / Bina",
+    kisa: "Alan",
     aciklama: "blokAlanAciklama",
-    soru: "Blok/bina alan açısından uyumlu mu?",
     etiket: "Blok/Bina Alan Uyumu",
     ozne: "Blok/bina alan açısından",
   },
   {
     alan: "bbKonumUyumu",
+    grup: "Bağımsız Bölüm",
+    kisa: "Konum",
     aciklama: "bbKonumAciklama",
-    soru: "Bağımsız bölüm konum açısından uyumlu mu?",
     etiket: "Bağımsız Bölüm Konum Uyumu",
     ozne: "Bağımsız bölüm konum açısından",
   },
   {
     alan: "bbAlanUyumu",
+    grup: "Bağımsız Bölüm",
+    kisa: "Alan",
     aciklama: "bbAlanAciklama",
-    soru: "Bağımsız bölüm alan açısından uyumlu mu?",
     etiket: "Bağımsız Bölüm Alan Uyumu",
     ozne: "Bağımsız bölüm alan açısından",
   },
@@ -71,4 +77,16 @@ export function projeUyumCumlesi(p: ProjeIncelemeData, u: ProjeUyumu): string {
   if (deger !== "Hayır") return "";
   const a = p[u.aciklama].trim();
   return a ? `${u.ozne} projesine uyumlu değildir: ${noktali(a)}` : `${u.ozne} projesine uyumlu değildir.`;
+}
+
+// The whole Proje İncelemeleri text, as the report prints it.
+export function projeMetni(p: ProjeIncelemeData): string {
+  return [
+    projeKurumCumlesi(p),
+    projeTarihSayiCumlesi(p),
+    ...PROJE_UYUMLARI.map((u) => projeUyumCumlesi(p, u)),
+    aykirilikCumlesi(p),
+  ]
+    .filter(Boolean)
+    .join(" ");
 }

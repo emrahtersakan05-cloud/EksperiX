@@ -88,6 +88,7 @@ function TapuSectionIcerik({ talep, tapu, sectionKey, onUpdate }: SectionProps) 
       return (
         <ProjeIncelemeleriSection
           data={tapu.projeIncelemeleri}
+          tapuKaydi={tapu.tapuKaydi}
           onChange={(patch) => onUpdate((t) => ({ ...t, projeIncelemeleri: { ...t.projeIncelemeleri, ...patch } }))}
         />
       );

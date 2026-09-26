@@ -5,7 +5,6 @@ import {
   blokAdi,
   blokTespitiCumlesi,
   insaatNizamiOzeti,
-  aykirilikCumlesi,
   katDagilimiMetni,
   konutMu,
 } from "./konut";
@@ -22,8 +21,8 @@ import {
   seviyeliMetni,
   yontemSonuclari,
 } from "./deger-hesaplama";
-import type { NotKaydi, ProjeIncelemeData, Talep, Tapu } from "./types";
-import { PROJE_UYUMLARI, projeKurumCumlesi, projeTarihSayiCumlesi, projeUyumCumlesi } from "./proje";
+import type { NotKaydi, Talep, Tapu } from "./types";
+import { projeMetni } from "./proje";
 
 export interface ValuationReportSection {
   // Stable key used to attach akıcı metin texts to the right section.
@@ -256,14 +255,6 @@ function buildOwnershipParagraphs(tapu: Tapu): string[] {
   return paragraphs;
 }
 
-function buildProjectParagraph(p: ProjeIncelemeData): string {
-  return joinSentence([
-    projeKurumCumlesi(p),
-    projeTarihSayiCumlesi(p),
-    ...PROJE_UYUMLARI.map((u) => projeUyumCumlesi(p, u)),
-    aykirilikCumlesi(p),
-  ]);
-}
 
 function buildPlanningParagraph(tapu: Tapu): string {
   return joinSentence([
@@ -545,7 +536,7 @@ export function generateValuationReport(params: {
       id: "ruhsat",
       title: "Proje İncelemeleri",
       source: "Kurum İncelemeleri → Proje İncelemeleri",
-      paragraphs: [buildProjectParagraph(tapu.projeIncelemeleri)].filter(Boolean),
+      paragraphs: [projeMetni(tapu.projeIncelemeleri)].filter(Boolean),
     },
     {
       id: "imar",
