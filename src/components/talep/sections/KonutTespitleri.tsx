@@ -146,7 +146,7 @@ function Satir({
           </button>
         )}
       </div>
-      {acik && <div className="pt-3">{children}</div>}
+      {acik && <div className="@container pt-3">{children}</div>}
     </div>
   );
 }
@@ -161,7 +161,7 @@ function BlokTespiti({ data, tapuKaydi, onChange }: { data: KonutOzellikleriData
   const [yaz, setYaz] = useState(elle || secenekler.length === 0);
 
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-8">
+    <div className="flex flex-col gap-4 @md:flex-row @md:items-start @md:gap-6">
       <div className="min-w-0 flex-1">
         <Etiket>Blok</Etiket>
         <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Konu blok">
@@ -261,7 +261,7 @@ function BinaGirisTespiti({ data, onChange }: { data: KonutOzellikleriData; onCh
   const sirali = [...girisler].sort((a, b) => YONLER.indexOf(a.yon) - YONLER.indexOf(b.yon));
 
   return (
-    <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-8">
+    <div className="flex flex-col gap-4 @md:flex-row @md:items-start @md:gap-6">
       <div className="w-fit shrink-0">
         <Etiket>Giriş cephesi</Etiket>
         <div className="relative mx-3 my-3 h-[108px] w-[108px] rounded border-2 border-slate-700 bg-slate-50">
@@ -510,24 +510,27 @@ export default function KonutTespitleri({
 
   return (
     <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white">
-      {bloklu && (
+      {/* Blok and Bina Giriş Tespiti side by side on wide screens. */}
+      <div className={`grid grid-cols-1 divide-y divide-slate-100 ${bloklu ? "lg:grid-cols-2 lg:divide-x lg:divide-y-0" : ""}`}>
+        {bloklu && (
+          <Satir
+            baslik="Blok Tespiti"
+            ozet={data.blokTespiti === "Evet" ? blokOzet || "Blok ve konumunu seçin" : "Tespit yapılmayacak"}
+            acik={data.blokTespiti === "Evet"}
+            onAc={(a) => onChange({ blokTespiti: a ? "Evet" : "Hayır" })}
+          >
+            <BlokTespiti data={data} tapuKaydi={tapuKaydi} onChange={onChange} />
+          </Satir>
+        )}
         <Satir
-          baslik="Blok Tespiti"
-          ozet={data.blokTespiti === "Evet" ? blokOzet || "Blok ve konumunu seçin" : "Tespit yapılmayacak"}
-          acik={data.blokTespiti === "Evet"}
-          onAc={(a) => onChange({ blokTespiti: a ? "Evet" : "Hayır" })}
+          baslik="Bina Giriş Tespiti"
+          ozet={data.binaGirisTespiti === "Evet" ? girisOzet || "Giriş cephesini seçin" : "Tespit yapılmayacak"}
+          acik={data.binaGirisTespiti === "Evet"}
+          onAc={(a) => onChange({ binaGirisTespiti: a ? "Evet" : "Hayır" })}
         >
-          <BlokTespiti data={data} tapuKaydi={tapuKaydi} onChange={onChange} />
+          <BinaGirisTespiti data={data} onChange={onChange} />
         </Satir>
-      )}
-      <Satir
-        baslik="Bina Giriş Tespiti"
-        ozet={data.binaGirisTespiti === "Evet" ? girisOzet || "Giriş cephesini seçin" : "Tespit yapılmayacak"}
-        acik={data.binaGirisTespiti === "Evet"}
-        onAc={(a) => onChange({ binaGirisTespiti: a ? "Evet" : "Hayır" })}
-      >
-        <BinaGirisTespiti data={data} onChange={onChange} />
-      </Satir>
+      </div>
       <Satir baslik="İnşaat Nizamı" ozet={nizamOzet || undefined}>
         {bloklu ? (
           <BlokNizamlari data={data} onChange={onChange} />
