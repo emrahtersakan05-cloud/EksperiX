@@ -19,7 +19,7 @@ import { useAkiciMetinDeposu } from "@/components/akici-metin/baglam";
 import { inputClass } from "@/lib/ui/girdi";
 import { akiciSablonlariKaydetAction, akiciSablonlariOkuAction } from "@/lib/akici-metin/actions";
 import {
-  BOS_DEGER,
+  bosAlanSayisi as bosAlanlariSay,
   jeton,
   sablonAdi,
   sablonuDoldur,
@@ -215,7 +215,8 @@ export default function AkiciMetinPenceresi({
   }
 
 
-  const bosAlanSayisi = (metin.match(new RegExp(BOS_DEGER, "g")) ?? []).length;
+  // Fields of the chosen template without data (their parts were left out).
+  const bosAlanSayisi = secili !== null && sablonlar ? bosAlanlariSay(sablonlar[secili] ?? "", alanlar) : 0;
   const aktifSekme: Sekme = duzenleyebilir ? sekme : "olustur";
 
   return createPortal(
@@ -336,7 +337,7 @@ export default function AkiciMetinPenceresi({
                   <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">Akıcı Metin</p>
                   {bosAlanSayisi > 0 && (
                     <p className="text-[11px] text-amber-700">
-                      {bosAlanSayisi} alan boş (“{BOS_DEGER}” ile gösterildi)
+                      {bosAlanSayisi} alan boş — bu alanlara ait ifadeler metne alınmadı
                     </p>
                   )}
                 </div>
@@ -462,10 +463,26 @@ export default function AkiciMetinPenceresi({
                   value={sablonlar[duzenlenen] ?? ""}
                   onChange={(e) => govdeDegistir(duzenlenen, e.target.value)}
                   rows={7}
-                  placeholder="Metni yazın, verinin geleceği yere yukarıdaki alanlardan ekleyin. Örn: Taşınmaz {İl} ili {İlçe} ilçesinde yer almaktadır."
+                  placeholder="Metni yazın, verinin geleceği yere yukarıdaki alanlardan ekleyin. Örn: Taşınmaz {İl} ili [{İlçe} ilçesinde] yer almaktadır."
                   className={`${inputClass} mt-1 resize-y font-mono leading-relaxed`}
                 />
               </label>
+
+              <div className="rounded-xl border border-sky-100 bg-sky-50/60 p-3 text-[11px] leading-relaxed text-slate-600">
+                <p className="mb-1 font-semibold text-sky-800">Boş alanlar metne yazılmaz</p>
+                <ul className="list-disc space-y-0.5 pl-4">
+                  <li>
+                    Veri girilmemiş bir alan; bulunduğu <strong>satır</strong>, <strong>cümle</strong> ya da virgülle ayrılmış{" "}
+                    <strong>madde</strong> ile birlikte metinden çıkarılır. Örn. <code className="rounded bg-white px-1">Ön Bahçe Mesafesi: {"{Ön Bahçe}"} m</code>{" "}
+                    satırı, Ön Bahçe boşsa hiç yazılmaz.
+                  </li>
+                  <li>
+                    Bir cümlenin yalnızca bir kısmı isteğe bağlıysa o kısmı köşeli paranteze alın:{" "}
+                    <code className="rounded bg-white px-1">Taşınmaz {"{İl}"} ili [{"{İlçe}"} ilçesinde] yer almaktadır.</code> — içindeki alan boşsa
+                    parantezin tamamı çıkar, doluysa parantezler görünmez.
+                  </li>
+                </ul>
+              </div>
 
               <div className="rounded-xl border border-slate-100 bg-slate-50 p-3">
                 <p className="mb-1 text-[11px] font-semibold uppercase tracking-wider text-slate-400">Önizleme (bu formun verileriyle)</p>
