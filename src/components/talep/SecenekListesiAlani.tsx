@@ -6,7 +6,7 @@ import { ArrowDown, ArrowUp, Check, ListChecks, Loader2, PencilLine, Plus, Rotat
 import { useAkiciAlan } from "@/components/akici-metin/baglam";
 import { inputClass } from "@/components/talep/form-fields";
 import { secenekListeleriniOkuAction, secenekListesiKaydetAction, type SecenekListeleriSonucu } from "@/lib/secenekler/actions";
-import { secenekListesiTanimi, type SecenekListesiKey } from "@/lib/secenekler/varsayilan";
+import { secenekCumlesi, secenekListesiTanimi, type SecenekListesiKey } from "@/lib/secenekler/varsayilan";
 
 // All lists are fetched once per page and shared by every field; an admin's
 // save updates every open field at once.
@@ -199,6 +199,7 @@ export default function SecenekListesiAlani({
   akiciEtiket,
   ariaLabel,
   bosMetin = "Seçiniz",
+  etiketGoster = false,
 }: {
   listeKey: SecenekListesiKey;
   value: string;
@@ -210,9 +211,12 @@ export default function SecenekListesiAlani({
   akiciEtiket?: string;
   ariaLabel?: string;
   bosMetin?: string;
+  // Compact mode: a small label above the select.
+  etiketGoster?: boolean;
 }) {
   const tanim = secenekListesiTanimi(listeKey);
-  useAkiciAlan(akiciEtiket ?? tanim.ad, value);
+  // Templates get the whole sentence ("Binanın çatısı … örtülüdür.").
+  useAkiciAlan(akiciEtiket ?? tanim.ad, secenekCumlesi(listeKey, value));
   const durum = useSecenekListeleri();
   const [duzenleniyor, setDuzenleniyor] = useState(false);
   const secenekler = durum?.listeler[listeKey] ?? tanim.varsayilan;
@@ -225,8 +229,8 @@ export default function SecenekListesiAlani({
     ) : null;
 
   if (kompakt) {
-    return (
-      <div className={`flex min-w-0 items-center gap-1 ${className}`}>
+    const satir = (
+      <div className={`flex min-w-0 items-center gap-1 ${etiketGoster ? "" : className}`}>
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}
@@ -253,6 +257,14 @@ export default function SecenekListesiAlani({
         )}
         {duzenleyici}
       </div>
+    );
+    return etiketGoster ? (
+      <div className={className}>
+        <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-slate-400">{tanim.ad}</p>
+        {satir}
+      </div>
+    ) : (
+      satir
     );
   }
 

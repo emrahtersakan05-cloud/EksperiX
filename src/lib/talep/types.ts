@@ -260,6 +260,17 @@ export interface BinaGirisi {
   kapi?: string;
 }
 
+// One floor of the kat dağılımı: its floor, the rooms/spaces on it and, for
+// kısımlı buildings, the kısım it belongs to.
+export interface KatDagilimi {
+  id: string;
+  kisim: string;
+  kat: string;
+  icHacimler: string[];
+}
+
+export type KatDagilimTuru = "tekDuzen" | "kisimli" | "manuel";
+
 export interface ProjeKati {
   id: string;
   kat: string;
@@ -286,7 +297,14 @@ export interface KonutOzellikleriData {
   // Bloksuz / müstakil: one nizam for the building
   insaatNizami: string;
   insaatNizamiDiger: string;
-  // Proje Özellikleri
+  // Kat Dağılım Bilgisi
+  katDagilimTuru: KatDagilimTuru | "";
+  katDagilimlari: KatDagilimi[];
+  manuelKatDagilimi: string;
+  // Mimari projesine göre aykırılık
+  aykirilik: EvetHayirSecimi;
+  aykirilikAciklama: string;
+  // Earlier OCR rows; read once into manuelKatDagilimi.
   projeKatlari: ProjeKati[];
   // Bina Özellikleri
   binaGirisiTespit: string;
@@ -297,6 +315,9 @@ export interface KonutOzellikleriData {
   binaIciDuvarlar: string;
   binaDisCephesi: string;
   binaCatisi: string;
+  cevreDuzenlemesi: string;
+  ilaveAnlatim: EvetHayirSecimi;
+  ilaveAnlatimMetni: string;
 }
 
 export interface BagimsizBolumData {
@@ -694,6 +715,11 @@ export function createEmptyTapu(index: number, defaults?: TalepDetayiDefaults): 
       nizamAtamalari: [],
       insaatNizami: "",
       insaatNizamiDiger: "",
+      katDagilimTuru: "",
+      katDagilimlari: [],
+      manuelKatDagilimi: "",
+      aykirilik: "",
+      aykirilikAciklama: "",
       projeKatlari: [],
       binaGirisiTespit: "",
       binaGirisKapisi: "",
@@ -703,6 +729,9 @@ export function createEmptyTapu(index: number, defaults?: TalepDetayiDefaults): 
       binaIciDuvarlar: "",
       binaDisCephesi: "",
       binaCatisi: "",
+      cevreDuzenlemesi: "",
+      ilaveAnlatim: "",
+      ilaveAnlatimMetni: "",
     },
     bagimsizBolum: {
       bagimsizBolumNo: "",

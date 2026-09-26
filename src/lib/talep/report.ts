@@ -5,9 +5,11 @@ import {
   blokAdi,
   blokTespitiCumlesi,
   insaatNizamiOzeti,
+  aykirilikCumlesi,
+  katDagilimiMetni,
   konutMu,
-  projeKatlariMetni,
 } from "./konut";
+import { secenekCumlesi } from "@/lib/secenekler/varsayilan";
 import {
   alanFarkiMetni,
   formatTL,
@@ -357,20 +359,24 @@ function buildKonutParagraph(tapu: Tapu): string {
     binaGirisCumlesi(k),
     k.yapiSinifi ? `Yapı sınıfı ${k.yapiSinifi}.` : "",
     nizam ? `İnşaat nizamı: ${nizam}.` : "",
+    // Fields of the earlier Bina Özellikleri form, kept when already filled.
     k.binaGirisiTespit,
     k.binaGirisKapisi,
-    k.katHoluSahanlik,
-    k.merdivenBasamaklari,
-    k.merdivenKorkuluklari,
-    k.binaIciDuvarlar,
-    k.binaDisCephesi,
-    k.binaCatisi,
+    secenekCumlesi("katHolu", k.katHoluSahanlik),
+    secenekCumlesi("merdivenBasamak", k.merdivenBasamaklari),
+    secenekCumlesi("merdivenKorkuluk", k.merdivenKorkuluklari),
+    secenekCumlesi("icDuvar", k.binaIciDuvarlar),
+    secenekCumlesi("disCephe", k.binaDisCephesi),
+    secenekCumlesi("cati", k.binaCatisi),
+    secenekCumlesi("cevreDuzenlemesi", k.cevreDuzenlemesi),
+    k.ilaveAnlatim === "Evet" ? k.ilaveAnlatimMetni.trim() : "",
   ]);
 }
 
+// Kat dağılımı and the mimari proje check.
 function buildKonutProjeParagraph(tapu: Tapu): string {
-  const metin = projeKatlariMetni(tapu.konutOzellikleri);
-  return metin ? `Onaylı projesine göre; ${metin}` : "";
+  const k = tapu.konutOzellikleri;
+  return joinSentence([katDagilimiMetni(k), aykirilikCumlesi(k)]);
 }
 
 function buildIndependentSectionParagraph(tapu: Tapu): string {
@@ -510,7 +516,7 @@ const AKICI_METIN_BOLUMLERI: [RegExp, string][] = [
   [/(Ruhsat|Proje İnceleme|Kurum İnceleme)/, "ruhsat"],
   [/(Meri İmar Planı|Kadastro Parsel)/, "imar"],
   [
-    /(Ana Gayrimenkul|Üzerindeki Yapı|Bağımsız Bölüm Özellikleri|Taşınmaz Özellikleri|İsteğe Bağlı Özellik|^Tapu Bilgileri( Formu)?$|^Konum Tespiti$|^Proje Özellikleri$|^Bina Özellikleri$)/,
+    /(Ana Gayrimenkul|Üzerindeki Yapı|Bağımsız Bölüm Özellikleri|Taşınmaz Özellikleri|İsteğe Bağlı Özellik|^Tapu Bilgileri( Formu)?$|^Konum Tespiti$|^Proje Özellikleri$|^Kat Dağılım Bilgisi$|^Mimari Projesine Göre Aykırılık$|^Bina Özellikleri$)/,
     "yapi",
   ],
   [/Satış Kabiliyeti/, "satis"],

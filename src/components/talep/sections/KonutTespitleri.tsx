@@ -5,6 +5,7 @@ import { DoorOpen, Plus, X } from "lucide-react";
 import { AkiciAlan } from "@/components/akici-metin/baglam";
 import SecenekListesiAlani from "@/components/talep/SecenekListesiAlani";
 import { YONLER, yeniId } from "@/components/talep/sections/ortak";
+import { Etiket, Hap, girdi } from "@/components/talep/sections/sade";
 import {
   GIRIS_KATLARI,
   GIRIS_TURLERI,
@@ -33,46 +34,6 @@ const KISA: Record<string, string> = {
   Kuzeybatı: "KB",
   Orta: "•",
 };
-
-const girdi =
-  "h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-800 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none";
-
-function Etiket({ children }: { children: ReactNode }) {
-  return <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-slate-400">{children}</p>;
-}
-
-function Hap({
-  aktif,
-  onClick,
-  children,
-  disabled,
-  title,
-}: {
-  aktif: boolean;
-  onClick: () => void;
-  children: ReactNode;
-  disabled?: boolean;
-  title?: string;
-}) {
-  return (
-    <button
-      type="button"
-      aria-pressed={aktif}
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      className={`h-7 min-w-7 rounded-full border px-2.5 text-[11px] font-semibold transition-colors disabled:cursor-not-allowed ${
-        aktif
-          ? "border-slate-900 bg-slate-900 text-white"
-          : disabled
-            ? "border-slate-100 bg-slate-50 text-slate-300"
-            : "border-slate-200 bg-white text-slate-600 hover:border-slate-400"
-      }`}
-    >
-      {children}
-    </button>
-  );
-}
 
 // Compact segmented control; "Diğer" opens a text box beside it.
 function NizamSecici({ nizam, diger, onChange }: { nizam: string; diger: string; onChange: (n: string, d: string) => void }) {

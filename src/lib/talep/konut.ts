@@ -1,4 +1,4 @@
-import type { KonutMahallindekiNitelik, KonutOzellikleriData } from "./types";
+import type { KatDagilimTuru, KonutMahallindekiNitelik, KonutOzellikleriData } from "./types";
 
 // KONUT taşınmaz niteliği: its Ana Gayrimenkul tab is the konut form.
 export const KONUT_NITELIGI = "KONUT (APARTMAN DAİRESİ, VİLLA, GECEKONDU, MESKEN, ÜÇ KATA KADAR HER TÜRLÜ KONUT)";
@@ -39,13 +39,6 @@ export function insaatNizamiOzeti(data: KonutOzellikleriData): string {
     })
     .filter(Boolean)
     .join(", ");
-}
-
-export function projeKatlariMetni(data: KonutOzellikleriData): string {
-  return data.projeKatlari
-    .filter((k) => k.kat.trim() || k.aciklama.trim())
-    .map((k) => (k.kat.trim() ? `${k.kat.trim()}: ${k.aciklama.trim()}` : k.aciklama.trim()))
-    .join(" ");
 }
 
 // ---- Konum tespiti ------------------------------------------------------------
@@ -129,4 +122,56 @@ export function binaGirisCumlesi(k: KonutOzellikleriData): string {
     return (cumle.charAt(0).toLocaleUpperCase("tr-TR") + cumle.slice(1)).replace(/([^.])$/, "$1.");
   });
   return [`Binanın ${parcalar.join("; ")} sağlanmaktadır.`, ...kapiCumleleri].join(" ");
+}
+
+// ---- Kat dağılımı -------------------------------------------------------------
+
+// Floors in the order the dropdown shows them.
+export const KATLAR = [
+  ...Array.from({ length: 10 }, (_, i) => `${10 - i}.Bodrum Kat`),
+  "Asma Kat",
+  "Çekme Kat",
+  "Zemin Kat",
+  ...Array.from({ length: 24 }, (_, i) => `${i + 1}.Normal Kat`),
+];
+
+export const KAT_DAGILIM_TURLERI: { value: KatDagilimTuru; label: string }[] = [
+  { value: "tekDuzen", label: "Tek Düzen Kat Dağılımı" },
+  { value: "kisimli", label: "Kısımlı Kat Dağılımı" },
+  { value: "manuel", label: "Manuel Anlatım" },
+];
+
+function katSatiri(kat: string, icHacimler: string[]): string {
+  const hacim = icHacimler.map((h) => h.trim()).filter(Boolean).join(", ");
+  if (!kat && !hacim) return "";
+  return kat ? `${kat}${hacim ? `: ${hacim}` : ""}` : hacim;
+}
+
+// "Onaylı mimari projesine göre kat dağılımı; Zemin Kat: salon, mutfak; …"
+// (grouped by kısım for kısımlı; manual text as written).
+export function katDagilimiMetni(k: KonutOzellikleriData): string {
+  if (k.katDagilimTuru === "manuel") return k.manuelKatDagilimi.trim();
+  if (k.katDagilimTuru === "tekDuzen") {
+    const satirlar = k.katDagilimlari.map((d) => katSatiri(d.kat, d.icHacimler)).filter(Boolean);
+    return satirlar.length ? `Onaylı mimari projesine göre kat dağılımı; ${satirlar.join("; ")}.` : "";
+  }
+  if (k.katDagilimTuru === "kisimli") {
+    const gruplar = new Map<string, string[]>();
+    for (const d of k.katDagilimlari) {
+      const satir = katSatiri(d.kat, d.icHacimler);
+      if (!satir) continue;
+      const kisim = d.kisim.trim() || "Kısım belirtilmemiş";
+      gruplar.set(kisim, [...(gruplar.get(kisim) ?? []), satir]);
+    }
+    const parcalar = [...gruplar].map(([kisim, satirlar]) => `${kisim} (${satirlar.join("; ")})`);
+    return parcalar.length ? `Onaylı mimari projesine göre kısımların kat dağılımı; ${parcalar.join(", ")}.` : "";
+  }
+  return "";
+}
+
+export function aykirilikCumlesi(k: KonutOzellikleriData): string {
+  if (k.aykirilik === "Hayır") return "Yerinde yapılan incelemede mimari projesine aykırı bir duruma rastlanmamıştır.";
+  if (k.aykirilik !== "Evet") return "";
+  const a = k.aykirilikAciklama.trim();
+  return a ? `Mimari projesine göre aykırılık bulunmaktadır: ${/[.!?]$/.test(a) ? a : `${a}.`}` : "Mimari projesine göre aykırılık bulunmaktadır.";
 }

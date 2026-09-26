@@ -19,7 +19,15 @@ function konutuTasi(k: KonutOzellikleriData): KonutOzellikleriData {
   if (!sonuc.binaGirisleri.length && k.binaGirisYonleri?.length) {
     sonuc.binaGirisleri = k.binaGirisYonleri.map((yon, i) => ({ id: `giris-${i}-${yon}`, yon, yol: "", tur: i === 0 ? "Ana giriş" : "" }));
   }
-  return { ...sonuc, blokYonleri: [], binaGirisYonleri: [] };
+  // OCR floor rows from the earlier Proje Özellikleri become manual text.
+  if (!sonuc.katDagilimTuru && k.projeKatlari?.length) {
+    sonuc.katDagilimTuru = "manuel";
+    sonuc.manuelKatDagilimi = k.projeKatlari
+      .filter((p) => p.kat.trim() || p.aciklama.trim())
+      .map((p) => (p.kat.trim() ? `${p.kat.trim()}: ${p.aciklama.trim()}` : p.aciklama.trim()))
+      .join("\n");
+  }
+  return { ...sonuc, blokYonleri: [], binaGirisYonleri: [], projeKatlari: [] };
 }
 
 // Backfills any section fields missing from a stored Tapu against the
