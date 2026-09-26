@@ -20,12 +20,11 @@ export function isSectionFilled(section: unknown): boolean {
   return false;
 }
 
-export function getTapuCompletion(tapu: Tapu, options?: { excludeSharedSections?: boolean }): { filled: number; total: number } {
+export function getTapuCompletion(tapu: Tapu): { filled: number; total: number } {
   const sections = [
     tapu.talepDetayi,
     tapu.adresKonum,
     tapu.tapuKaydi,
-    ...(options?.excludeSharedSections ? [] : [tapu.kurumIncelemeleri]),
     tapu.projeIncelemeleri,
     tapu.imarDurumu,
     // Land (tarla, bağ, bahçe) and konut fill the Ana Gayrimenkul tab with their own forms.
@@ -44,8 +43,8 @@ export function getTapuCompletion(tapu: Tapu, options?: { excludeSharedSections?
 
 export function getTalepCompletion(talep: Talep): { filled: number; total: number; pct: number } {
   const totals = talep.tapular.reduce(
-    (acc, tapu, index) => {
-      const c = getTapuCompletion(tapu, { excludeSharedSections: index > 0 });
+    (acc, tapu) => {
+      const c = getTapuCompletion(tapu);
       return { filled: acc.filled + c.filled, total: acc.total + c.total };
     },
     { filled: 0, total: 0 },

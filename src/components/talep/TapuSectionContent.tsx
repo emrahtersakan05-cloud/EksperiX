@@ -83,14 +83,7 @@ function TapuSectionIcerik({ talep, tapu, sectionKey, onUpdate }: SectionProps) 
         />
       );
     case "kurumIncelemeleri":
-      return (
-        <KurumIncelemeleriSection
-          data={tapu.kurumIncelemeleri}
-          onChange={(patch) => onUpdate((t) => ({ ...t, kurumIncelemeleri: { ...t.kurumIncelemeleri, ...patch } }))}
-          city={tapu.adresKonum.il}
-          district={tapu.adresKonum.ilce}
-        />
-      );
+      return <KurumIncelemeleriSection />;
     case "projeIncelemeleri":
       return (
         <ProjeIncelemeleriSection
@@ -176,7 +169,6 @@ function TapuSectionIcerik({ talep, tapu, sectionKey, onUpdate }: SectionProps) 
           data={tapu.raporSonucu}
           talep={talep}
           tapu={tapu}
-          sharedRuhsat={talep.tapular[0]?.kurumIncelemeleri}
           onChange={(patch) => onUpdate((t) => ({ ...t, raporSonucu: { ...t.raporSonucu, ...patch } }))}
         />
       );

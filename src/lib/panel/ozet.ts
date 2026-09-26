@@ -23,7 +23,6 @@ const BOLUM_VERISI: Partial<Record<TapuSectionKey, (t: Tapu) => unknown>> = {
   talepDetayi: (t) => t.talepDetayi,
   adresKonum: (t) => t.adresKonum,
   tapuKaydi: (t) => t.tapuKaydi,
-  kurumIncelemeleri: (t) => t.kurumIncelemeleri,
   projeIncelemeleri: (t) => t.projeIncelemeleri,
   imarDurumu: (t) => t.imarDurumu,
   anaGayrimenkul: (t) => t.anaGayrimenkul,

@@ -22,7 +22,7 @@ import {
   seviyeliMetni,
   yontemSonuclari,
 } from "./deger-hesaplama";
-import type { KurumIncelemesi, NotKaydi, RuhsatIncelemeData, Talep, Tapu } from "./types";
+import type { KurumIncelemesi, NotKaydi, Talep, Tapu } from "./types";
 
 export interface ValuationReportSection {
   // Stable key used to attach akıcı metin texts to the right section.
@@ -253,35 +253,6 @@ function buildOwnershipParagraphs(tapu: Tapu): string[] {
   }
 
   return paragraphs;
-}
-
-function buildRuhsatParagraph(ruhsat: RuhsatIncelemeData): string {
-  if (ruhsat.ruhsatResmiEvrakVarMi === "Hayır") {
-    return "Ruhsat ve resmi evrak incelemesinde herhangi bir belge ibraz edilmediği işaretlenmiştir.";
-  }
-
-  if (ruhsat.ruhsatResmiEvrakVarMi !== "Evet") {
-    return "Ruhsat ve resmi evrak inceleme bilgileri henüz tamamlanmamıştır.";
-  }
-
-  const belgeSummary =
-    ruhsat.belgeler.length > 0
-      ? ruhsat.belgeler
-          .map((item) =>
-            joinWithComma([
-              item.belgeCinsi,
-              item.belgeTarihi ? `tarih: ${formatDate(item.belgeTarihi)}` : "",
-              item.belgeNo ? `no: ${item.belgeNo}` : "",
-            ]),
-          )
-          .filter(Boolean)
-          .join("; ")
-      : "";
-
-  return joinSentence([
-    ruhsat.incelenenKurumAdi ? `İnceleme ${ruhsat.incelenenKurumAdi} nezdinde gerçekleştirilmiştir.` : "",
-    belgeSummary ? `İbraz edilen belgeler: ${belgeSummary}.` : "Belge satırları henüz detaylandırılmamıştır.",
-  ]);
 }
 
 function buildProjectParagraph(items: KurumIncelemesi[]): string {
@@ -541,9 +512,8 @@ function akiciParagraflar(metin: string): string[] {
 export function generateValuationReport(params: {
   talep: Talep;
   tapu: Tapu;
-  sharedRuhsat?: RuhsatIncelemeData;
 }): GeneratedValuationReport {
-  const { talep, tapu, sharedRuhsat } = params;
+  const { talep, tapu } = params;
   const title = joinWithComma([
     "Eksperix Değerleme Raporu",
     tapu.raporSonucu.raporNo || talep.talepNo,
@@ -589,10 +559,8 @@ export function generateValuationReport(params: {
     {
       id: "ruhsat",
       title: "Ruhsat ve Proje İncelemeleri",
-      source: "Kurum İncelemeleri → Ruhsat / Proje İncelemeleri",
-      paragraphs: [buildRuhsatParagraph(sharedRuhsat ?? tapu.kurumIncelemeleri), buildProjectParagraph(tapu.projeIncelemeleri)].filter(
-        Boolean,
-      ),
+      source: "Kurum İncelemeleri → Proje İncelemeleri",
+      paragraphs: [buildProjectParagraph(tapu.projeIncelemeleri)].filter(Boolean),
     },
     {
       id: "imar",
