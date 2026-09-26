@@ -1,8 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Download, FileText, Sparkles, Trash2 } from "lucide-react";
-import { useAkiciMetinDeposu } from "@/components/akici-metin/baglam";
+import { Download, FileText, Sparkles } from "lucide-react";
 import {
   SectionCard,
   SectionGrid,
@@ -15,63 +14,8 @@ import {
 } from "@/components/talep/form-fields";
 import { exportReportAsDocx, exportReportAsPdf } from "@/lib/talep/report-export";
 import { raporDurumOptions } from "@/lib/talep/options";
-import { akiciMetinBolumu, generateValuationReport, type GeneratedValuationReport } from "@/lib/talep/report";
+import { generateValuationReport, type GeneratedValuationReport } from "@/lib/talep/report";
 import type { RaporSonucuData, RuhsatIncelemeData, Talep, Tapu } from "@/lib/talep/types";
-
-// Texts picked in the forms' Akıcı Metin Şablonları, shown where they land
-// in the report; editable here, or removable to fall back to the automatic
-// wording of that section.
-function AkiciMetinlerKarti({ tapu, report }: { tapu: Tapu; report: GeneratedValuationReport }) {
-  const depo = useAkiciMetinDeposu();
-  const kayitlar = Object.entries(tapu.akiciMetinler ?? {}).filter(([, m]) => m.trim());
-  const bolumAdi = (anahtar: string) => {
-    const id = akiciMetinBolumu(anahtar);
-    return report.tumSekmeler.find((s) => s.id === id)?.title ?? "Diğer Tespitler";
-  };
-  return (
-    <SectionCard title="Akıcı Metin Şablonlarından Gelen Metinler" akiciMetin={false}>
-      {kayitlar.length === 0 ? (
-        <p className="text-sm text-slate-500">
-          Formlardaki <strong>Akıcı Metin Şablonları</strong> butonundan bir şablon seçtiğinizde metin burada ve raporun ilgili
-          bölümünde yer alır.
-        </p>
-      ) : (
-        <div className="space-y-3">
-          <p className="text-xs text-slate-500">
-            Bu metinler raporda ilgili bölümün otomatik metninin yerine kullanılır. Buradan düzenleyebilir veya kaldırabilirsiniz.
-          </p>
-          {kayitlar.map(([anahtar, metin]) => (
-            <div key={anahtar} className="rounded-xl border border-lime-200 bg-lime-50/40 p-3">
-              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-slate-900">{anahtar}</p>
-                  <p className="text-[11px] text-slate-500">Rapordaki yeri: {bolumAdi(anahtar)}</p>
-                </div>
-                {depo && (
-                  <button
-                    type="button"
-                    onClick={() => depo.kaydet(anahtar, "")}
-                    className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-slate-500 hover:bg-rose-50 hover:text-rose-600"
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                    Kaldır
-                  </button>
-                )}
-              </div>
-              <textarea
-                value={metin}
-                onChange={(e) => depo?.kaydet(anahtar, e.target.value)}
-                rows={Math.min(10, Math.max(4, metin.split("\n").length + 1))}
-                aria-label={`${anahtar} akıcı metni`}
-                className="w-full resize-y rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm leading-relaxed text-slate-800 focus:border-lime-300 focus:outline-none focus:ring-2 focus:ring-lime-200"
-              />
-            </div>
-          ))}
-        </div>
-      )}
-    </SectionCard>
-  );
-}
 
 export default function RaporSonucuSection({
   data,
@@ -194,8 +138,6 @@ export default function RaporSonucuSection({
           İndir butonları mevcut metni esas alır; rapor metni boşsa güncel form verilerinden anlık rapor üretir.
         </span>
       </div>
-
-      <AkiciMetinlerKarti tapu={tapu} report={generatedReport} />
 
       <SectionGrid>
         <TextField label="Rapor No" value={data.raporNo} onChange={(v) => onChange({ raporNo: v })} />
