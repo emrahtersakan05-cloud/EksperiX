@@ -347,13 +347,37 @@ function buildIndependentSectionParagraph(tapu: Tapu): string {
 
 function buildAraziParagraph(tapu: Tapu): string {
   const a = tapu.araziOzellikleri;
+  if (a.mahallindekiNitelik === "bina-var") {
+    return "Taşınmaz mahallinde tarla, bağ, bahçe vb. niteliğinde olup üzerinde yapı bulunmaktadır.";
+  }
   const sekil = a.araziSekli === "Diğer" ? a.araziSekliDiger : a.araziSekli;
-  const yapi = a.araziYapisi === "Diğer" ? a.araziYapisiDiger : a.araziYapisi;
+  const egim = a.araziYapisi === "Diğer" ? a.araziYapisiDiger : a.araziYapisi;
   const sulama = a.sulamaImkani === "Diğer" ? a.sulamaImkaniDiger : a.sulamaImkani;
+  const kucuk = (v: string) => v.toLocaleLowerCase("tr-TR");
+  const cepheler = (a.digerCepheler ?? []).filter((c) => c.yon && c.bilgi.trim());
+  const olculer = [
+    a.parselGenisligi ? `genişliği yaklaşık ${a.parselGenisligi} m` : "",
+    a.parselDerinligi ? `derinliği yaklaşık ${a.parselDerinligi} m` : "",
+  ].filter(Boolean);
   return joinSentence([
-    sekil ? `Arazi şekli ${sekil.toLocaleLowerCase("tr-TR")} olarak tespit edilmiştir.` : "",
-    yapi ? `Arazi yapısı ${yapi.toLocaleLowerCase("tr-TR")} niteliktedir.` : "",
-    sulama ? `Sulama imkânı: ${sulama.toLocaleLowerCase("tr-TR")}.` : "",
+    a.mahallindekiNitelik === "bina-yok" ? "Taşınmaz mahallinde tarla, bağ, bahçe vb. niteliğinde olup üzerinde yapı bulunmamaktadır." : "",
+    sekil ? `Arazi şekli ${kucuk(sekil)} olarak tespit edilmiştir.` : "",
+    egim ? `Arazi eğimi ${kucuk(egim)} niteliktedir.` : "",
+    sulama ? `Sulama imkânı: ${kucuk(sulama)}.` : "",
+    a.mahallindekiNitelik === "bina-yok"
+      ? (a.yolCepheleri ?? []).length
+        ? `Taşınmazın ${(a.yolCepheleri ?? []).map(kucuk).join(", ")} yönünden kadastral yola cephesi bulunmaktadır.`
+        : "Taşınmazın kadastral yola cephesi bulunmamaktadır."
+      : "",
+    cepheler.length ? `Diğer cepheler: ${cepheler.map((c) => `${kucuk(c.yon)} yönünde ${c.bilgi.trim()}`).join("; ")}.` : "",
+    a.ekiliUrun === "Evet"
+      ? `Taşınmaz üzerinde ekili ürün bulunmaktadır${a.ekiliUrunBilgi.trim() ? ` (${a.ekiliUrunBilgi.trim()})` : ""}.`
+      : a.ekiliUrun === "Hayır"
+        ? "Taşınmaz üzerinde ekili ürün bulunmamaktadır."
+        : "",
+    olculer.length ? `Parselin ${olculer.join(", ")} olarak ölçülmüştür.` : "",
+    a.toprakYapisi ? `Toprak yapısı ${kucuk(a.toprakYapisi)}.` : "",
+    a.digerAciklama?.trim() ?? "",
   ]);
 }
 

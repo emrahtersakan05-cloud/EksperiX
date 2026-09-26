@@ -27,7 +27,8 @@ export function getTapuCompletion(tapu: Tapu, options?: { excludeSharedSections?
     ...(options?.excludeSharedSections ? [] : [tapu.kurumIncelemeleri]),
     tapu.projeIncelemeleri,
     tapu.imarDurumu,
-    tapu.anaGayrimenkul,
+    // Land (tarla, bağ, bahçe) fills the Ana Gayrimenkul tab with the arazi form.
+    tapu.talepDetayi.tasinmazNiteligi === "TARLA, BAĞ, BAHÇE VB." ? tapu.araziOzellikleri : tapu.anaGayrimenkul,
     tapu.bagimsizBolum,
     tapu.degerleme,
     tapu.emsaller,

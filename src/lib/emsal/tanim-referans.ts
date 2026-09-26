@@ -1,5 +1,5 @@
 // Persistent option lists for the "Tanım 1" / "Tanım 2" selects of the Emsal
-// Akıcı Metin Açıklaması. Same localStorage pattern as arazi-referans, but the
+// Akıcı Metin Açıklaması. Same localStorage pattern as other reference lists, but the
 // order is meaningful (Tanım 2 runs from better to worse), so lists are kept in
 // insertion order instead of being sorted alphabetically.
 const STORAGE_KEY = "eksperix_emsal_tanim_referans_v1";

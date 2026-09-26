@@ -205,13 +205,35 @@ export interface AnaGayrimenkulData {
 
 // TARLA, BAĞ, BAHÇE VB. taşınmaz niteliğinde Ana Gayrimenkul sekmesinde
 // AnaGayrimenkulData yerine gösterilir; Tapu Bilgileri kısmı tapuKaydi'ndan okunur.
+export type MahallindekiNitelik = "bina-var" | "bina-yok";
+
+export interface DigerCephe {
+  id: string;
+  yon: string;
+  bilgi: string;
+}
+
 export interface AraziOzellikleriData {
+  // Mahallindeki niteliği: with a building the building form is shown,
+  // without one the land form below.
+  mahallindekiNitelik: MahallindekiNitelik | "";
   araziSekli: string;
   araziSekliDiger: string;
+  // Shown as "Arazi Eğimi" (kept under its original name for saved data).
   araziYapisi: string;
   araziYapisiDiger: string;
   sulamaImkani: string;
   sulamaImkaniDiger: string;
+  // Directions with frontage on a cadastral road (multi-select).
+  yolCepheleri: string[];
+  digerCepheler: DigerCephe[];
+  ekiliUrun: "Evet" | "Hayır" | "";
+  ekiliUrunBilgi: string;
+  // İsteğe bağlı özellik girişleri
+  parselGenisligi: string;
+  parselDerinligi: string;
+  toprakYapisi: string;
+  digerAciklama: string;
 }
 
 export interface BagimsizBolumData {
@@ -575,12 +597,21 @@ export function createEmptyTapu(index: number, defaults?: TalepDetayiDefaults): 
       iskanDurumu: "",
     },
     araziOzellikleri: {
+      mahallindekiNitelik: "",
       araziSekli: "",
       araziSekliDiger: "",
       araziYapisi: "",
       araziYapisiDiger: "",
       sulamaImkani: "",
       sulamaImkaniDiger: "",
+      yolCepheleri: [],
+      digerCepheler: [],
+      ekiliUrun: "",
+      ekiliUrunBilgi: "",
+      parselGenisligi: "",
+      parselDerinligi: "",
+      toprakYapisi: "",
+      digerAciklama: "",
     },
     bagimsizBolum: {
       bagimsizBolumNo: "",

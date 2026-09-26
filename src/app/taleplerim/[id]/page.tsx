@@ -158,7 +158,7 @@ export default function TalepDetayPage() {
           return { ...t, imarDurumu: emptyTapu.imarDurumu };
         case "anaGayrimenkul":
           return t.talepDetayi.tasinmazNiteligi === "TARLA, BAĞ, BAHÇE VB."
-            ? { ...t, araziOzellikleri: emptyTapu.araziOzellikleri }
+            ? { ...t, araziOzellikleri: emptyTapu.araziOzellikleri, anaGayrimenkul: emptyTapu.anaGayrimenkul }
             : { ...t, anaGayrimenkul: emptyTapu.anaGayrimenkul };
         case "bagimsizBolum":
           return { ...t, bagimsizBolum: emptyTapu.bagimsizBolum };

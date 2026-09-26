@@ -86,6 +86,12 @@ export default function TapuSectionContent({
             data={tapu.araziOzellikleri}
             tapuKaydi={tapu.tapuKaydi}
             onChange={(patch) => onUpdate((t) => ({ ...t, araziOzellikleri: { ...t.araziOzellikleri, ...patch } }))}
+            binaFormu={
+              <AnaGayrimenkulSection
+                data={tapu.anaGayrimenkul}
+                onChange={(patch) => onUpdate((t) => ({ ...t, anaGayrimenkul: { ...t.anaGayrimenkul, ...patch } }))}
+              />
+            }
           />
         );
       }
