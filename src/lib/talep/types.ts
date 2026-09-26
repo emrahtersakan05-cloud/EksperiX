@@ -254,6 +254,8 @@ export interface BinaGirisi {
   yon: string;
   yol: string;
   tur: string;
+  // Door description from the admin list, e.g. "camlı demir doğramadır."
+  kapi?: string;
 }
 
 export interface ProjeKati {

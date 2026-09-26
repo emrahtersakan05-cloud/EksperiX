@@ -195,20 +195,66 @@ export default function SecenekListesiAlani({
   value,
   onChange,
   className = "",
+  kompakt = false,
+  akiciEtiket,
+  ariaLabel,
+  bosMetin = "Seçiniz",
 }: {
   listeKey: SecenekListesiKey;
   value: string;
   onChange: (v: string) => void;
   className?: string;
+  // Inline use (no label above; a small edit icon for the admin).
+  kompakt?: boolean;
+  // Akıcı metin label; "" keeps this field out of the templates.
+  akiciEtiket?: string;
+  ariaLabel?: string;
+  bosMetin?: string;
 }) {
   const tanim = secenekListesiTanimi(listeKey);
-  useAkiciAlan(tanim.ad, value);
+  useAkiciAlan(akiciEtiket ?? tanim.ad, value);
   const durum = useSecenekListeleri();
   const [duzenleniyor, setDuzenleniyor] = useState(false);
   const secenekler = durum?.listeler[listeKey] ?? tanim.varsayilan;
   // A saved choice that was since removed from the list stays visible.
   const liste = value && !secenekler.includes(value) ? [value, ...secenekler] : secenekler;
   const id = `secenek-${listeKey}`;
+  const duzenleyici =
+    duzenleniyor && durum ? (
+      <ListeDuzenleyici listeKey={listeKey} mevcut={secenekler} durum={durum} onKapat={() => setDuzenleniyor(false)} />
+    ) : null;
+
+  if (kompakt) {
+    return (
+      <div className={`flex min-w-0 items-center gap-1 ${className}`}>
+        <select
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          aria-label={ariaLabel ?? tanim.ad}
+          className="h-9 w-full min-w-0 appearance-none rounded-lg border border-slate-200 bg-white px-2.5 text-sm text-slate-800 focus:border-slate-400 focus:outline-none"
+        >
+          <option value="">{bosMetin}</option>
+          {liste.map((o) => (
+            <option key={o} value={o}>
+              {o}
+            </option>
+          ))}
+        </select>
+        {durum?.duzenleyebilir && (
+          <button
+            type="button"
+            onClick={() => setDuzenleniyor(true)}
+            className="flex h-9 w-7 shrink-0 items-center justify-center rounded text-slate-300 hover:bg-slate-100 hover:text-slate-700"
+            title={`${tanim.ad} listesini düzenle (yalnızca Sistem Yöneticisi)`}
+            aria-label={`${tanim.ad} listesini düzenle`}
+          >
+            <PencilLine className="h-3.5 w-3.5" />
+          </button>
+        )}
+        {duzenleyici}
+      </div>
+    );
+  }
 
   return (
     <div className={className}>
@@ -236,9 +282,7 @@ export default function SecenekListesiAlani({
           </option>
         ))}
       </select>
-      {duzenleniyor && durum && (
-        <ListeDuzenleyici listeKey={listeKey} mevcut={secenekler} durum={durum} onKapat={() => setDuzenleniyor(false)} />
-      )}
+      {duzenleyici}
     </div>
   );
 }

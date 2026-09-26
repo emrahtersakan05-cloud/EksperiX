@@ -106,5 +106,14 @@ export function binaGirisCumlesi(k: KonutOzellikleriData): string {
       return `${tur} ${g.yon.toLocaleLowerCase("tr-TR")} cepheden${yol}`;
     });
   if (!parcalar.length) return "";
-  return `Binanın ${parcalar.join("; ")} sağlanmaktadır.`;
+  const kapilar = k.binaGirisleri.filter((g) => g.yon && g.kapi?.trim());
+  const tek = k.binaGirisleri.filter((g) => g.yon).length === 1;
+  const kapiCumleleri = kapilar.map((g) => {
+    const kapi = g.kapi!.trim();
+    // "montajı yapılmamıştır." reads as "kapısının montajı …".
+    const ozne = /^montaj/i.test(kapi) ? "bina giriş kapısının" : "bina giriş kapısı";
+    const cumle = `${tek ? "" : `${g.yon} cephesindeki `}${ozne} ${kapi}`;
+    return (cumle.charAt(0).toLocaleUpperCase("tr-TR") + cumle.slice(1)).replace(/([^.])$/, "$1.");
+  });
+  return [`Binanın ${parcalar.join("; ")} sağlanmaktadır.`, ...kapiCumleleri].join(" ");
 }

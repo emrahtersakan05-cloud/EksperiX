@@ -3,6 +3,7 @@
 import { useState, type ReactNode } from "react";
 import { DoorOpen, Plus, X } from "lucide-react";
 import { AkiciAlan } from "@/components/akici-metin/baglam";
+import SecenekListesiAlani from "@/components/talep/SecenekListesiAlani";
 import { YONLER, yeniId } from "@/components/talep/sections/ortak";
 import {
   GIRIS_TURLERI,
@@ -290,7 +291,7 @@ function BinaGirisTespiti({ data, onChange }: { data: KonutOzellikleriData; onCh
         <p className="text-center text-[10px] text-slate-400">↑ Kuzey</p>
       </div>
 
-      <div className="min-w-0 flex-1">
+      <div className="@container min-w-0 flex-1">
         <Etiket>Girişler</Etiket>
         {sirali.length === 0 ? (
           <p className="text-xs text-slate-400">Plandan girişin olduğu cepheyi seçin.</p>
@@ -299,7 +300,7 @@ function BinaGirisTespiti({ data, onChange }: { data: KonutOzellikleriData; onCh
             {sirali.map((g) => (
               <li
                 key={g.id}
-                className="grid grid-cols-[72px_minmax(0,1fr)_28px] items-center gap-2 py-1.5 sm:grid-cols-[84px_minmax(0,1fr)_132px_28px]"
+                className="grid grid-cols-[64px_minmax(0,1fr)_28px] items-center gap-x-2 gap-y-1.5 py-2 @md:grid-cols-[84px_minmax(0,1fr)_132px_28px]"
               >
                 <span className="text-xs font-semibold text-slate-700">{g.yon}</span>
                 <input
@@ -313,7 +314,7 @@ function BinaGirisTespiti({ data, onChange }: { data: KonutOzellikleriData; onCh
                   value={g.tur}
                   onChange={(e) => guncelle(g.id, { tur: e.target.value })}
                   aria-label={`${g.yon} girişinin türü`}
-                  className={`${girdi} order-last col-span-2 col-start-2 w-full appearance-none sm:order-none sm:col-span-1 sm:col-start-auto`}
+                  className={`${girdi} col-start-2 row-start-2 w-full appearance-none @md:col-start-3 @md:row-start-1`}
                 >
                   <option value="">Tür</option>
                   {GIRIS_TURLERI.map((t) => (
@@ -326,10 +327,20 @@ function BinaGirisTespiti({ data, onChange }: { data: KonutOzellikleriData; onCh
                   type="button"
                   onClick={() => onChange({ binaGirisleri: girisler.filter((x) => x.id !== g.id) })}
                   aria-label={`${g.yon} girişini kaldır`}
-                  className="flex h-7 w-7 items-center justify-center rounded text-slate-300 hover:bg-rose-50 hover:text-rose-600"
+                  className="col-start-3 row-start-1 flex h-7 w-7 items-center justify-center rounded text-slate-300 hover:bg-rose-50 hover:text-rose-600 @md:col-start-4"
                 >
                   <X className="h-4 w-4" />
                 </button>
+                <SecenekListesiAlani
+                  kompakt
+                  listeKey="girisKapisi"
+                  value={g.kapi ?? ""}
+                  onChange={(kapi) => guncelle(g.id, { kapi })}
+                  akiciEtiket=""
+                  ariaLabel={`${g.yon} girişinin kapısı`}
+                  bosMetin="Giriş kapısı"
+                  className="col-start-2 row-start-3 @md:col-span-2 @md:row-start-2"
+                />
               </li>
             ))}
           </ul>

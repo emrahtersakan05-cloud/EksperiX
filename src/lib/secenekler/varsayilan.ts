@@ -3,6 +3,7 @@
 // starting lists until an admin changes them.
 
 export type SecenekListesiKey =
+  | "girisKapisi"
   | "binaGirisKapisi"
   | "katHoluSahanlik"
   | "merdivenBasamaklari"
@@ -12,6 +13,21 @@ export type SecenekListesiKey =
   | "binaCatisi";
 
 export const SECENEK_LISTELERI: { key: SecenekListesiKey; ad: string; varsayilan: string[] }[] = [
+  {
+    // Per entrance in Bina Giriş Tespiti; completes "… bina giriş kapısı ___".
+    key: "girisKapisi",
+    ad: "Bina Giriş Kapısı (Giriş Tespiti)",
+    varsayilan: [
+      "montajı yapılmamıştır.",
+      "camlı demir doğramadır.",
+      "demir doğramadır.",
+      "camlı demir doğrama, otomatik kapıdır.",
+      "demir doğrama, otomatik kapıdır.",
+      "alüminyum doğramadır.",
+      "camlı alüminyum doğramadır.",
+      "camlı alüminyum doğrama, otomatik kapıdır.",
+    ],
+  },
   {
     key: "binaGirisKapisi",
     ad: "Bina Giriş Kapısı",
