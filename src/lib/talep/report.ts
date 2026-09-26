@@ -369,6 +369,7 @@ function buildKonutParagraph(tapu: Tapu): string {
     secenekCumlesi("disCephe", k.binaDisCephesi),
     secenekCumlesi("cati", k.binaCatisi),
     secenekCumlesi("cevreDuzenlemesi", k.cevreDuzenlemesi),
+    secenekCumlesi("asansor", k.asansor),
     k.ilaveAnlatim === "Evet" ? k.ilaveAnlatimMetni.trim() : "",
   ]);
 }

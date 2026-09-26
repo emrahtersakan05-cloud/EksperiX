@@ -281,6 +281,7 @@ export const BINA_LISTELERI: { key: SecenekListesiKey; alan: keyof KonutOzellikl
   { key: "disCephe", alan: "binaDisCephesi" },
   { key: "cati", alan: "binaCatisi" },
   { key: "cevreDuzenlemesi", alan: "cevreDuzenlemesi" },
+  { key: "asansor", alan: "asansor" },
 ];
 
 export function BinaOzellikleri({ data, onChange }: { data: KonutOzellikleriData; onChange: Degistir }) {

@@ -316,6 +316,7 @@ export interface KonutOzellikleriData {
   binaDisCephesi: string;
   binaCatisi: string;
   cevreDuzenlemesi: string;
+  asansor: string;
   ilaveAnlatim: EvetHayirSecimi;
   ilaveAnlatimMetni: string;
 }
@@ -730,6 +731,7 @@ export function createEmptyTapu(index: number, defaults?: TalepDetayiDefaults): 
       binaDisCephesi: "",
       binaCatisi: "",
       cevreDuzenlemesi: "",
+      asansor: "",
       ilaveAnlatim: "",
       ilaveAnlatimMetni: "",
     },

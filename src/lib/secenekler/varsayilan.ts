@@ -15,7 +15,8 @@ export type SecenekListesiKey =
   | "icDuvar"
   | "disCephe"
   | "cati"
-  | "cevreDuzenlemesi";
+  | "cevreDuzenlemesi"
+  | "asansor";
 
 export interface SecenekListesiTanimi {
   key: SecenekListesiKey;
@@ -95,6 +96,17 @@ export const SECENEK_LISTELERI: SecenekListesiTanimi[] = [
     ozne: "Binanın çevre düzenlemesi",
     ozneTamlayan: "Binanın çevre düzenlemesinin",
     varsayilan: ["tamamlanmamıştır.", "tamamlanmıştır."],
+  },
+  {
+    key: "asansor",
+    ad: "Asansör",
+    ozne: "Binada asansör",
+    ozneTamlayan: "Binada asansörün",
+    varsayilan: [
+      "yapılmıştır.",
+      "ray, kabin montajı yapılmamıştır.",
+      "ray montajı yapılmış, kabin montajı yapılmamıştır.",
+    ],
   },
 ];
 
