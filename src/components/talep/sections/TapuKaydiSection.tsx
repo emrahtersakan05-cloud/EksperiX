@@ -24,6 +24,7 @@ import {
   type RepeatableTableColumn,
 } from "@/components/talep/form-fields";
 import { Doluluk, Ozet, OzetBasligi, OzetIzgarasi, Panel } from "@/components/talep/sections/tasarim";
+import { normalYazimNesne } from "@/lib/text/buyuk-harf";
 import { extractPdfText, parseTapuKaydiDocument, type ParsedTapuFields } from "@/lib/pdf/tapu-extract";
 import { newRowId, type MulkiyetKaydi, type RehinKaydi, type SerhBeyanIrtifak, type TapuKaydiData } from "@/lib/talep/types";
 
@@ -321,7 +322,7 @@ export default function TapuKaydiSection({
       }
 
       if (filledCount > 0 || recordsAdded > 0) {
-        onChange(patch);
+        onChange(normalYazimNesne(patch));
         const parts = [
           filledCount > 0 ? `${filledCount} alan` : null,
           recordsAdded > 0 ? `${recordsAdded} kayıt` : null,

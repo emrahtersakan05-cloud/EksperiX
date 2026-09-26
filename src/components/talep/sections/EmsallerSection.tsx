@@ -21,6 +21,7 @@ import type { EmsalKaydi, EmsallerData, KmlKonumu } from "@/lib/talep/types";
 import DigerAciklamalarCard from "@/components/talep/sections/DigerAciklamalarCard";
 import MiniLocationMap from "@/components/talep/sections/MiniLocationMap";
 import YakinEmsalListesi from "@/components/talep/sections/YakinEmsalListesi";
+import { normalYazimNesne } from "@/lib/text/buyuk-harf";
 
 const EMSALLER_TABS = [
   { key: "liste", label: "Emsaller Listesi" },
@@ -276,7 +277,7 @@ function EmsalKaydiForm({
       if (!text) return;
       acknowledgeBridge(EMSAL_BRIDGE_EVENT);
 
-      const patch: Partial<EmsalKaydi> = parseEmsalBridgeText(text, detail?.title ?? "");
+      const patch: Partial<EmsalKaydi> = normalYazimNesne(parseEmsalBridgeText(text, detail?.title ?? ""));
       if (detail?.lat && detail?.lng) {
         patch.enlem = detail.lat;
         patch.boylam = detail.lng;

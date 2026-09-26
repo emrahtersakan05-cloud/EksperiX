@@ -8,6 +8,7 @@ import { yeniId } from "@/components/talep/sections/ortak";
 import { Etiket, EvetHayirAciklama, Segment, alan, girdi } from "@/components/talep/sections/sade";
 import { BINA_LISTELERI, KATLAR, KAT_DAGILIM_TURLERI, binaOzellikleriMetni, katDagilimiMetni } from "@/lib/talep/konut";
 import type { KatDagilimi, KonutOzellikleriData } from "@/lib/talep/types";
+import { normalYazim } from "@/lib/text/buyuk-harf";
 
 type Degistir = (p: Partial<KonutOzellikleriData>) => void;
 
@@ -151,7 +152,7 @@ function ManuelKatDagilimi({ data, onChange }: { data: KonutOzellikleriData; onC
       const [{ recognizeText }, { projeKatlariniAyristir }] = await Promise.all([import("@/lib/ocr/uavt-extract"), import("@/lib/ocr/proje-katlari")]);
       const sonuc = await recognizeText(url, (p) => p.status.includes("recogn") && setIlerleme(Math.round(p.progress * 100)));
       const metin = projeKatlariniAyristir(sonuc.text)
-        .map((k) => (k.kat ? `${k.kat}: ${k.aciklama}` : k.aciklama))
+        .map((k) => normalYazim(k.kat ? `${k.kat}: ${k.aciklama}` : k.aciklama))
         .join("\n");
       if (!metin) setHata("Görselde okunabilir metin bulunamadı.");
       else onChange({ manuelKatDagilimi: [data.manuelKatDagilimi.trim(), metin].filter(Boolean).join("\n") });

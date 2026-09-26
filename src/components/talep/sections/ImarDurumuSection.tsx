@@ -27,6 +27,7 @@ import {
   primaryButtonClass,
 } from "@/components/talep/form-fields";
 import { parseImarDurumuText } from "@/lib/talep/imar-extract";
+import { normalYazimNesne } from "@/lib/text/buyuk-harf";
 import { haritaLinki, imarMetni, tapuFarklari, tapudanDoldurulacaklar, yapilasmaHakki } from "@/lib/talep/imar";
 import PlanNotlari from "@/components/talep/sections/PlanNotlari";
 import { Ozet, Panel } from "@/components/talep/sections/tasarim";
@@ -233,7 +234,7 @@ export default function ImarDurumuSection({
       if (!incomingText) return;
       acknowledgeBridge(IMAR_BRIDGE_EVENT);
 
-      const patch = parseImarDurumuText(incomingText);
+      const patch = normalYazimNesne(parseImarDurumuText(incomingText));
       const filledCount = countFilledFields(patch);
 
       if (filledCount > 0) {
@@ -264,7 +265,7 @@ export default function ImarDurumuSection({
     setPasteImporting(true);
     setPasteMessage(null);
     try {
-      const patch = parseImarDurumuText(pasteText);
+      const patch = normalYazimNesne(parseImarDurumuText(pasteText));
       const filledCount = countFilledFields(patch);
       if (filledCount > 0) {
         onChange(patch);

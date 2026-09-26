@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
 import AppShell from "@/components/app-shell";
+import BuyukHarfDuzeltici from "@/components/BuyukHarfDuzeltici";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth/dal";
 import { getSessionPayload } from "@/lib/auth/session";
@@ -27,6 +28,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} h-full antialiased`}
     >
       <body className="h-full bg-slate-50">
+        <BuyukHarfDuzeltici />
         <AppShell user={user}>{children}</AppShell>
       </body>
     </html>

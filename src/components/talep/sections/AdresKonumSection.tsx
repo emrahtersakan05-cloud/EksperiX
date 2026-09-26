@@ -30,6 +30,7 @@ import {
   removeMahalle,
 } from "@/lib/talep/adres-referans";
 import { parseUavtText, type ParsedUavtFields } from "@/lib/ocr/uavt-extract";
+import { normalYazimNesne } from "@/lib/text/buyuk-harf";
 import type { AdresKonumData } from "@/lib/talep/types";
 import KmlMapPanel from "@/components/talep/sections/KmlMapPanel";
 import { Doluluk, Ozet, OzetBasligi, OzetIzgarasi } from "@/components/talep/sections/tasarim";
@@ -304,7 +305,7 @@ export default function AdresKonumSection({
         const filledCount = countParsedFields(parsed);
 
         if (filledCount > 0) {
-          onChange({ ...buildEmptyUavtPatch(), ...parsed });
+          onChange({ ...buildEmptyUavtPatch(), ...normalYazimNesne(parsed) });
           setBridgeMessage({
             tone: "success",
             text: `${filledCount} alan UAVT sonucundan dolduruldu${detail?.title ? ` (${detail.title})` : ""}. Lütfen doğruluğunu kontrol edin.`,
@@ -354,7 +355,7 @@ export default function AdresKonumSection({
       const parsed = parseUavtText(uavtPasteText);
       const filledCount = countParsedFields(parsed);
       if (filledCount > 0) {
-        onChange({ ...buildEmptyUavtPatch(), ...parsed });
+        onChange({ ...buildEmptyUavtPatch(), ...normalYazimNesne(parsed) });
         setUavtMessage({
           tone: "success",
           text: `${filledCount} alan UAVT sonucundan güncellendi. Lütfen doğruluğunu kontrol edin.`,

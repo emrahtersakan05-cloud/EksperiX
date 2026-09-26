@@ -6,6 +6,7 @@ import { AkiciAlan } from "@/components/akici-metin/baglam";
 import { SectionCard } from "@/components/talep/form-fields";
 import { alan } from "@/components/talep/sections/sade";
 import { planNotlariMetni, planNotlariniAyir } from "@/lib/talep/imar";
+import { normalYazim } from "@/lib/text/buyuk-harf";
 import { newRowId, type PlanNotu } from "@/lib/talep/types";
 
 const kucukDugme =
@@ -14,7 +15,7 @@ const kucukDugme =
 export default function PlanNotlari({ notlar, onChange }: { notlar: PlanNotu[]; onChange: (notlar: PlanNotu[]) => void }) {
   const [yapistirAcik, setYapistirAcik] = useState(false);
   const [yapistirilan, setYapistirilan] = useState("");
-  const bulunan = planNotlariniAyir(yapistirilan);
+  const bulunan = planNotlariniAyir(yapistirilan).map(normalYazim);
   const metin = planNotlariMetni(notlar);
 
   function guncelle(id: string, metin: string) {
