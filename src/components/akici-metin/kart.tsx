@@ -49,13 +49,16 @@ export function useAkiciMetinKarti(baslik: string, { anahtar, etkin = true }: { 
 export function AkiciMetinGrubu({
   baslik,
   aciklama,
+  anahtar,
   children,
 }: {
   baslik: string;
   aciklama?: string;
+  // Saved-text key when the group repeats (e.g. per emsal slot).
+  anahtar?: string;
   children: ReactNode;
 }) {
-  const { kayit, dugme, pencere } = useAkiciMetinKarti(baslik);
+  const { kayit, dugme, pencere } = useAkiciMetinKarti(baslik, { anahtar });
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5">

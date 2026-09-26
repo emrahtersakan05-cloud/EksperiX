@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { AkiciMetinGrubu } from "@/components/akici-metin/kart";
 import { acknowledgeBridge, readBridgeDetail } from "@/lib/bridge/event-detail";
 import { Check, ChevronRight, RotateCw } from "lucide-react";
 import {
@@ -319,86 +320,92 @@ function EmsalKaydiForm({
         </p>
       )}
 
-      <SectionCard title="Emsal Bilgileri" akiciAnahtar={`${label} · Emsal Bilgileri`}>
-        <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3 md:grid-cols-5">
-          <TextField
-            label="İlan Tarihi"
-            type="date"
-            value={kaydi.ilanTarihi}
-            onChange={(v) => onChange({ ilanTarihi: v })}
-          />
-          <TextField label="İlan Fiyatı" value={kaydi.istenenFiyat} onChange={(v) => onChange({ istenenFiyat: v })} />
-          <TextField label="Emlak Tipi" value={kaydi.emlakTipi} onChange={(v) => onChange({ emlakTipi: v })} />
-          <TextField label="Kimden" value={kaydi.kimden} onChange={(v) => onChange({ kimden: v })} />
-          <TextField
-            label="Telefon No"
-            type="tel"
-            value={kaydi.telefonNo}
-            onChange={(v) => onChange({ telefonNo: v })}
-          />
-          <TextField label="m² (Brüt)" value={kaydi.m2Brut} onChange={(v) => onChange({ m2Brut: v })} />
-          <TextField label="m² (Net)" value={kaydi.m2Net} onChange={(v) => onChange({ m2Net: v })} />
-          <TextField label="Oda Sayısı" value={kaydi.odaSayisi} onChange={(v) => onChange({ odaSayisi: v })} />
-          <TextField label="Bina Yaşı" value={kaydi.binaYasi} onChange={(v) => onChange({ binaYasi: v })} />
-          <TextField label="Bulunduğu Kat" value={kaydi.bulunduguKat} onChange={(v) => onChange({ bulunduguKat: v })} />
-        </div>
-      </SectionCard>
+      <AkiciMetinGrubu
+        baslik="Emsal Formları"
+        anahtar={`${label} · Emsal Formları`}
+        aciklama={`${label}: Emsal, Konum ve Değer bilgileri için tek akıcı metin`}
+      >
+        <SectionCard title="Emsal Bilgileri" akiciMetin={false}>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3 md:grid-cols-5">
+            <TextField
+              label="İlan Tarihi"
+              type="date"
+              value={kaydi.ilanTarihi}
+              onChange={(v) => onChange({ ilanTarihi: v })}
+            />
+            <TextField label="İlan Fiyatı" value={kaydi.istenenFiyat} onChange={(v) => onChange({ istenenFiyat: v })} />
+            <TextField label="Emlak Tipi" value={kaydi.emlakTipi} onChange={(v) => onChange({ emlakTipi: v })} />
+            <TextField label="Kimden" value={kaydi.kimden} onChange={(v) => onChange({ kimden: v })} />
+            <TextField
+              label="Telefon No"
+              type="tel"
+              value={kaydi.telefonNo}
+              onChange={(v) => onChange({ telefonNo: v })}
+            />
+            <TextField label="m² (Brüt)" value={kaydi.m2Brut} onChange={(v) => onChange({ m2Brut: v })} />
+            <TextField label="m² (Net)" value={kaydi.m2Net} onChange={(v) => onChange({ m2Net: v })} />
+            <TextField label="Oda Sayısı" value={kaydi.odaSayisi} onChange={(v) => onChange({ odaSayisi: v })} />
+            <TextField label="Bina Yaşı" value={kaydi.binaYasi} onChange={(v) => onChange({ binaYasi: v })} />
+            <TextField label="Bulunduğu Kat" value={kaydi.bulunduguKat} onChange={(v) => onChange({ bulunduguKat: v })} />
+          </div>
+        </SectionCard>
 
-      <SectionCard title="Emsal Konum Bilgileri" akiciAnahtar={`${label} · Emsal Konum Bilgileri`}>
-        <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4 lg:grid-cols-8">
-          <TextField label="İl" value={kaydi.il} onChange={(v) => onChange({ il: v })} />
-          <TextField label="İlçe" value={kaydi.ilce} onChange={(v) => onChange({ ilce: v })} />
-          <TextField label="Köy/Mahalle" value={kaydi.koyMahalle} onChange={(v) => onChange({ koyMahalle: v })} />
-          <TextField label="Cadde/Bulvar/Sokak" value={kaydi.semt} onChange={(v) => onChange({ semt: v })} />
-          <TextField label="Ada No" value={kaydi.adaNo} onChange={(v) => onChange({ adaNo: v })} />
-          <TextField label="Parsel No" value={kaydi.parselNo} onChange={(v) => onChange({ parselNo: v })} />
-          <TextField label="Enlem" value={kaydi.enlem} onChange={(v) => onChange({ enlem: v })} />
-          <TextField label="Boylam" value={kaydi.boylam} onChange={(v) => onChange({ boylam: v })} />
-        </div>
-      </SectionCard>
+        <SectionCard title="Emsal Konum Bilgileri" akiciMetin={false}>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4 lg:grid-cols-8">
+            <TextField label="İl" value={kaydi.il} onChange={(v) => onChange({ il: v })} />
+            <TextField label="İlçe" value={kaydi.ilce} onChange={(v) => onChange({ ilce: v })} />
+            <TextField label="Köy/Mahalle" value={kaydi.koyMahalle} onChange={(v) => onChange({ koyMahalle: v })} />
+            <TextField label="Cadde/Bulvar/Sokak" value={kaydi.semt} onChange={(v) => onChange({ semt: v })} />
+            <TextField label="Ada No" value={kaydi.adaNo} onChange={(v) => onChange({ adaNo: v })} />
+            <TextField label="Parsel No" value={kaydi.parselNo} onChange={(v) => onChange({ parselNo: v })} />
+            <TextField label="Enlem" value={kaydi.enlem} onChange={(v) => onChange({ enlem: v })} />
+            <TextField label="Boylam" value={kaydi.boylam} onChange={(v) => onChange({ boylam: v })} />
+          </div>
+        </SectionCard>
 
-      <SectionCard title="Emsal Değer Bilgiler" akiciAnahtar={`${label} · Emsal Değer Bilgiler`}>
-        <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3 lg:grid-cols-4">
-          <TextField label="Gerçekçi Alan" value={kaydi.gercekAlan} onChange={(v) => onChange({ gercekAlan: v })} />
-          <TextField
-            label="Pazarlıklı Fiyat"
-            value={kaydi.pazarlikliFiyat}
-            onChange={(v) => onChange({ pazarlikliFiyat: v })}
-          />
-          <TextField
-            label="Birim Fiyat"
-            value={hesap.birimFiyat}
-            placeholder="Pazarlıklı Fiyat ÷ Gerçekçi Alan"
-            onChange={() => {}}
-            readOnly
-          />
-          <TextField
-            label="Konum Şerefiyesi"
-            placeholder="-0,10 / +0,10"
-            value={kaydi.konumSerefiyesi}
-            onChange={(v) => onChange({ konumSerefiyesi: v })}
-          />
-          <TextField
-            label="Yapı Şerefiyesi"
-            placeholder="-0,10 / +0,10"
-            value={kaydi.yapiSerefiyesi}
-            onChange={(v) => onChange({ yapiSerefiyesi: v })}
-          />
-          <TextField
-            label="Kat Şerefiyesi"
-            placeholder="-0,10 / +0,10"
-            value={kaydi.katSerefiyesi}
-            onChange={(v) => onChange({ katSerefiyesi: v })}
-          />
-          <TextField
-            label="Net Birim Fiyat"
-            value={hesap.netBirimFiyat}
-            placeholder="Şerefiyeler uygulanır"
-            onChange={() => {}}
-            readOnly
-          />
-        </div>
-      </SectionCard>
+        <SectionCard title="Emsal Değer Bilgiler" akiciMetin={false}>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3 lg:grid-cols-4">
+            <TextField label="Gerçekçi Alan" value={kaydi.gercekAlan} onChange={(v) => onChange({ gercekAlan: v })} />
+            <TextField
+              label="Pazarlıklı Fiyat"
+              value={kaydi.pazarlikliFiyat}
+              onChange={(v) => onChange({ pazarlikliFiyat: v })}
+            />
+            <TextField
+              label="Birim Fiyat"
+              value={hesap.birimFiyat}
+              placeholder="Pazarlıklı Fiyat ÷ Gerçekçi Alan"
+              onChange={() => {}}
+              readOnly
+            />
+            <TextField
+              label="Konum Şerefiyesi"
+              placeholder="-0,10 / +0,10"
+              value={kaydi.konumSerefiyesi}
+              onChange={(v) => onChange({ konumSerefiyesi: v })}
+            />
+            <TextField
+              label="Yapı Şerefiyesi"
+              placeholder="-0,10 / +0,10"
+              value={kaydi.yapiSerefiyesi}
+              onChange={(v) => onChange({ yapiSerefiyesi: v })}
+            />
+            <TextField
+              label="Kat Şerefiyesi"
+              placeholder="-0,10 / +0,10"
+              value={kaydi.katSerefiyesi}
+              onChange={(v) => onChange({ katSerefiyesi: v })}
+            />
+            <TextField
+              label="Net Birim Fiyat"
+              value={hesap.netBirimFiyat}
+              placeholder="Şerefiyeler uygulanır"
+              onChange={() => {}}
+              readOnly
+            />
+          </div>
+        </SectionCard>
+      </AkiciMetinGrubu>
 
       <SectionCard title="Emsal Akıcı Metin Açıklaması" akiciMetin={false}>
         <div className="mb-3 grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-2">
