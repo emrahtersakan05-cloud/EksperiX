@@ -1,3 +1,4 @@
+import { secenekCumlesi, type SecenekListesiKey } from "@/lib/secenekler/varsayilan";
 import type { KatDagilimTuru, KonutMahallindekiNitelik, KonutOzellikleriData, ProjeIncelemeData } from "./types";
 
 // KONUT taşınmaz niteliği: its Ana Gayrimenkul tab is the konut form.
@@ -174,4 +175,73 @@ export function aykirilikCumlesi(k: Pick<ProjeIncelemeData, "aykirilik" | "aykir
   if (k.aykirilik !== "Evet") return "";
   const a = k.aykirilikAciklama.trim();
   return a ? `Mimari projesine göre aykırılık bulunmaktadır: ${/[.!?]$/.test(a) ? a : `${a}.`}` : "Mimari projesine göre aykırılık bulunmaktadır.";
+}
+
+// ---- Bina özellikleri -----------------------------------------------------------
+
+type BinaAlani =
+  | "katHoluSahanlik"
+  | "merdivenBasamaklari"
+  | "merdivenKorkuluklari"
+  | "binaIciDuvarlar"
+  | "asansor"
+  | "binaDisCephesi"
+  | "binaCatisi"
+  | "cevreDuzenlemesi";
+
+export interface BinaListesi {
+  key: SecenekListesiKey;
+  alan: BinaAlani;
+  grup: "Bina İçi" | "Bina Dışı";
+  // Quick fill for a finished building / one still under construction.
+  tamamlanmis: string;
+  insaatHalinde: string;
+}
+
+export const BINA_LISTELERI: BinaListesi[] = [
+  {
+    key: "katHolu",
+    alan: "katHoluSahanlik",
+    grup: "Bina İçi",
+    tamamlanmis: "mermer kaplamadır.",
+    insaatHalinde: "brüt beton kaplama olup, zemin döşemesi yapılmamıştır.",
+  },
+  {
+    key: "merdivenBasamak",
+    alan: "merdivenBasamaklari",
+    grup: "Bina İçi",
+    tamamlanmis: "mermer kaplamadır.",
+    insaatHalinde: "brüt beton kaplama olup, zemin döşemesi yapılmamıştır.",
+  },
+  {
+    key: "merdivenKorkuluk",
+    alan: "merdivenKorkuluklari",
+    grup: "Bina İçi",
+    tamamlanmis: "demir doğramadır.",
+    insaatHalinde: "montajı yapılmamıştır.",
+  },
+  {
+    key: "icDuvar",
+    alan: "binaIciDuvarlar",
+    grup: "Bina İçi",
+    tamamlanmis: "alçı üzeri plastik boya ile boyanmıştır.",
+    insaatHalinde: "alçılı durumda olup, boyanmamıştır.",
+  },
+  { key: "asansor", alan: "asansor", grup: "Bina İçi", tamamlanmis: "yapılmıştır.", insaatHalinde: "ray, kabin montajı yapılmamıştır." },
+  {
+    key: "disCephe",
+    alan: "binaDisCephesi",
+    grup: "Bina Dışı",
+    tamamlanmis: "mantolama üzeri dış cephe boyası ile boyalıdır.",
+    insaatHalinde: "sıvasız durumda olup, mantolama yapılmamıştır.",
+  },
+  { key: "cati", alan: "binaCatisi", grup: "Bina Dışı", tamamlanmis: "ahşap üzeri kiremit örtülüdür.", insaatHalinde: "montajı yapılmamıştır." },
+  { key: "cevreDuzenlemesi", alan: "cevreDuzenlemesi", grup: "Bina Dışı", tamamlanmis: "tamamlanmıştır.", insaatHalinde: "tamamlanmamıştır." },
+];
+
+// The Bina Özellikleri text, as the report prints it.
+export function binaOzellikleriMetni(k: KonutOzellikleriData): string {
+  return [...BINA_LISTELERI.map((l) => secenekCumlesi(l.key, k[l.alan])), k.ilaveAnlatim === "Evet" ? k.ilaveAnlatimMetni.trim() : ""]
+    .filter(Boolean)
+    .join(" ");
 }

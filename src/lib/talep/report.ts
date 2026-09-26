@@ -2,13 +2,13 @@ import { ortalamaEmsalBirimFiyatlari } from "@/lib/emsal/hesaplama";
 import {
   KONUT_MAHALLINDEKI_NITELIKLER,
   binaGirisCumlesi,
+  binaOzellikleriMetni,
   blokAdi,
   blokTespitiCumlesi,
   insaatNizamiOzeti,
   katDagilimiMetni,
   konutMu,
 } from "./konut";
-import { secenekCumlesi } from "@/lib/secenekler/varsayilan";
 import {
   alanFarkiMetni,
   formatTL,
@@ -314,15 +314,7 @@ function buildKonutParagraph(tapu: Tapu): string {
     // Fields of the earlier Bina Özellikleri form, kept when already filled.
     k.binaGirisiTespit,
     k.binaGirisKapisi,
-    secenekCumlesi("katHolu", k.katHoluSahanlik),
-    secenekCumlesi("merdivenBasamak", k.merdivenBasamaklari),
-    secenekCumlesi("merdivenKorkuluk", k.merdivenKorkuluklari),
-    secenekCumlesi("icDuvar", k.binaIciDuvarlar),
-    secenekCumlesi("disCephe", k.binaDisCephesi),
-    secenekCumlesi("cati", k.binaCatisi),
-    secenekCumlesi("cevreDuzenlemesi", k.cevreDuzenlemesi),
-    secenekCumlesi("asansor", k.asansor),
-    k.ilaveAnlatim === "Evet" ? k.ilaveAnlatimMetni.trim() : "",
+    binaOzellikleriMetni(k),
   ]);
 }
 
