@@ -11,7 +11,6 @@ import {
   PencilRuler,
   Plus,
   RotateCcw,
-  Save,
   Sparkles,
   Trash2,
   X,
@@ -70,12 +69,13 @@ export default function AkiciMetinPenceresi({
   const kayitliMetin = depo?.getir(anahtar) ?? "";
   const [secili, setSecili] = useState<number | null>(null);
   const [metin, setMetin] = useState(kayitliMetin);
-  const [kaydedildi, setKaydedildi] = useState(false);
+  const [rapordaMi, setRapordaMi] = useState(!!kayitliMetin.trim());
   const [kopyalandi, setKopyalandi] = useState(false);
   const [duzenlenen, setDuzenlenen] = useState(0);
   const [silOnayi, setSilOnayi] = useState(false);
   const govdeRef = useRef<HTMLTextAreaElement>(null);
   const kayitZamanlayici = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const metinZamanlayici = useRef<ReturnType<typeof setTimeout> | null>(null);
   const etiketler = useMemo(() => [...new Set(alanlar.map((a) => a.etiket))], [alanlar]);
 
   // Templates come from the server; a form nobody customised gets defaults.
@@ -130,11 +130,31 @@ export default function AkiciMetinPenceresi({
     sunucuyaKaydet(yeni, hemen);
   }
 
+  // The chosen template's text goes straight into the tapu, and from there
+  // into the Rapor Sonucu section; edits follow shortly after typing stops.
+  function rapora(yeni: string, hemen: boolean) {
+    if (!depo) return;
+    if (metinZamanlayici.current) clearTimeout(metinZamanlayici.current);
+    const yaz = () => {
+      depo.kaydet(anahtar, yeni);
+      setRapordaMi(!!yeni.trim());
+    };
+    if (hemen) yaz();
+    else metinZamanlayici.current = setTimeout(yaz, 600);
+  }
+
   function sablonSec(i: number) {
     if (!sablonlar) return;
+    const yeni = sablonuDoldur(sablonlar[i], alanlar);
     setSecili(i);
-    setMetin(sablonuDoldur(sablonlar[i], alanlar));
-    setKaydedildi(false);
+    setMetin(yeni);
+    rapora(yeni, true);
+  }
+
+  function raporaKaldir() {
+    setMetin("");
+    setSecili(null);
+    rapora("", true);
   }
 
   function govdeDegistir(i: number, govde: string) {
@@ -193,10 +213,6 @@ export default function AkiciMetinPenceresi({
     }
   }
 
-  function kaydet() {
-    depo?.kaydet(anahtar, metin);
-    setKaydedildi(true);
-  }
 
   const bosAlanSayisi = (metin.match(new RegExp(BOS_DEGER, "g")) ?? []).length;
   const aktifSekme: Sekme = duzenleyebilir ? sekme : "olustur";
@@ -327,15 +343,22 @@ export default function AkiciMetinPenceresi({
                   value={metin}
                   onChange={(e) => {
                     setMetin(e.target.value);
-                    setKaydedildi(false);
+                    rapora(e.target.value, false);
                   }}
                   rows={8}
                   placeholder="Yukarıdan bir şablon seçin; metin burada oluşur ve dilediğiniz gibi düzenleyebilirsiniz."
                   className="w-full resize-y rounded-xl border border-slate-200 px-3.5 py-3 text-sm leading-relaxed text-slate-800 focus:border-lime-300 focus:outline-none focus:ring-4 focus:ring-lime-200/50"
                 />
                 <div className="mt-2 flex flex-wrap items-center justify-end gap-2">
-                  {kayitliMetin && !kaydedildi && metin !== kayitliMetin && (
-                    <span className="mr-auto text-[11px] text-slate-400">Kaydedilmemiş değişiklik var</span>
+                  {depo && (
+                    <span
+                      className={`mr-auto inline-flex items-center gap-1 text-xs font-medium ${
+                        rapordaMi ? "text-emerald-700" : "text-slate-400"
+                      }`}
+                    >
+                      {rapordaMi ? <Check className="h-3.5 w-3.5" /> : null}
+                      {rapordaMi ? "Rapor Sonucu sekmesine eklendi" : "Şablon seçince Rapor Sonucu sekmesine eklenir"}
+                    </span>
                   )}
                   <button
                     type="button"
@@ -346,20 +369,17 @@ export default function AkiciMetinPenceresi({
                     {kopyalandi ? <Check className="h-4 w-4 text-emerald-600" /> : <ClipboardCopy className="h-4 w-4" />}
                     {kopyalandi ? "Kopyalandı" : "Kopyala"}
                   </button>
-                  {depo && (
+                  {depo && rapordaMi && (
                     <button
                       type="button"
-                      onClick={kaydet}
-                      className="inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-4 py-2 text-sm font-semibold text-lime-300"
+                      onClick={raporaKaldir}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-rose-200 px-3.5 py-2 text-sm font-medium text-rose-600 hover:bg-rose-50"
                     >
-                      {kaydedildi ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />}
-                      {kaydedildi ? "Kaydedildi" : "Metni Kaydet"}
+                      <Trash2 className="h-4 w-4" />
+                      Rapordan Kaldır
                     </button>
                   )}
                 </div>
-                {depo && (
-                  <p className="mt-1 text-right text-[11px] text-slate-400">Kaydedilen metin bu tapuda bu forma ait olarak saklanır.</p>
-                )}
               </div>
             </div>
           ) : (
