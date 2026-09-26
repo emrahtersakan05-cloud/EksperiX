@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Check, ChevronDown, Plus, Search, Trash2, X } from "lucide-react";
+import { AlanKaydiSaglayici, useAkiciAlan } from "@/components/akici-metin/baglam";
+import { useAkiciMetinKarti } from "@/components/akici-metin/kart";
 
 export const inputClass =
   "min-h-[42px] w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 transition-colors placeholder:text-slate-400 hover:border-slate-300 focus:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-200";
@@ -19,21 +21,33 @@ export const primaryButtonClass =
   "rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50";
 export const helperTextClass = "mt-1.5 block text-xs text-slate-400";
 
+// A titled form card. Every field inside registers itself, so the header's
+// "Akıcı Metin Şablonları" button can turn the form into prose; the button
+// only appears when the card has fields (akiciMetin={false} hides it).
 export function SectionCard({
   title,
   children,
   className = "",
+  akiciMetin = true,
+  akiciAnahtar,
 }: {
   title: string;
   children: ReactNode;
   className?: string;
+  akiciMetin?: boolean;
+  // Where the written text is saved when the same form appears more than
+  // once in a tapu (e.g. each emsal slot); templates stay shared by title.
+  akiciAnahtar?: string;
 }) {
+  const { kayit, dugme, pencere } = useAkiciMetinKarti(title, { anahtar: akiciAnahtar, etkin: akiciMetin });
   return (
     <div className={`${sectionCardClass} ${className}`}>
-      <div className="mb-3 border-b border-slate-100 pb-2">
+      <div className="mb-3 flex min-h-7 items-center justify-between gap-2 border-b border-slate-100 pb-2">
         <p className="text-xs font-semibold text-slate-500">{title}</p>
+        {dugme}
       </div>
-      {children}
+      <AlanKaydiSaglayici kayit={kayit}>{children}</AlanKaydiSaglayici>
+      {pencere}
     </div>
   );
 }
@@ -72,6 +86,7 @@ export function TextField({
   className?: string;
   readOnly?: boolean;
 }) {
+  useAkiciAlan(label, value);
   return (
     <Field label={label} className={className}>
       <input
@@ -99,6 +114,7 @@ export function TextAreaField({
   rows?: number;
   className?: string;
 }) {
+  useAkiciAlan(label, value);
   return (
     <Field label={label} className={className}>
       <textarea
@@ -124,6 +140,7 @@ export function SelectField<T extends string>({
   onChange: (value: T | "") => void;
   className?: string;
 }) {
+  useAkiciAlan(label, value);
   return (
     <Field label={label} className={className}>
       <select
@@ -176,6 +193,7 @@ export function ComboboxField({
   onAddNew?: (value: string) => void;
   onRemoveOption?: (value: string) => void;
 }) {
+  useAkiciAlan(label, value);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [position, setPosition] = useState<ComboboxPanelPosition | null>(null);
@@ -400,6 +418,7 @@ export function ToggleField({
   checked: boolean;
   onChange: (checked: boolean) => void;
 }) {
+  useAkiciAlan(label, checked);
   return (
     <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-200 px-3 py-2">
       <span className="text-sm text-slate-700">{label}</span>

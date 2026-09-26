@@ -319,7 +319,7 @@ function EmsalKaydiForm({
         </p>
       )}
 
-      <SectionCard title="Emsal Bilgileri">
+      <SectionCard title="Emsal Bilgileri" akiciAnahtar={`${label} · Emsal Bilgileri`}>
         <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3 md:grid-cols-5">
           <TextField
             label="İlan Tarihi"
@@ -344,7 +344,7 @@ function EmsalKaydiForm({
         </div>
       </SectionCard>
 
-      <SectionCard title="Emsal Konum Bilgileri">
+      <SectionCard title="Emsal Konum Bilgileri" akiciAnahtar={`${label} · Emsal Konum Bilgileri`}>
         <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4 lg:grid-cols-8">
           <TextField label="İl" value={kaydi.il} onChange={(v) => onChange({ il: v })} />
           <TextField label="İlçe" value={kaydi.ilce} onChange={(v) => onChange({ ilce: v })} />
@@ -357,7 +357,7 @@ function EmsalKaydiForm({
         </div>
       </SectionCard>
 
-      <SectionCard title="Emsal Değer Bilgiler">
+      <SectionCard title="Emsal Değer Bilgiler" akiciAnahtar={`${label} · Emsal Değer Bilgiler`}>
         <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3 lg:grid-cols-4">
           <TextField label="Gerçekçi Alan" value={kaydi.gercekAlan} onChange={(v) => onChange({ gercekAlan: v })} />
           <TextField
@@ -400,7 +400,7 @@ function EmsalKaydiForm({
         </div>
       </SectionCard>
 
-      <SectionCard title="Emsal Akıcı Metin Açıklaması">
+      <SectionCard title="Emsal Akıcı Metin Açıklaması" akiciMetin={false}>
         <div className="mb-3 grid grid-cols-1 gap-x-4 gap-y-3 md:grid-cols-2">
           <ComboboxField
             label="Tanım 1"

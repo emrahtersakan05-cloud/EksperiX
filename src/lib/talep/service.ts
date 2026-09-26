@@ -88,6 +88,7 @@ function normalizeTapu(tapu: Tapu): Tapu {
       kiralik2: { ...empty.emsaller.kiralik2, ...tapu.emsaller?.kiralik2 },
     },
     raporSonucu: { ...empty.raporSonucu, ...tapu.raporSonucu },
+    akiciMetinler: { ...(tapu.akiciMetinler ?? {}) },
   };
 }
 

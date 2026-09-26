@@ -396,6 +396,8 @@ export interface Tapu {
   degerleme: DegerlemeData;
   emsaller: EmsallerData;
   raporSonucu: RaporSonucuData;
+  // Akıcı metin written from a form's template, keyed by the form's title.
+  akiciMetinler: Record<string, string>;
 }
 
 export type TapuSectionKey =
@@ -670,6 +672,7 @@ export function createEmptyTapu(index: number, defaults?: TalepDetayiDefaults): 
       raporMetni: "",
       teslimTarihi: "",
     },
+    akiciMetinler: {},
   };
 }
 

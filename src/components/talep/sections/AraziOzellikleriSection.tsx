@@ -11,6 +11,7 @@ import {
   inputClass,
   sectionBodyClass,
 } from "@/components/talep/form-fields";
+import { AkiciAlan, useAkiciAlan } from "@/components/akici-metin/baglam";
 import type { AraziOzellikleriData, DigerCephe, MahallindekiNitelik, TapuKaydiData } from "@/lib/talep/types";
 
 const FormGroup = SectionCard;
@@ -38,12 +39,16 @@ function Secim({
   value,
   options,
   onChange,
+  metinDegeri,
 }: {
   label: string;
   value: string;
   options: string[];
   onChange: (v: string) => void;
+  // Value used in akıcı metin (e.g. the text typed for "Diğer").
+  metinDegeri?: string;
 }) {
+  useAkiciAlan(label, metinDegeri ?? value);
   const liste = value && !options.includes(value) ? [value, ...options] : options;
   return (
     <Field label={label}>
@@ -81,6 +86,7 @@ function DigerliSecim({
       <Secim
         label={label}
         value={value}
+        metinDegeri={value === "Diğer" && diger.trim() ? diger : value}
         options={options}
         onChange={(v) => {
           setYeniSecildi(v === "Diğer");
@@ -198,6 +204,10 @@ export default function AraziOzellikleriSection({
           <TextField label="Ana Taşınmaz Nitelik" value={tapuKaydi.anaTasinmazNitelik} onChange={() => {}} readOnly />
         </div>
         <span className={helperTextClass}>Bu bilgiler Tapu Kaydı sekmesinden otomatik olarak alınır.</span>
+        <AkiciAlan
+          etiket="Mahallindeki Niteliği"
+          deger={MAHALLINDEKI_NITELIKLER.find((n) => n.value === data.mahallindekiNitelik)?.label ?? ""}
+        />
 
         <div className="mt-4">
           <p className="mb-2 text-sm font-medium text-slate-700">Mahallindeki Niteliği</p>
@@ -216,7 +226,7 @@ export default function AraziOzellikleriSection({
         </div>
       </FormGroup>
 
-      {data.mahallindekiNitelik === "bina-var" && <FormGroup title="Üzerindeki Yapı Bilgileri">{binaFormu}</FormGroup>}
+      {data.mahallindekiNitelik === "bina-var" && binaFormu}
 
       {data.mahallindekiNitelik === "bina-yok" && (
         <>
@@ -354,6 +364,16 @@ export default function AraziOzellikleriSection({
                 )}
               </div>
             </div>
+            <AkiciAlan etiket="Kadastral Yola Cephesi" deger={data.yolCepheleri.length ? data.yolCepheleri.join(", ") : "Yok"} />
+            <AkiciAlan
+              etiket="Diğer Cephe Bilgisi"
+              deger={data.digerCepheler
+                .filter((c) => c.yon && c.bilgi.trim())
+                .map((c) => `${c.yon}: ${c.bilgi.trim()}`)
+                .join("; ")}
+            />
+            <AkiciAlan etiket="Ekili Ürün Var mı?" deger={data.ekiliUrun} />
+            <AkiciAlan etiket="Ekili Ürün" deger={data.ekiliUrun === "Evet" ? data.ekiliUrunBilgi : ""} />
           </FormGroup>
 
           <FormGroup title="İsteğe Bağlı Özellik Girişleri">

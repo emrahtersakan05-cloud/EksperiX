@@ -1,6 +1,13 @@
 "use client";
 
-import { ComboboxField, SectionGrid, SelectField, TextAreaField, TextField } from "@/components/talep/form-fields";
+import {
+  ComboboxField,
+  SectionCard,
+  SectionGrid,
+  SelectField,
+  TextAreaField,
+  TextField,
+} from "@/components/talep/form-fields";
 import { oncelikOptions, talepTuruOptions } from "@/lib/talep/options";
 import {
   degerlemeFirmasiOptions,
@@ -29,10 +36,7 @@ export default function TalepDetayiSection({
 }) {
   return (
     <div className="space-y-4">
-      <div>
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">
-          Talep Oluşturma Bilgileri
-        </p>
+      <SectionCard title="Talep Oluşturma Bilgileri">
         <SectionGrid>
           <TextField
             label="Müşteri Unvanı"
@@ -58,10 +62,9 @@ export default function TalepDetayiSection({
             onChange={(v) => onChange({ tasinmazNiteligi: v })}
           />
         </SectionGrid>
-      </div>
+      </SectionCard>
 
-      <div>
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-400">Talep Detayı</p>
+      <SectionCard title="Talep Detayı">
         <SectionGrid>
           <SelectField
             label="Talep Türü"
@@ -89,7 +92,8 @@ export default function TalepDetayiSection({
             onChange={(v) => {
               // Fill the target date, unless the user has set one by hand
               // (i.e. it no longer matches the previous automatic value).
-              const otomatik = !data.hedefTeslimTarihi || data.hedefTeslimTarihi === gunEkle(data.talepTarihi, TESLIM_SURESI_GUN);
+              const otomatik =
+                !data.hedefTeslimTarihi || data.hedefTeslimTarihi === gunEkle(data.talepTarihi, TESLIM_SURESI_GUN);
               const hedef = gunEkle(v, TESLIM_SURESI_GUN);
               onChange(otomatik && hedef ? { talepTarihi: v, hedefTeslimTarihi: hedef } : { talepTarihi: v });
             }}
@@ -113,7 +117,7 @@ export default function TalepDetayiSection({
             className="sm:col-span-2"
           />
         </SectionGrid>
-      </div>
+      </SectionCard>
     </div>
   );
 }

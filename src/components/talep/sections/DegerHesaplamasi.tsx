@@ -16,6 +16,8 @@ import {
   Trash2,
   TriangleAlert,
 } from "lucide-react";
+import { AkiciAlan, AlanKaydiSaglayici } from "@/components/akici-metin/baglam";
+import { useAkiciMetinKarti } from "@/components/akici-metin/kart";
 import { TextField, tableInputClass } from "@/components/talep/form-fields";
 import { formatTrNumber, parseTrNumber } from "@/lib/emsal/hesaplama";
 import {
@@ -84,9 +86,10 @@ function CalcCard({
   sonucAciklama?: string;
   children: ReactNode;
 }) {
+  const { kayit, dugme, pencere } = useAkiciMetinKarti(title);
   return (
     <section className="flex min-w-0 flex-col rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(15,23,42,0.04)]">
-      <header className="flex items-start gap-3 border-b border-slate-100 p-4">
+      <header className="flex flex-wrap items-start gap-3 border-b border-slate-100 p-4">
         <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-lime-100 text-lime-800">
           {icon}
         </span>
@@ -94,9 +97,14 @@ function CalcCard({
           <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
           <p className="mt-0.5 text-xs leading-relaxed text-slate-500">{description}</p>
         </div>
+        <div className="ml-auto">{dugme}</div>
       </header>
 
-      <div className="flex-1 space-y-4 p-4">{children}</div>
+      <AlanKaydiSaglayici kayit={kayit}>
+        <div className="flex-1 space-y-4 p-4">{children}</div>
+        <AkiciAlan etiket={sonucEtiketi} deger={sonuc === null ? "" : para(sonuc)} />
+      </AlanKaydiSaglayici>
+      {pencere}
 
       <footer className="rounded-b-2xl border-t border-lime-100 bg-lime-50/70 px-4 py-3">
         <p className="text-[11px] font-medium uppercase tracking-wider text-lime-800">{sonucEtiketi}</p>
