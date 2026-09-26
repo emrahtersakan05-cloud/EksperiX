@@ -1,7 +1,7 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { Building2, Check, Plus, Sprout, Trash2, Trees } from "lucide-react";
+import { useState, type ReactNode } from "react";
+import { Building2, Check, PencilLine, Plus, Sprout, Trash2, Trees } from "lucide-react";
 import {
   Field,
   SectionCard,
@@ -73,11 +73,32 @@ function DigerliSecim({
   options: string[];
   onChange: (value: string, diger: string) => void;
 }) {
+  // Focus the text box only when the user has just picked "Diğer", not
+  // when a saved "Diğer" is shown on load.
+  const [yeniSecildi, setYeniSecildi] = useState(false);
   return (
-    <div className="space-y-2">
-      <Secim label={label} value={value} options={options} onChange={(v) => onChange(v, v === "Diğer" ? diger : "")} />
+    <div className="space-y-1.5">
+      <Secim
+        label={label}
+        value={value}
+        options={options}
+        onChange={(v) => {
+          setYeniSecildi(v === "Diğer");
+          onChange(v, v === "Diğer" ? diger : "");
+        }}
+      />
       {value === "Diğer" && (
-        <TextField label={`${label} (Diğer)`} value={diger} onChange={(v) => onChange(value, v)} placeholder="Belirtiniz" />
+        <div className="relative">
+          <PencilLine className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-lime-600" />
+          <input
+            value={diger}
+            onChange={(e) => onChange(value, e.target.value)}
+            autoFocus={yeniSecildi}
+            placeholder="Değeri yazınız"
+            aria-label={`${label} (Diğer)`}
+            className={`${inputClass} border-lime-300! bg-lime-50/60! pl-9 focus:border-lime-400!`}
+          />
+        </div>
       )}
     </div>
   );
