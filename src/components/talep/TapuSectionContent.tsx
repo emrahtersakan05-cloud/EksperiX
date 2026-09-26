@@ -7,6 +7,8 @@ import AdresKonumSection from "@/components/talep/sections/AdresKonumSection";
 import AnaGayrimenkulSection from "@/components/talep/sections/AnaGayrimenkulSection";
 import AraziOzellikleriSection from "@/components/talep/sections/AraziOzellikleriSection";
 import BagimsizBolumSection from "@/components/talep/sections/BagimsizBolumSection";
+import KonutOzellikleriSection from "@/components/talep/sections/KonutOzellikleriSection";
+import { konutMu } from "@/lib/talep/konut";
 import DegerlemeSection from "@/components/talep/sections/DegerlemeSection";
 import EmlakSitesiIlanlariSection from "@/components/talep/sections/EmlakSitesiIlanlariSection";
 import EmsallerSection from "@/components/talep/sections/EmsallerSection";
@@ -117,6 +119,15 @@ function TapuSectionIcerik({ talep, tapu, sectionKey, onUpdate }: SectionProps) 
                 onChange={(patch) => onUpdate((t) => ({ ...t, anaGayrimenkul: { ...t.anaGayrimenkul, ...patch } }))}
               />
             }
+          />
+        );
+      }
+      if (konutMu(tapu.talepDetayi.tasinmazNiteligi)) {
+        return (
+          <KonutOzellikleriSection
+            data={tapu.konutOzellikleri}
+            tapuKaydi={tapu.tapuKaydi}
+            onChange={(patch) => onUpdate((t) => ({ ...t, konutOzellikleri: { ...t.konutOzellikleri, ...patch } }))}
           />
         );
       }

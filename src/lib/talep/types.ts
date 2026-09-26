@@ -236,6 +236,51 @@ export interface AraziOzellikleriData {
   digerAciklama: string;
 }
 
+// KONUT taşınmaz niteliğinde Ana Gayrimenkul sekmesi.
+export type KonutMahallindekiNitelik = "bloklu" | "bloksuz" | "mustakil";
+export type EvetHayirSecimi = "Evet" | "Hayır" | "";
+
+// One İnşaat Nizamı decision for one or more blocks (by index into blokAdlari).
+export interface NizamAtamasi {
+  id: string;
+  bloklar: number[];
+  nizam: string;
+  nizamDiger: string;
+}
+
+export interface ProjeKati {
+  id: string;
+  kat: string;
+  aciklama: string;
+}
+
+export interface KonutOzellikleriData {
+  mahallindekiNitelik: KonutMahallindekiNitelik | "";
+  // Konum Tespiti
+  blokTespiti: EvetHayirSecimi;
+  blokYonleri: string[];
+  binaGirisTespiti: EvetHayirSecimi;
+  binaGirisYonleri: string[];
+  yapiSinifi: string;
+  blokSayisi: string;
+  blokAdlari: string[];
+  nizamAtamalari: NizamAtamasi[];
+  // Bloksuz / müstakil: one nizam for the building
+  insaatNizami: string;
+  insaatNizamiDiger: string;
+  // Proje Özellikleri
+  projeKatlari: ProjeKati[];
+  // Bina Özellikleri
+  binaGirisiTespit: string;
+  binaGirisKapisi: string;
+  katHoluSahanlik: string;
+  merdivenBasamaklari: string;
+  merdivenKorkuluklari: string;
+  binaIciDuvarlar: string;
+  binaDisCephesi: string;
+  binaCatisi: string;
+}
+
 export interface BagimsizBolumData {
   bagimsizBolumNo: string;
   bulunduguKat: string;
@@ -392,6 +437,7 @@ export interface Tapu {
   imarDurumu: ImarDurumuData;
   anaGayrimenkul: AnaGayrimenkulData;
   araziOzellikleri: AraziOzellikleriData;
+  konutOzellikleri: KonutOzellikleriData;
   bagimsizBolum: BagimsizBolumData;
   degerleme: DegerlemeData;
   emsaller: EmsallerData;
@@ -614,6 +660,28 @@ export function createEmptyTapu(index: number, defaults?: TalepDetayiDefaults): 
       parselDerinligi: "",
       toprakYapisi: "",
       digerAciklama: "",
+    },
+    konutOzellikleri: {
+      mahallindekiNitelik: "",
+      blokTespiti: "",
+      blokYonleri: [],
+      binaGirisTespiti: "",
+      binaGirisYonleri: [],
+      yapiSinifi: "",
+      blokSayisi: "",
+      blokAdlari: [],
+      nizamAtamalari: [],
+      insaatNizami: "",
+      insaatNizamiDiger: "",
+      projeKatlari: [],
+      binaGirisiTespit: "",
+      binaGirisKapisi: "",
+      katHoluSahanlik: "",
+      merdivenBasamaklari: "",
+      merdivenKorkuluklari: "",
+      binaIciDuvarlar: "",
+      binaDisCephesi: "",
+      binaCatisi: "",
     },
     bagimsizBolum: {
       bagimsizBolumNo: "",

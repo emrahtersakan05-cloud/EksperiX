@@ -1,3 +1,4 @@
+import { konutMu } from "./konut";
 import type { Talep, Tapu } from "./types";
 
 function isFilled(value: unknown): boolean {
@@ -27,8 +28,12 @@ export function getTapuCompletion(tapu: Tapu, options?: { excludeSharedSections?
     ...(options?.excludeSharedSections ? [] : [tapu.kurumIncelemeleri]),
     tapu.projeIncelemeleri,
     tapu.imarDurumu,
-    // Land (tarla, bağ, bahçe) fills the Ana Gayrimenkul tab with the arazi form.
-    tapu.talepDetayi.tasinmazNiteligi === "TARLA, BAĞ, BAHÇE VB." ? tapu.araziOzellikleri : tapu.anaGayrimenkul,
+    // Land (tarla, bağ, bahçe) and konut fill the Ana Gayrimenkul tab with their own forms.
+    tapu.talepDetayi.tasinmazNiteligi === "TARLA, BAĞ, BAHÇE VB."
+      ? tapu.araziOzellikleri
+      : konutMu(tapu.talepDetayi.tasinmazNiteligi)
+        ? tapu.konutOzellikleri
+        : tapu.anaGayrimenkul,
     tapu.bagimsizBolum,
     tapu.degerleme,
     tapu.emsaller,

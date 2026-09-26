@@ -1,4 +1,5 @@
 import { ortalamaEmsalBirimFiyatlari } from "@/lib/emsal/hesaplama";
+import { KONUT_MAHALLINDEKI_NITELIKLER, blokAdi, insaatNizamiOzeti, konutMu, projeKatlariMetni } from "./konut";
 import {
   alanFarkiMetni,
   formatTL,
@@ -332,6 +333,38 @@ function buildBuildingParagraph(tapu: Tapu): string {
   ]);
 }
 
+// KONUT: the konut form's choices, most of them already full sentences.
+function buildKonutParagraph(tapu: Tapu): string {
+  const k = tapu.konutOzellikleri;
+  const nitelik = KONUT_MAHALLINDEKI_NITELIKLER.find((n) => n.value === k.mahallindekiNitelik);
+  const kucuk = (v: string) => v.toLocaleLowerCase("tr-TR");
+  const nizam = insaatNizamiOzeti(k);
+  const blokSayisi = parseInt(k.blokSayisi, 10) || 0;
+  return joinSentence([
+    nitelik ? `Ana gayrimenkul ${kucuk(nitelik.label)} niteliğindedir.` : "",
+    k.mahallindekiNitelik === "bloklu" && blokSayisi
+      ? `Ana gayrimenkul ${blokSayisi} bloktan (${Array.from({ length: blokSayisi }, (_, i) => blokAdi(k, i)).join(", ")}) oluşmaktadır.`
+      : "",
+    k.blokTespiti === "Evet" && k.blokYonleri.length ? `Bağımsız bölümün bulunduğu blok parselin ${k.blokYonleri.map(kucuk).join(", ")} yönünde yer almaktadır.` : "",
+    k.binaGirisTespiti === "Evet" && k.binaGirisYonleri.length ? `Bina girişi ${k.binaGirisYonleri.map(kucuk).join(", ")} cepheden sağlanmaktadır.` : "",
+    k.yapiSinifi ? `Yapı sınıfı ${k.yapiSinifi}.` : "",
+    nizam ? `İnşaat nizamı: ${nizam}.` : "",
+    k.binaGirisiTespit,
+    k.binaGirisKapisi,
+    k.katHoluSahanlik,
+    k.merdivenBasamaklari,
+    k.merdivenKorkuluklari,
+    k.binaIciDuvarlar,
+    k.binaDisCephesi,
+    k.binaCatisi,
+  ]);
+}
+
+function buildKonutProjeParagraph(tapu: Tapu): string {
+  const metin = projeKatlariMetni(tapu.konutOzellikleri);
+  return metin ? `Onaylı projesine göre; ${metin}` : "";
+}
+
 function buildIndependentSectionParagraph(tapu: Tapu): string {
   return joinSentence([
     tapu.bagimsizBolum.bagimsizBolumNo ? `Bağımsız bölüm numarası ${tapu.bagimsizBolum.bagimsizBolumNo} olarak kayıtlıdır.` : "",
@@ -384,6 +417,7 @@ function buildAraziParagraph(tapu: Tapu): string {
 }
 
 const isArazi = (tapu: Tapu) => tapu.talepDetayi.tasinmazNiteligi === "TARLA, BAĞ, BAHÇE VB.";
+const isKonut = (tapu: Tapu) => konutMu(tapu.talepDetayi.tasinmazNiteligi);
 
 const EMSAL_ANAHTARLARI = {
   satilik: ["satilik1", "satilik2", "satilik3", "satilik4", "satilik5"],
@@ -467,7 +501,10 @@ const AKICI_METIN_BOLUMLERI: [RegExp, string][] = [
   [/^Tapu Kayıt Bilgileri/, "tapu"],
   [/(Ruhsat|Proje İnceleme|Kurum İnceleme)/, "ruhsat"],
   [/(Meri İmar Planı|Kadastro Parsel)/, "imar"],
-  [/(Ana Gayrimenkul|Üzerindeki Yapı|Bağımsız Bölüm Özellikleri|Taşınmaz Özellikleri|İsteğe Bağlı Özellik|^Tapu Bilgileri Formu)/, "yapi"],
+  [
+    /(Ana Gayrimenkul|Üzerindeki Yapı|Bağımsız Bölüm Özellikleri|Taşınmaz Özellikleri|İsteğe Bağlı Özellik|^Tapu Bilgileri( Formu)?$|^Konum Tespiti$|^Proje Özellikleri$|^Bina Özellikleri$)/,
+    "yapi",
+  ],
   [/Satış Kabiliyeti/, "satis"],
   [/Değerleme Açıklama/, "aciklama"],
   [/Değerleme$/, "deger"],
@@ -554,7 +591,9 @@ export function generateValuationReport(params: {
       source: isArazi(tapu) ? "Özellikler → Ana Gayrimenkul (Arazi)" : "Özellikler → Ana Gayrimenkul / Bağımsız Bölüm",
       paragraphs: (isArazi(tapu)
         ? [buildAraziParagraph(tapu), buildIndependentSectionParagraph(tapu)]
-        : [buildBuildingParagraph(tapu), buildIndependentSectionParagraph(tapu)]
+        : isKonut(tapu)
+          ? [buildKonutParagraph(tapu), buildKonutProjeParagraph(tapu), buildIndependentSectionParagraph(tapu)]
+          : [buildBuildingParagraph(tapu), buildIndependentSectionParagraph(tapu)]
       ).filter(Boolean),
     },
     {
@@ -635,7 +674,7 @@ export function generateValuationReport(params: {
 
   const executiveSummary = joinSentence([
     buildLocationParagraph(tapu),
-    isArazi(tapu) ? buildAraziParagraph(tapu) : buildBuildingParagraph(tapu),
+    isArazi(tapu) ? buildAraziParagraph(tapu) : isKonut(tapu) ? buildKonutParagraph(tapu) : buildBuildingParagraph(tapu),
     deger ? `Rapor kapsamında ${deger} değer öne çıkmaktadır.` : cokluDeger,
   ]);
 

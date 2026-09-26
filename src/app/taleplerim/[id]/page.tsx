@@ -1,5 +1,6 @@
 "use client";
 
+import { konutMu } from "@/lib/talep/konut";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -159,7 +160,9 @@ export default function TalepDetayPage() {
         case "anaGayrimenkul":
           return t.talepDetayi.tasinmazNiteligi === "TARLA, BAĞ, BAHÇE VB."
             ? { ...t, araziOzellikleri: emptyTapu.araziOzellikleri, anaGayrimenkul: emptyTapu.anaGayrimenkul }
-            : { ...t, anaGayrimenkul: emptyTapu.anaGayrimenkul };
+            : konutMu(t.talepDetayi.tasinmazNiteligi)
+              ? { ...t, konutOzellikleri: emptyTapu.konutOzellikleri }
+              : { ...t, anaGayrimenkul: emptyTapu.anaGayrimenkul };
         case "bagimsizBolum":
           return { ...t, bagimsizBolum: emptyTapu.bagimsizBolum };
         case "satisKabiliyeti":
