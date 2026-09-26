@@ -762,7 +762,7 @@ export default function EmsalKayitFormu({
             >
               <div className="space-y-3">
                 <Field label="İlan Linki">
-                  <div className="flex gap-2">
+                  <div className="flex items-center gap-2">
                     <input
                       type="url"
                       value={ortak.webAdresi}

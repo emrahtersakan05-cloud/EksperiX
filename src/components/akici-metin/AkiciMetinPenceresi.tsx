@@ -16,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import { useAkiciMetinDeposu } from "@/components/akici-metin/baglam";
+import { inputClass } from "@/lib/ui/girdi";
 import { akiciSablonlariKaydetAction, akiciSablonlariOkuAction } from "@/lib/akici-metin/actions";
 import {
   BOS_DEGER,
@@ -347,7 +348,7 @@ export default function AkiciMetinPenceresi({
                   }}
                   rows={8}
                   placeholder="Yukarıdan bir şablon seçin; metin burada oluşur ve dilediğiniz gibi düzenleyebilirsiniz."
-                  className="w-full resize-y rounded-xl border border-slate-200 px-3.5 py-3 text-sm leading-relaxed text-slate-800 focus:border-lime-300 focus:outline-none focus:ring-4 focus:ring-lime-200/50"
+                  className={`${inputClass} resize-y leading-relaxed`}
                 />
                 <div className="mt-2 flex flex-wrap items-center justify-end gap-2">
                   {depo && (
@@ -462,7 +463,7 @@ export default function AkiciMetinPenceresi({
                   onChange={(e) => govdeDegistir(duzenlenen, e.target.value)}
                   rows={7}
                   placeholder="Metni yazın, verinin geleceği yere yukarıdaki alanlardan ekleyin. Örn: Taşınmaz {İl} ili {İlçe} ilçesinde yer almaktadır."
-                  className="mt-1 w-full resize-y rounded-xl border border-slate-200 px-3.5 py-3 font-mono text-[13px] leading-relaxed text-slate-800 focus:border-lime-300 focus:outline-none focus:ring-4 focus:ring-lime-200/50"
+                  className={`${inputClass} mt-1 resize-y font-mono leading-relaxed`}
                 />
               </label>
 

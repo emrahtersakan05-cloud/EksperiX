@@ -50,6 +50,7 @@ import {
 } from "@/lib/kolaj/duzen";
 import { projeKaydet, projeSil, projeYukle } from "@/lib/kolaj/depo";
 import { boyutYaz } from "@/lib/dosyalar/depo";
+import { inputClass } from "@/components/talep/form-fields";
 
 const AD_ONERILERI = ["Fotoğraf", "Dış Cephe", "İç Mekân", "Çevre", "Kroki", "Tapu Belgeleri"];
 const SAYFA_TURU = "application/x-kolaj-sayfa";
@@ -703,8 +704,7 @@ export default function KolajOlusturucu({ aktif = true }: { aktif?: boolean }) {
     "inline-flex items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40";
   const kucukDugme =
     "inline-flex items-center justify-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-40";
-  const girdi =
-    "w-full rounded-xl border border-slate-200 px-3 py-2 text-sm text-slate-900 focus:border-lime-300 focus:outline-none focus:ring-4 focus:ring-lime-200/50";
+  const girdi = inputClass;
   const tasan = tasanSayisi(secili);
 
   return (

@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useState } from "react";
 import { Pencil, KeyRound, Trash2, UserPlus, X } from "lucide-react";
 import Card from "@/components/card";
+import { inputClass } from "@/components/talep/form-fields";
 import {
   createUserAction,
   deleteUserAction,
@@ -15,9 +16,7 @@ import { getInitials } from "@/lib/text/initials";
 
 const initialFormState: UserFormState = {};
 
-const inputClass =
-  "w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 focus:border-lime-300 focus:outline-none focus:ring-4 focus:ring-lime-200/50";
-const labelClass = "mb-1 block text-sm font-medium text-slate-700";
+const labelClass = "mb-1 block text-[11px] font-medium text-slate-500";
 
 type Panel = { type: "create" } | { type: "edit"; user: PublicUser } | { type: "reset"; user: PublicUser };
 

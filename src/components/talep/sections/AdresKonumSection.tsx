@@ -7,6 +7,7 @@ import { ChevronDown, ExternalLink, ImageUp, Search, Sparkles, X } from "lucide-
 import {
   ComboboxField,
   SectionCard,
+  inputClass,
   modalCardClass,
   primaryButtonClass,
   secondaryButtonClass,
@@ -311,7 +312,7 @@ function UavtPasteModal({
               onChange={(e) => onChange(e.target.value)}
               rows={10}
               placeholder="UAVT sonuç ekranındaki metni buraya yapıştırın..."
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-800 shadow-sm outline-none placeholder:text-slate-400 focus:border-lime-300 focus:ring-4 focus:ring-lime-200/50"
+              className={inputClass}
             />
           </label>
 

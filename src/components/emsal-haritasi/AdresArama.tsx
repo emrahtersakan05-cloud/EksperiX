@@ -69,7 +69,7 @@ export default function AdresArama({
           }}
           placeholder="Adres veya yer ara"
           aria-label="Adres ara"
-          className="h-9 w-full rounded-lg border border-slate-200 bg-white pl-8 pr-16 text-xs text-slate-800 shadow-sm placeholder:text-slate-400 focus:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-200"
+          className="h-8 w-full rounded-md border border-slate-200 bg-white pl-8 pr-16 text-xs text-slate-800 shadow-sm placeholder:text-slate-400 focus:border-slate-300 focus:outline-none focus:ring-2 focus:ring-slate-200"
         />
         <div className="absolute right-1 top-1/2 flex -translate-y-1/2 items-center">
           {(q || sonuclar || hata) && (

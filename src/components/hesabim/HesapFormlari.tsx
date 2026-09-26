@@ -3,12 +3,12 @@
 import { useActionState, useEffect, useRef } from "react";
 import { CheckCircle2, KeyRound, Loader2, UserRound } from "lucide-react";
 import Card from "@/components/card";
+import { inputClass as standartGirdi } from "@/components/talep/form-fields";
 import { changePasswordAction, updateProfileAction, type UserFormState } from "@/lib/auth/actions";
 import type { PublicUser } from "@/lib/auth/types";
 
-const inputClass =
-  "w-full rounded-xl border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 focus:border-lime-300 focus:outline-none focus:ring-4 focus:ring-lime-200/50 disabled:bg-slate-50 disabled:text-slate-500";
-const labelClass = "mb-1 block text-sm font-medium text-slate-700";
+const inputClass = `${standartGirdi} disabled:bg-slate-50 disabled:text-slate-500`;
+const labelClass = "mb-1 block text-[11px] font-medium text-slate-500";
 
 function Durum({ state, basari }: { state: UserFormState; basari: string }) {
   if (state.error) return <p className="text-sm font-medium text-rose-600">{state.error}</p>;
