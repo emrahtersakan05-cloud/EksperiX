@@ -6,19 +6,19 @@ import type { FormAlani } from "@/lib/akici-metin/sablonlar";
 // ---- Field registry: each form card collects its own fields ----------------
 
 interface AlanKaydi {
-  ayarla: (id: string, etiket: string, deger: string) => void;
+  ayarla: (id: string, etiket: string, deger: string, bolum: string) => void;
   sil: (id: string) => void;
 }
 
 const AlanKaydiBaglami = createContext<AlanKaydi | null>(null);
 
 export function useAlanKaydi() {
-  const kayitRef = useRef(new Map<string, FormAlani>());
+  const kayitRef = useRef(new Map<string, FormAlani & { bolum: string }>());
   const [adet, setAdet] = useState(0);
   const kayit = useMemo<AlanKaydi>(
     () => ({
-      ayarla(id, etiket, deger) {
-        kayitRef.current.set(id, { etiket, deger });
+      ayarla(id, etiket, deger, bolum) {
+        kayitRef.current.set(id, { etiket, deger, bolum });
         setAdet(kayitRef.current.size);
       },
       sil(id) {
@@ -28,9 +28,26 @@ export function useAlanKaydi() {
     }),
     [],
   );
-  // Read at the moment it is needed (the popup opens), in render order.
-  const alanlar = () => [...kayitRef.current.values()].filter((a) => a.etiket.trim());
+  // Read at the moment it is needed (the popup opens), in render order. When
+  // several forms share one button, a label used by more than one form gets
+  // the form's name so each {token} stays unambiguous.
+  const alanlar = (): FormAlani[] => {
+    const liste = [...kayitRef.current.values()].filter((a) => a.etiket.trim());
+    const bolumler = new Map<string, Set<string>>();
+    for (const a of liste) bolumler.set(a.etiket, (bolumler.get(a.etiket) ?? new Set()).add(a.bolum));
+    return liste.map((a) => ({
+      etiket: (bolumler.get(a.etiket)?.size ?? 0) > 1 && a.bolum ? `${a.etiket} (${a.bolum})` : a.etiket,
+      deger: a.deger,
+    }));
+  };
   return { kayit, adet, alanlar };
+}
+
+// Name of the form a field sits in, for disambiguating grouped forms.
+const BolumBaglami = createContext("");
+
+export function BolumSaglayici({ ad, children }: { ad: string; children: ReactNode }) {
+  return <BolumBaglami.Provider value={ad}>{children}</BolumBaglami.Provider>;
 }
 
 export function AlanKaydiSaglayici({ kayit, children }: { kayit: AlanKaydi; children: ReactNode }) {
@@ -47,11 +64,12 @@ function degerMetni(deger: unknown): string {
 // Called by every form field so its card's Akıcı Metin templates can use it.
 export function useAkiciAlan(etiket: string, deger: unknown) {
   const kayit = useContext(AlanKaydiBaglami);
+  const bolum = useContext(BolumBaglami);
   const id = useId();
   const metin = degerMetni(deger);
   useEffect(() => {
-    kayit?.ayarla(id, etiket, metin);
-  }, [kayit, id, etiket, metin]);
+    kayit?.ayarla(id, etiket, metin, bolum);
+  }, [kayit, id, etiket, metin, bolum]);
   useEffect(() => () => kayit?.sil(id), [kayit, id]);
 }
 

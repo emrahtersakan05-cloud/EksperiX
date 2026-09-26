@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Check, ChevronDown, Plus, Search, Trash2, X } from "lucide-react";
-import { AlanKaydiSaglayici, useAkiciAlan } from "@/components/akici-metin/baglam";
+import { AlanKaydiSaglayici, BolumSaglayici, useAkiciAlan } from "@/components/akici-metin/baglam";
 import { useAkiciMetinKarti } from "@/components/akici-metin/kart";
 
 export const inputClass =
@@ -23,7 +23,8 @@ export const helperTextClass = "mt-1.5 block text-xs text-slate-400";
 
 // A titled form card. Every field inside registers itself, so the header's
 // "Akıcı Metin Şablonları" button can turn the form into prose; the button
-// only appears when the card has fields (akiciMetin={false} hides it).
+// only appears when the card has fields (akiciMetin={false} hides it and
+// hands the fields to an enclosing AkiciMetinGrubu).
 export function SectionCard({
   title,
   children,
@@ -46,7 +47,13 @@ export function SectionCard({
         <p className="text-xs font-semibold text-slate-500">{title}</p>
         {dugme}
       </div>
-      <AlanKaydiSaglayici kayit={kayit}>{children}</AlanKaydiSaglayici>
+      {/* Without its own button the card's fields belong to an enclosing
+          AkiciMetinGrubu (one button for several forms), if there is one. */}
+      {akiciMetin ? (
+        <AlanKaydiSaglayici kayit={kayit}>{children}</AlanKaydiSaglayici>
+      ) : (
+        <BolumSaglayici ad={title.replace(/\s*(Bilgileri\s*)?(Formu|Sekmesi)$/i, "").trim()}>{children}</BolumSaglayici>
+      )}
       {pencere}
     </div>
   );

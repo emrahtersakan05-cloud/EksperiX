@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Check, Sparkles } from "lucide-react";
 import AkiciMetinPenceresi from "@/components/akici-metin/AkiciMetinPenceresi";
-import { useAkiciMetinDeposu, useAlanKaydi } from "@/components/akici-metin/baglam";
+import { AlanKaydiSaglayici, useAkiciMetinDeposu, useAlanKaydi } from "@/components/akici-metin/baglam";
 import type { FormAlani } from "@/lib/akici-metin/sablonlar";
 
 // Everything a form card needs for "Akıcı Metin Şablonları": a provider its
@@ -42,4 +42,31 @@ export function useAkiciMetinKarti(baslik: string, { anahtar, etkin = true }: { 
 
   // Wrap the card body in <AlanKaydiSaglayici kayit={kayit}>.
   return { kayit, dugme, pencere };
+}
+
+// One Akıcı Metin button for several form cards: cards inside pass
+// akiciMetin={false}, so their fields register here instead of on their own.
+export function AkiciMetinGrubu({
+  baslik,
+  aciklama,
+  children,
+}: {
+  baslik: string;
+  aciklama?: string;
+  children: ReactNode;
+}) {
+  const { kayit, dugme, pencere } = useAkiciMetinKarti(baslik);
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold text-slate-800">{baslik}</p>
+          {aciklama && <p className="text-xs text-slate-500">{aciklama}</p>}
+        </div>
+        {dugme}
+      </div>
+      <AlanKaydiSaglayici kayit={kayit}>{children}</AlanKaydiSaglayici>
+      {pencere}
+    </div>
+  );
 }
