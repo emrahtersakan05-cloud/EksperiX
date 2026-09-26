@@ -254,6 +254,8 @@ export interface BinaGirisi {
   yon: string;
   yol: string;
   tur: string;
+  // Floor the entrance opens on, e.g. "Zemin Kat".
+  kat?: string;
   // Door description from the admin list, e.g. "camlı demir doğramadır."
   kapi?: string;
 }

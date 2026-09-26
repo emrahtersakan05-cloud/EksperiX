@@ -82,6 +82,18 @@ export function konumEki(konum: string): string {
 
 export const GIRIS_TURLERI = ["Ana giriş", "Yan giriş", "Otopark girişi", "Servis girişi"];
 
+export const GIRIS_KATLARI = ["Zemin Kat", "Yüksek Zemin Kat", "Bodrum Kat", "Bahçe Katı", "Asma Kat", "1. Kat"];
+
+// "Zemin Kat" → "zemin kattan", "Bahçe Katı" → "bahçe kattan", "2" → "2. kattan".
+export function kattan(kat: string): string {
+  let k = kat.trim().toLocaleLowerCase("tr-TR");
+  if (!k) return "";
+  if (/^\d+$/.test(k)) k = `${k}.`;
+  if (/kat[ıi]$/.test(k)) return k.replace(/kat[ıi]$/, "kattan");
+  if (/kat$/.test(k)) return `${k}tan`;
+  return `${k} kattan`;
+}
+
 // "…bağımsız bölüm, parselin kuzeydoğusunda konumlu A blokta yer almaktadır."
 export function blokTespitiCumlesi(k: KonutOzellikleriData): string {
   if (k.blokTespiti !== "Evet") return "";
@@ -103,7 +115,8 @@ export function binaGirisCumlesi(k: KonutOzellikleriData): string {
     .map((g) => {
       const tur = (g.tur || "giriş").toLocaleLowerCase("tr-TR").replace(/giriş$/, "girişi");
       const yol = g.yol.trim() ? `, ${g.yol.trim()} üzerinden` : "";
-      return `${tur} ${g.yon.toLocaleLowerCase("tr-TR")} cepheden${yol}`;
+      const kat = g.kat?.trim() ? `, ${kattan(g.kat)}` : "";
+      return `${tur} ${g.yon.toLocaleLowerCase("tr-TR")} cepheden${yol}${kat}`;
     });
   if (!parcalar.length) return "";
   const kapilar = k.binaGirisleri.filter((g) => g.yon && g.kapi?.trim());

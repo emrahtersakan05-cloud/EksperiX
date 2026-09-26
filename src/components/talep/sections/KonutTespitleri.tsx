@@ -6,6 +6,7 @@ import { AkiciAlan } from "@/components/akici-metin/baglam";
 import SecenekListesiAlani from "@/components/talep/SecenekListesiAlani";
 import { YONLER, yeniId } from "@/components/talep/sections/ortak";
 import {
+  GIRIS_KATLARI,
   GIRIS_TURLERI,
   NIZAMLAR,
   PARSEL_KONUMLARI,
@@ -34,10 +35,10 @@ const KISA: Record<string, string> = {
 };
 
 const girdi =
-  "h-9 rounded-lg border border-slate-200 bg-white px-2.5 text-sm text-slate-800 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none";
+  "h-8 rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-800 placeholder:text-slate-400 focus:border-slate-400 focus:outline-none";
 
 function Etiket({ children }: { children: ReactNode }) {
-  return <p className="mb-1.5 text-[11px] font-medium uppercase tracking-wide text-slate-400">{children}</p>;
+  return <p className="mb-1 text-[10px] font-medium uppercase tracking-wide text-slate-400">{children}</p>;
 }
 
 function Hap({
@@ -60,7 +61,7 @@ function Hap({
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className={`h-8 min-w-8 rounded-full border px-3 text-xs font-semibold transition-colors disabled:cursor-not-allowed ${
+      className={`h-7 min-w-7 rounded-full border px-2.5 text-[11px] font-semibold transition-colors disabled:cursor-not-allowed ${
         aktif
           ? "border-slate-900 bg-slate-900 text-white"
           : disabled
@@ -77,7 +78,7 @@ function Hap({
 function NizamSecici({ nizam, diger, onChange }: { nizam: string; diger: string; onChange: (n: string, d: string) => void }) {
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <div className="inline-flex rounded-lg bg-slate-100 p-0.5" role="radiogroup" aria-label="İnşaat nizamı">
+      <div className="inline-flex rounded-md bg-slate-100 p-0.5" role="radiogroup" aria-label="İnşaat nizamı">
         {NIZAMLAR.map((n) => {
           const aktif = nizam === n;
           return (
@@ -87,7 +88,7 @@ function NizamSecici({ nizam, diger, onChange }: { nizam: string; diger: string;
               role="radio"
               aria-checked={aktif}
               onClick={() => onChange(aktif ? "" : n, n === "Diğer" ? diger : "")}
-              className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+              className={`rounded px-2 py-1 text-[11px] font-semibold transition-colors ${
                 aktif ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-800"
               }`}
             >
@@ -102,7 +103,7 @@ function NizamSecici({ nizam, diger, onChange }: { nizam: string; diger: string;
           onChange={(e) => onChange(nizam, e.target.value)}
           placeholder="Nizamı yazınız"
           aria-label="İnşaat nizamı (Diğer)"
-          className={`${girdi} w-full max-w-[200px]`}
+          className={`${girdi} w-full max-w-[160px]`}
         />
       )}
     </div>
@@ -116,18 +117,20 @@ function Satir({
   acik = true,
   onAc,
   children,
+  className = "",
 }: {
   baslik: string;
   ozet?: string;
   acik?: boolean;
   onAc?: (a: boolean) => void;
   children: ReactNode;
+  className?: string;
 }) {
   return (
-    <div className="px-4 py-3">
+    <div className={`min-w-0 bg-white px-3.5 py-3 ${className}`}>
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-slate-900">{baslik}</p>
+          <p className="text-[13px] font-semibold text-slate-900">{baslik}</p>
           {ozet && <p className="truncate text-xs text-slate-500">{ozet}</p>}
         </div>
         {onAc && (
@@ -147,7 +150,7 @@ function Satir({
           </button>
         )}
       </div>
-      {acik && <div className="@container pt-3">{children}</div>}
+      {acik && <div className="@container pt-2.5">{children}</div>}
     </div>
   );
 }
@@ -162,7 +165,7 @@ function BlokTespiti({ data, tapuKaydi, onChange }: { data: KonutOzellikleriData
   const [yaz, setYaz] = useState(elle || secenekler.length === 0);
 
   return (
-    <div className="flex flex-col gap-4 @md:flex-row @md:items-start @md:gap-6">
+    <div className="flex flex-col gap-3 @md:flex-row @md:items-start @md:gap-5">
       <div className="min-w-0 flex-1">
         <Etiket>Blok</Etiket>
         <div className="flex flex-wrap items-center gap-1.5" role="radiogroup" aria-label="Konu blok">
@@ -187,10 +190,10 @@ function BlokTespiti({ data, tapuKaydi, onChange }: { data: KonutOzellikleriData
               placeholder="Blok adı"
               aria-label="Konu blok adı"
               autoFocus={secenekler.length > 0}
-              className={`${girdi} h-8 w-24 rounded-full`}
+              className={`${girdi} h-7 w-20 rounded-full`}
             />
           ) : (
-            <button type="button" onClick={() => setYaz(true)} className="h-8 rounded-full px-2 text-xs font-medium text-slate-400 hover:text-slate-700">
+            <button type="button" onClick={() => setYaz(true)} className="h-7 rounded-full px-1.5 text-[11px] font-medium text-slate-400 hover:text-slate-700">
               + başka
             </button>
           )}
@@ -200,7 +203,7 @@ function BlokTespiti({ data, tapuKaydi, onChange }: { data: KonutOzellikleriData
       <div className="w-fit">
         <Etiket>Parseldeki konumu</Etiket>
         <div
-          className="grid w-[132px] grid-cols-3 gap-1 rounded-lg border border-dashed border-slate-300 p-1"
+          className="grid w-[108px] grid-cols-3 gap-0.5 rounded-md border border-dashed border-slate-300 p-0.5"
           role="radiogroup"
           aria-label="Bloğun parsel içindeki konumu"
         >
@@ -215,7 +218,7 @@ function BlokTespiti({ data, tapuKaydi, onChange }: { data: KonutOzellikleriData
                 aria-label={k}
                 title={k}
                 onClick={() => onChange({ blokKonumu: aktif ? "" : k })}
-                className={`flex aspect-square items-center justify-center rounded text-[10px] font-semibold transition-colors ${
+                className={`flex aspect-square items-center justify-center rounded-sm text-[9px] font-semibold transition-colors ${
                   aktif ? "bg-slate-900 text-lime-300" : "bg-slate-50 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
                 }`}
               >
@@ -262,11 +265,11 @@ function BinaGirisTespiti({ data, onChange }: { data: KonutOzellikleriData; onCh
   const sirali = [...girisler].sort((a, b) => YONLER.indexOf(a.yon) - YONLER.indexOf(b.yon));
 
   return (
-    <div className="flex flex-col gap-4 @md:flex-row @md:items-start @md:gap-6">
+    <div className="flex flex-col gap-3 @md:flex-row @md:items-start @md:gap-5">
       <div className="w-fit shrink-0">
         <Etiket>Giriş cephesi</Etiket>
-        <div className="relative mx-3 my-3 h-[108px] w-[108px] rounded border-2 border-slate-700 bg-slate-50">
-          <span className="absolute inset-0 flex items-center justify-center text-[10px] font-semibold text-slate-400">Bina</span>
+        <div className="relative mx-2.5 my-2.5 h-[84px] w-[84px] rounded-sm border-2 border-slate-700 bg-slate-50">
+          <span className="absolute inset-0 flex items-center justify-center text-[9px] font-semibold text-slate-400">Bina</span>
           {YONLER.map((yon) => {
             const g = girisler.find((x) => x.yon === yon);
             const yer = KAPI_YERLERI[yon];
@@ -279,11 +282,11 @@ function BinaGirisTespiti({ data, onChange }: { data: KonutOzellikleriData; onCh
                 title={yon}
                 onClick={() => yonDegistir(yon)}
                 style={{ left: yer.left, top: yer.top }}
-                className={`absolute flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded text-[9px] font-bold transition-colors ${
+                className={`absolute flex h-5 w-5 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-sm text-[8px] font-bold transition-colors ${
                   g ? "bg-lime-400 text-slate-900" : "border border-slate-300 bg-white text-slate-400 hover:border-slate-500 hover:text-slate-700"
                 }`}
               >
-                {g ? <DoorOpen className="h-3.5 w-3.5" /> : KISA[yon]}
+                {g ? <DoorOpen className="h-3 w-3" /> : KISA[yon]}
               </button>
             );
           })}
@@ -298,53 +301,65 @@ function BinaGirisTespiti({ data, onChange }: { data: KonutOzellikleriData; onCh
         ) : (
           <ul className="divide-y divide-slate-100">
             {sirali.map((g) => (
-              <li
-                key={g.id}
-                className="grid grid-cols-[64px_minmax(0,1fr)_28px] items-center gap-x-2 gap-y-1.5 py-2 @md:grid-cols-[84px_minmax(0,1fr)_132px_28px]"
-              >
-                <span className="text-xs font-semibold text-slate-700">{g.yon}</span>
-                <input
-                  value={g.yol}
-                  onChange={(e) => guncelle(g.id, { yol: e.target.value })}
-                  placeholder="Yol / sokak"
-                  aria-label={`${g.yon} girişinin yolu`}
-                  className={`${girdi} w-full`}
-                />
-                <select
-                  value={g.tur}
-                  onChange={(e) => guncelle(g.id, { tur: e.target.value })}
-                  aria-label={`${g.yon} girişinin türü`}
-                  className={`${girdi} col-start-2 row-start-2 w-full appearance-none @md:col-start-3 @md:row-start-1`}
-                >
-                  <option value="">Tür</option>
-                  {GIRIS_TURLERI.map((t) => (
-                    <option key={t} value={t}>
-                      {t}
-                    </option>
-                  ))}
-                </select>
+              <li key={g.id} className="grid grid-cols-[52px_minmax(0,1fr)_24px] items-start gap-x-1.5 py-1.5">
+                <span className="pt-2 text-[11px] font-semibold text-slate-700">{g.yon}</span>
+                <div className="grid min-w-0 grid-cols-2 gap-1">
+                  <input
+                    value={g.yol}
+                    onChange={(e) => guncelle(g.id, { yol: e.target.value })}
+                    placeholder="Yol / sokak"
+                    aria-label={`${g.yon} girişinin yolu`}
+                    className={`${girdi} col-span-2 w-full`}
+                  />
+                  <select
+                    value={g.tur}
+                    onChange={(e) => guncelle(g.id, { tur: e.target.value })}
+                    aria-label={`${g.yon} girişinin türü`}
+                    className={`${girdi} w-full min-w-0 appearance-none`}
+                  >
+                    <option value="">Tür</option>
+                    {GIRIS_TURLERI.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                  <input
+                    value={g.kat ?? ""}
+                    onChange={(e) => guncelle(g.id, { kat: e.target.value })}
+                    list="giris-katlari"
+                    placeholder="Hangi kattan"
+                    aria-label={`${g.yon} girişi hangi kattan`}
+                    className={`${girdi} w-full min-w-0`}
+                  />
+                  <SecenekListesiAlani
+                    kompakt
+                    listeKey="girisKapisi"
+                    value={g.kapi ?? ""}
+                    onChange={(kapi) => guncelle(g.id, { kapi })}
+                    akiciEtiket=""
+                    ariaLabel={`${g.yon} girişinin kapısı`}
+                    bosMetin="Giriş kapısı"
+                    className="col-span-2"
+                  />
+                </div>
                 <button
                   type="button"
                   onClick={() => onChange({ binaGirisleri: girisler.filter((x) => x.id !== g.id) })}
                   aria-label={`${g.yon} girişini kaldır`}
-                  className="col-start-3 row-start-1 flex h-7 w-7 items-center justify-center rounded text-slate-300 hover:bg-rose-50 hover:text-rose-600 @md:col-start-4"
+                  className="mt-1 flex h-6 w-6 items-center justify-center rounded text-slate-300 hover:bg-rose-50 hover:text-rose-600"
                 >
                   <X className="h-4 w-4" />
                 </button>
-                <SecenekListesiAlani
-                  kompakt
-                  listeKey="girisKapisi"
-                  value={g.kapi ?? ""}
-                  onChange={(kapi) => guncelle(g.id, { kapi })}
-                  akiciEtiket=""
-                  ariaLabel={`${g.yon} girişinin kapısı`}
-                  bosMetin="Giriş kapısı"
-                  className="col-start-2 row-start-3 @md:col-span-2 @md:row-start-2"
-                />
               </li>
             ))}
           </ul>
         )}
+        <datalist id="giris-katlari">
+          {GIRIS_KATLARI.map((k) => (
+            <option key={k} value={k} />
+          ))}
+        </datalist>
       </div>
     </div>
   );
@@ -361,7 +376,7 @@ function YapiSinifi({ data, onChange }: { data: KonutOzellikleriData; onChange: 
         onChange={(e) => onChange({ yapiSinifi: e.target.value })}
         placeholder="3B"
         aria-label="Yapı sınıfı"
-        className={`${girdi} w-20`}
+        className={`${girdi} w-16`}
       />
     </label>
   );
@@ -409,7 +424,7 @@ function BlokNizamlari({ data, onChange }: { data: KonutOzellikleriData; onChang
             value={data.blokSayisi}
             onChange={(e) => sayiDegistir(e.target.value)}
             placeholder="0"
-            className={`${girdi} w-20`}
+            className={`${girdi} w-16`}
           />
         </label>
         {sayi > 0 && (
@@ -426,7 +441,7 @@ function BlokNizamlari({ data, onChange }: { data: KonutOzellikleriData; onChang
                   }
                   placeholder={String(i + 1)}
                   aria-label={`${i + 1}. blok adı`}
-                  className={`${girdi} w-16 text-center font-semibold uppercase`}
+                  className={`${girdi} w-12 text-center font-semibold uppercase`}
                 />
               ))}
             </div>
@@ -465,7 +480,7 @@ function BlokNizamlari({ data, onChange }: { data: KonutOzellikleriData; onChang
                 type="button"
                 onClick={ekle}
                 disabled={!eklenebilir}
-                className="inline-flex h-8 items-center gap-1 rounded-full bg-slate-900 px-3 text-xs font-semibold text-white disabled:bg-slate-200 disabled:text-slate-400"
+                className="inline-flex h-7 items-center gap-1 rounded-full bg-slate-900 px-2.5 text-[11px] font-semibold text-white disabled:bg-slate-200 disabled:text-slate-400"
               >
                 <Plus className="h-3.5 w-3.5" />
                 Ekle
@@ -475,7 +490,7 @@ function BlokNizamlari({ data, onChange }: { data: KonutOzellikleriData; onChang
           {data.nizamAtamalari.length > 0 && (
             <div className={`flex flex-wrap gap-1.5 ${kalan.length ? "mt-3" : ""}`}>
               {data.nizamAtamalari.map((a) => (
-                <span key={a.id} className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 py-1 pl-3 pr-1 text-xs text-slate-700">
+                <span key={a.id} className="inline-flex items-center gap-1 rounded-full bg-slate-100 py-0.5 pl-2.5 pr-0.5 text-[11px] text-slate-700">
                   <strong className="font-semibold text-slate-900">{a.bloklar.map((b) => blokAdi(data, b)).join(", ")}</strong>
                   {a.nizam === "Diğer" ? a.nizamDiger : a.nizam}
                   <button
@@ -515,14 +530,18 @@ export default function KonutTespitleri({
     .join(" · ");
   const girisOzet = data.binaGirisleri
     .filter((g) => g.yon)
-    .map((g) => `${g.yon}${g.tur ? ` (${g.tur.toLocaleLowerCase("tr-TR")})` : ""}`)
+    .map((g) => {
+      const ek = [g.tur, g.kat?.trim()].filter(Boolean).map((x) => x!.toLocaleLowerCase("tr-TR"));
+      return `${g.yon}${ek.length ? ` (${ek.join(", ")})` : ""}`;
+    })
     .join(", ");
   const nizamOzet = [data.yapiSinifi.trim() && `Yapı sınıfı ${data.yapiSinifi.trim()}`, insaatNizamiOzeti(data)].filter(Boolean).join(" · ");
 
   return (
-    <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 bg-white">
-      {/* Blok and Bina Giriş Tespiti side by side on wide screens. */}
-      <div className={`grid grid-cols-1 divide-y divide-slate-100 ${bloklu ? "lg:grid-cols-2 lg:divide-x lg:divide-y-0" : ""}`}>
+    <div className="overflow-hidden rounded-xl border border-slate-200 bg-white">
+      {/* Blok, Bina Giriş Tespiti and İnşaat Nizamı side by side on wide screens. */}
+      {/* gap-px over a grey background draws the separators for any column count. */}
+      <div className={`grid grid-cols-1 gap-px bg-slate-100 lg:grid-cols-2 ${bloklu ? "xl:grid-cols-3" : ""}`}>
         {bloklu && (
           <Satir
             baslik="Blok Tespiti"
@@ -541,24 +560,24 @@ export default function KonutTespitleri({
         >
           <BinaGirisTespiti data={data} onChange={onChange} />
         </Satir>
-      </div>
-      <Satir baslik="İnşaat Nizamı" ozet={nizamOzet || undefined}>
-        {bloklu ? (
-          <BlokNizamlari data={data} onChange={onChange} />
-        ) : (
-          <div className="flex flex-wrap items-start gap-4">
-            <YapiSinifi data={data} onChange={onChange} />
-            <div>
-              <Etiket>Nizam</Etiket>
-              <NizamSecici
-                nizam={data.insaatNizami}
-                diger={data.insaatNizamiDiger}
-                onChange={(insaatNizami, insaatNizamiDiger) => onChange({ insaatNizami, insaatNizamiDiger })}
-              />
+        <Satir baslik="İnşaat Nizamı" ozet={nizamOzet || undefined} className={bloklu ? "lg:col-span-2 xl:col-span-1" : ""}>
+          {bloklu ? (
+            <BlokNizamlari data={data} onChange={onChange} />
+          ) : (
+            <div className="flex flex-wrap items-start gap-4">
+              <YapiSinifi data={data} onChange={onChange} />
+              <div>
+                <Etiket>Nizam</Etiket>
+                <NizamSecici
+                  nizam={data.insaatNizami}
+                  diger={data.insaatNizamiDiger}
+                  onChange={(insaatNizami, insaatNizamiDiger) => onChange({ insaatNizami, insaatNizamiDiger })}
+                />
+              </div>
             </div>
-          </div>
-        )}
-      </Satir>
+          )}
+        </Satir>
+      </div>
       <AkiciAlan etiket="Blok Tespiti" deger={blokTespitiCumlesi(data)} />
       <AkiciAlan etiket="Bina Giriş Tespiti" deger={binaGirisCumlesi(data)} />
       <AkiciAlan etiket="Yapı Sınıfı" deger={data.yapiSinifi} />

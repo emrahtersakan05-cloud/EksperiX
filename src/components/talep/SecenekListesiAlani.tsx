@@ -231,7 +231,7 @@ export default function SecenekListesiAlani({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           aria-label={ariaLabel ?? tanim.ad}
-          className="h-9 w-full min-w-0 appearance-none rounded-lg border border-slate-200 bg-white px-2.5 text-sm text-slate-800 focus:border-slate-400 focus:outline-none"
+          className="h-8 w-full min-w-0 appearance-none rounded-md border border-slate-200 bg-white px-2 text-xs text-slate-800 focus:border-slate-400 focus:outline-none"
         >
           <option value="">{bosMetin}</option>
           {liste.map((o) => (
@@ -244,7 +244,7 @@ export default function SecenekListesiAlani({
           <button
             type="button"
             onClick={() => setDuzenleniyor(true)}
-            className="flex h-9 w-7 shrink-0 items-center justify-center rounded text-slate-300 hover:bg-slate-100 hover:text-slate-700"
+            className="flex h-8 w-6 shrink-0 items-center justify-center rounded text-slate-300 hover:bg-slate-100 hover:text-slate-700"
             title={`${tanim.ad} listesini düzenle (yalnızca Sistem Yöneticisi)`}
             aria-label={`${tanim.ad} listesini düzenle`}
           >
