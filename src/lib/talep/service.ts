@@ -70,6 +70,7 @@ function normalizeTapu(tapu: Tapu): Tapu {
     imarDurumu: { ...empty.imarDurumu, ...tapu.imarDurumu },
     anaGayrimenkul: { ...empty.anaGayrimenkul, ...tapu.anaGayrimenkul },
     araziOzellikleri: { ...empty.araziOzellikleri, ...tapu.araziOzellikleri },
+    konutOzellikleri: { ...empty.konutOzellikleri, ...tapu.konutOzellikleri },
     bagimsizBolum: { ...empty.bagimsizBolum, ...tapu.bagimsizBolum },
     degerleme: {
       ...empty.degerleme,
