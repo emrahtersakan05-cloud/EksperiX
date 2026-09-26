@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { AkiciMetinGrubu } from "@/components/akici-metin/kart";
 import { acknowledgeBridge, readBridgeDetail } from "@/lib/bridge/event-detail";
-import { ChevronDown, ExternalLink, ImageUp, Search, Sparkles, X } from "lucide-react";
+import { ChevronDown, ClipboardPaste, ExternalLink, Home, ImageUp, Loader2, MapPinned, Search, Sparkles, Trees, X } from "lucide-react";
 import {
   ComboboxField,
   SectionCard,
@@ -11,7 +11,6 @@ import {
   modalCardClass,
   primaryButtonClass,
   secondaryButtonClass,
-  sectionBodyClass,
   TextField,
 } from "@/components/talep/form-fields";
 import {
@@ -31,6 +30,7 @@ import {
 import { parseUavtResult, parseUavtText, recognizeText, type ParsedUavtFields } from "@/lib/ocr/uavt-extract";
 import type { AdresKonumData } from "@/lib/talep/types";
 import KmlMapPanel from "@/components/talep/sections/KmlMapPanel";
+import { Doluluk, Ozet, OzetBasligi, OzetIzgarasi } from "@/components/talep/sections/tasarim";
 
 const UAVT_SORGU_URL = "https://adres.nvi.gov.tr/VatandasIslemleri/AdresSorgu";
 const UAVT_BRIDGE_EVENT = "eksperix:uavt-import";
@@ -107,10 +107,13 @@ const OCR_STATUS_LABELS: Record<string, string> = {
 
 const FormGroup = SectionCard;
 const ADRES_KONUM_TABS = [
-  { key: "adres", label: "Adres" },
-  { key: "konum", label: "Konum" },
-  { key: "bolge", label: "Bölge Özellikleri" },
+  { key: "adres", label: "Adres", icon: Home },
+  { key: "konum", label: "Konum", icon: MapPinned },
+  { key: "bolge", label: "Bölge Özellikleri", icon: Trees },
 ] as const;
+
+// The address fields a UAVT result fills (for the fill count).
+const ADRES_ALANLARI = IMPORTABLE_UAVT_FIELDS.filter((k) => k !== "koy");
 
 type AdresKonumTabKey = (typeof ADRES_KONUM_TABS)[number]["key"];
 
@@ -133,6 +136,7 @@ function ImageUploadZone({
 }) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showRawText, setShowRawText] = useState(false);
+  const [surukleniyor, setSurukleniyor] = useState(false);
 
   function handleFile(file: File | undefined) {
     if (!file) return;
@@ -148,75 +152,81 @@ function ImageUploadZone({
   };
 
   return (
-    <FormGroup
-      title="Görsel Ekleme Formu"
-      className="flex h-full flex-col overflow-hidden border-fuchsia-400/80 bg-gradient-to-br from-fuchsia-200 via-rose-100 to-amber-200 shadow-[0_16px_36px_-24px_rgba(168,85,247,0.75)]"
-    >
+    <FormGroup title="UAVT Görseli" akiciMetin={false} className="flex h-full flex-col">
       {value ? (
-        <div className={`${sectionBodyClass} flex-1 border-fuchsia-300/80 bg-white/85 p-2.5`}>
-          <div className="mb-2 inline-flex items-center gap-1 rounded-full bg-fuchsia-700 px-2 py-1 text-[10px] font-semibold tracking-[0.08em] text-white uppercase">
-            <ImageUp className="h-3 w-3" />
-            Gorsel Tarama
-          </div>
-          <div className="min-w-0 flex flex-col gap-2 sm:flex-row sm:items-center">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={value} alt="Uavt adres görseli" className="h-16 w-full rounded-md object-cover sm:w-24" />
-            <div className="min-w-0 flex flex-1 flex-col gap-1.5">
-              <p className="break-words text-[11px] text-slate-500">Gorselden alan bilgilerini otomatik doldur.</p>
-              <div className="flex w-full flex-wrap items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={onExtract}
-                  disabled={extracting}
-                  className="inline-flex max-w-full items-center gap-1 rounded-md bg-gradient-to-r from-fuchsia-800 to-rose-700 px-2.5 py-1.5 text-center text-[10px] font-semibold leading-tight text-white shadow-sm disabled:opacity-60"
-                >
-                  <Sparkles className="h-3.5 w-3.5" />
-                  {extracting ? extractStatus || "Ayıklanıyor..." : "Bilgileri Görselden Ayıkla"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onImageChange("")}
-                  className="inline-flex max-w-full items-center gap-1 rounded-md border border-slate-200 px-2.5 py-1.5 text-center text-[10px] font-medium leading-tight text-slate-600 hover:bg-slate-50"
-                >
-                  <X className="h-3.5 w-3.5" />
-                  Kaldır
-                </button>
-              </div>
-              {extractMessage && (
-                <p className={`rounded-lg px-2.5 py-1.5 text-[11px] ${messageTone[extractMessage.tone]}`}>
-                  {extractMessage.text}
-                </p>
-              )}
-              {rawText && (
-                <button
-                  type="button"
-                  onClick={() => setShowRawText((s) => !s)}
-                  className="inline-flex items-center gap-1 self-start text-xs font-medium text-slate-500 hover:text-slate-800"
-                >
-                  <ChevronDown className={`h-3 w-3 transition-transform ${showRawText ? "rotate-180" : ""}`} />
-                  Ham OCR metnini {showRawText ? "gizle" : "gör"}
-                </button>
-              )}
+        <div className="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={value}
+            alt="UAVT adres görseli"
+            className="h-24 w-full rounded-lg border border-slate-200 object-cover sm:w-32"
+          />
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            <p className="text-xs text-slate-500">Görseldeki UAVT bilgilerini okuyup formu doldurun.</p>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={onExtract}
+                disabled={extracting}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-lime-300 hover:bg-slate-800 disabled:opacity-60"
+              >
+                {extracting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                {extracting ? extractStatus || "Ayıklanıyor..." : "Bilgileri Görselden Ayıkla"}
+              </button>
+              <button
+                type="button"
+                onClick={() => onImageChange("")}
+                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-600 hover:border-slate-400"
+              >
+                <X className="h-3.5 w-3.5" />
+                Kaldır
+              </button>
             </div>
           </div>
-          {rawText && showRawText && (
-            <pre className="mt-2 max-h-32 overflow-auto rounded-lg border border-slate-200 bg-white p-2.5 text-[11px] leading-relaxed whitespace-pre-wrap text-slate-600">
-              {rawText}
-            </pre>
-          )}
         </div>
       ) : (
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          className="flex min-h-[108px] w-full flex-1 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-fuchsia-500 bg-gradient-to-br from-fuchsia-200 via-rose-100 to-amber-200 py-2 text-center transition-colors hover:border-fuchsia-700"
+          onDragOver={(e) => {
+            e.preventDefault();
+            setSurukleniyor(true);
+          }}
+          onDragLeave={() => setSurukleniyor(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setSurukleniyor(false);
+            handleFile(e.dataTransfer.files?.[0]);
+          }}
+          className={`flex w-full flex-1 flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed px-4 py-5 text-center transition-colors ${
+            surukleniyor ? "border-lime-500 bg-lime-50" : "border-slate-200 bg-slate-50/60 hover:border-slate-400"
+          }`}
         >
-          <span className="flex h-7 w-7 items-center justify-center rounded-full bg-fuchsia-800 text-white shadow-sm">
-            <ImageUp className="h-4 w-4" />
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-slate-900 text-lime-300">
+            <ImageUp className="h-4.5 w-4.5" />
           </span>
-          <span className="text-xs font-medium text-slate-800">Gorsel Sec</span>
-          <span className="text-[11px] text-fuchsia-900/75">PNG, JPG</span>
+          <span className="text-sm font-semibold text-slate-800">UAVT ekran görüntüsü yükleyin</span>
+          <span className="text-xs text-slate-500">PNG veya JPG — sürükleyin ya da tıklayıp seçin</span>
         </button>
+      )}
+
+      {extractMessage && (
+        <p className={`mt-3 rounded-lg px-3 py-2 text-xs ${messageTone[extractMessage.tone]}`}>{extractMessage.text}</p>
+      )}
+      {rawText && (
+        <button
+          type="button"
+          onClick={() => setShowRawText((s) => !s)}
+          className="mt-2 inline-flex items-center gap-1 self-start text-xs font-medium text-slate-500 hover:text-slate-800"
+        >
+          <ChevronDown className={`h-3 w-3 transition-transform ${showRawText ? "rotate-180" : ""}`} />
+          Ham OCR metnini {showRawText ? "gizle" : "gör"}
+        </button>
+      )}
+      {rawText && showRawText && (
+        <pre className="mt-2 max-h-32 overflow-auto whitespace-pre-wrap rounded-lg border border-slate-200 bg-white p-2.5 text-[11px] leading-relaxed text-slate-600">
+          {rawText}
+        </pre>
       )}
 
       <input
@@ -538,32 +548,79 @@ export default function AdresKonumSection({
     }
   }
 
+  const adresSatiri = [
+    data.mahalle && `${data.mahalle} Mah.`,
+    data.koy && `${data.koy} Köyü`,
+    data.semtMevki,
+    data.caddeBulvar,
+    data.sokak,
+    [data.disKapi && `No: ${data.disKapi}`, data.icKapi && `İç Kapı: ${data.icKapi}`].filter(Boolean).join(" "),
+  ]
+    .filter(Boolean)
+    .join(", ");
+  const adresDolu = ADRES_ALANLARI.filter((k) => data[k].trim()).length;
+  const ilkKonum = data.kmlKonumlari[0];
+  const enlem = ilkKonum ? String(ilkKonum.latitude.toFixed(6)) : data.enlem;
+  const boylam = ilkKonum ? String(ilkKonum.longitude.toFixed(6)) : data.boylam;
+  const haritaUrl = enlem && boylam ? `https://www.google.com/maps?q=${enlem},${boylam}` : "";
+
   return (
-    <div className="space-y-5">
-      <div className="rounded-2xl border border-sky-300/80 bg-gradient-to-r from-sky-100 via-cyan-50 to-emerald-100 p-1 shadow-[0_12px_30px_-24px_rgba(2,132,199,0.45)]">
-        <div className="flex flex-wrap gap-1">
-          {ADRES_KONUM_TABS.map((tab) => {
-            const isActive = activeTab === tab.key;
-            return (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => setActiveTab(tab.key)}
-                className={`inline-flex items-center justify-center rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
-                  isActive
-                    ? "bg-gradient-to-r from-sky-800 to-emerald-700 text-white shadow-sm"
-                    : "bg-white/70 text-sky-800 hover:bg-white hover:text-sky-900"
-                }`}
-              >
-                {tab.label}
-              </button>
-            );
-          })}
-        </div>
+    <div className="space-y-4">
+      <div role="tablist" aria-label="Adres / Konum" className="flex flex-wrap gap-1 rounded-xl bg-slate-100 p-1">
+        {ADRES_KONUM_TABS.map((tab) => {
+          const isActive = activeTab === tab.key;
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.key}
+              type="button"
+              role="tab"
+              aria-selected={isActive}
+              onClick={() => setActiveTab(tab.key)}
+              className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3.5 py-1.5 text-sm font-medium transition-colors ${
+                isActive ? "bg-white text-slate-900 shadow-sm" : "text-slate-500 hover:text-slate-900"
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              {tab.label}
+            </button>
+          );
+        })}
       </div>
 
       {activeTab === "adres" && (
         <>
+          <OzetBasligi
+            etiket="Adres Özeti"
+            ikon={<Home className="h-3.5 w-3.5" />}
+            baslik={adresSatiri || "Adres girilmedi"}
+            bos={!adresSatiri}
+            altBaslik={[data.ilce, data.il].filter(Boolean).join(" / ") + (data.postaKodu ? ` · ${data.postaKodu}` : "") || "İl ve ilçe seçilmedi"}
+            alt={<Doluluk dolu={adresDolu} toplam={ADRES_ALANLARI.length} />}
+          >
+            <OzetIzgarasi>
+              <Ozet etiket="Ada / Parsel" deger={data.ada || data.parsel ? `${data.ada || "—"} / ${data.parsel || "—"}` : ""} />
+              <Ozet etiket="Adres Kodu (Numaraj)" deger={data.numarajKimlikNo} />
+              <Ozet etiket="BB Adres Kodu" deger={data.bagimsizBolumKimlikNo} />
+              <Ozet etiket="Kullanım Amacı" deger={data.kullanimAmaci} />
+              <Ozet etiket="Site / Blok" deger={[data.siteAdi, data.apartmanBlokAdi].filter(Boolean).join(" · ")} />
+            </OzetIzgarasi>
+          </OzetBasligi>
+
+          {bridgeMessage && (
+            <p
+              className={`rounded-lg px-3 py-2 text-xs ${
+                bridgeMessage.tone === "success"
+                  ? "bg-emerald-50 text-emerald-700"
+                  : bridgeMessage.tone === "warning"
+                    ? "bg-amber-50 text-amber-700"
+                    : "bg-rose-50 text-rose-700"
+              }`}
+            >
+              {bridgeMessage.text}
+            </p>
+          )}
+
           <div className="grid grid-cols-1 items-stretch gap-4 xl:grid-cols-2">
             <ImageUploadZone
               value={data.uavtGorselUrl}
@@ -579,58 +636,38 @@ export default function AdresKonumSection({
               rawText={rawText}
             />
 
-            <FormGroup
-              akiciMetin={false}
-              title="UAVT Adres Sorgula"
-              className="flex h-full flex-col overflow-hidden border-sky-400/80 bg-gradient-to-br from-sky-200 via-cyan-100 to-emerald-200 shadow-[0_16px_36px_-24px_rgba(2,132,199,0.75)]"
-            >
-              <div
-                className={`${sectionBodyClass} flex min-h-[108px] min-w-0 flex-1 flex-col border-sky-300/80 bg-white/85 p-2.5`}
-              >
-                <div className="mb-2 inline-flex items-center gap-1 rounded-full bg-sky-700 px-2 py-1 text-[10px] font-semibold tracking-[0.08em] text-white uppercase">
-                  <Search className="h-3 w-3" />
-                  Resmi Sorgu
-                </div>
-                <p className="mb-2 break-words text-[11px] leading-5 text-slate-600">
-                  Sonucu yeni pencereden forma aktar.
-                </p>
-                <div className="flex min-w-0 flex-col gap-1.5">
-                  <button
-                    type="button"
-                    onClick={openUavtSite}
-                    className="inline-flex w-full min-w-0 items-center justify-center gap-1 rounded-md bg-gradient-to-r from-sky-800 to-emerald-700 px-3 py-1.5 text-center text-[10px] font-semibold leading-tight text-white shadow-sm"
-                  >
-                    <Search className="h-3 w-3" />
-                    UAVT Sorgu Ekranini Ac
-                  </button>
-
-                  <div className="flex min-w-0 flex-wrap gap-1">
-                    <button
-                      type="button"
-                      onClick={handleOpenUavtModal}
-                      className="inline-flex min-w-0 flex-1 items-center justify-center gap-1 rounded-md border border-sky-300 bg-white px-3 py-1.5 text-center text-[10px] font-medium leading-tight text-sky-800 hover:bg-sky-50"
-                    >
-                      <ExternalLink className="h-3 w-3" />
-                      Yapistirma Yedegi
-                    </button>
-                    <div className="flex shrink-0 items-center justify-center rounded-md border border-dashed border-emerald-400 bg-emerald-100 px-2 py-1.5 text-[8px] font-semibold text-emerald-900">
-                      Eklenti
-                    </div>
-                  </div>
-                </div>
-                {bridgeMessage && (
-                  <p
-                    className={`mt-2 rounded-lg px-2.5 py-1.5 text-[11px] ${
-                      bridgeMessage.tone === "success"
-                        ? "bg-emerald-50 text-emerald-700"
-                        : bridgeMessage.tone === "warning"
-                          ? "bg-amber-50 text-amber-700"
-                          : "bg-rose-50 text-rose-700"
-                    }`}
-                  >
-                    {bridgeMessage.text}
-                  </p>
-                )}
+            <FormGroup akiciMetin={false} title="UAVT Adres Sorgula" className="flex h-full flex-col">
+              <ol className="flex-1 space-y-2 text-xs text-slate-600">
+                {[
+                  "UAVT sorgu ekranını açıp adresi sorgulayın.",
+                  "Sonuç ekranındayken Eksperix Bridge eklentisinden Bilgileri Getir'e basın.",
+                  "Eklenti yoksa sonucu kopyalayıp Sonucu Yapıştır ile aktarın.",
+                ].map((adim, i) => (
+                  <li key={adim} className="flex items-start gap-2">
+                    <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-slate-900 text-[10px] font-semibold text-lime-300">
+                      {i + 1}
+                    </span>
+                    {adim}
+                  </li>
+                ))}
+              </ol>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={openUavtSite}
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-slate-900 px-3 py-1.5 text-xs font-semibold text-lime-300 hover:bg-slate-800"
+                >
+                  <Search className="h-3.5 w-3.5" />
+                  UAVT Sorgu Ekranını Aç
+                </button>
+                <button
+                  type="button"
+                  onClick={handleOpenUavtModal}
+                  className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-medium text-slate-700 hover:border-slate-400"
+                >
+                  <ClipboardPaste className="h-3.5 w-3.5" />
+                  Sonucu Yapıştır
+                </button>
               </div>
             </FormGroup>
           </div>
@@ -640,7 +677,7 @@ export default function AdresKonumSection({
             aciklama="Adres, Numaraj ve Bağımsız Bölüm formları için tek akıcı metin"
           >
             <FormGroup title="Adres Bilgileri Formu" akiciMetin={false}>
-              <div className={`${sectionBodyClass} grid grid-cols-1 gap-x-3 gap-y-3 md:grid-cols-2 xl:grid-cols-7`}>
+              <div className="grid grid-cols-1 gap-x-3 gap-y-3 sm:grid-cols-2 xl:grid-cols-4">
                 <ComboboxField
                   label="İl"
                   value={data.il}
@@ -651,7 +688,6 @@ export default function AdresKonumSection({
                     setIlOptions(await removeIl(v));
                     if (data.il === v) onChange({ il: "", ilce: "", mahalle: "", koy: "" });
                   }}
-                  className="xl:col-span-1"
                 />
                 <ComboboxField
                   label="İlçe"
@@ -668,7 +704,6 @@ export default function AdresKonumSection({
                         }
                       : undefined
                   }
-                  className="xl:col-span-1"
                 />
                 <ComboboxField
                   label="Mahalle"
@@ -689,7 +724,6 @@ export default function AdresKonumSection({
                         }
                       : undefined
                   }
-                  className="xl:col-span-1"
                 />
                 <ComboboxField
                   label="Köy"
@@ -708,31 +742,28 @@ export default function AdresKonumSection({
                         }
                       : undefined
                   }
-                  className="xl:col-span-1"
                 />
                 <TextField
                   label="Cadde / Bulvar"
                   value={data.caddeBulvar}
                   onChange={(v) => onChange({ caddeBulvar: v })}
-                  className="xl:col-span-1"
+                  className="xl:col-span-2"
                 />
                 <TextField
                   label="Semt / Mevki"
                   value={data.semtMevki}
                   onChange={(v) => onChange({ semtMevki: v })}
-                  className="xl:col-span-1"
                 />
                 <TextField
                   label="Sokak"
                   value={data.sokak}
                   onChange={(v) => onChange({ sokak: v })}
-                  className="xl:col-span-1"
                 />
               </div>
             </FormGroup>
 
             <FormGroup title="Numaraj Bilgileri Formu" akiciMetin={false}>
-              <div className={`${sectionBodyClass} grid grid-cols-1 gap-x-3 gap-y-3 md:grid-cols-2 xl:grid-cols-12`}>
+              <div className="grid grid-cols-1 gap-x-3 gap-y-3 sm:grid-cols-2 xl:grid-cols-12">
                 <TextField
                   label="Kimlik No"
                   value={data.numarajKimlikNo}
@@ -743,13 +774,11 @@ export default function AdresKonumSection({
                   label="Ada"
                   value={data.ada}
                   onChange={(v) => onChange({ ada: v })}
-                  className="xl:col-span-1"
                 />
                 <TextField
                   label="Parsel"
                   value={data.parsel}
                   onChange={(v) => onChange({ parsel: v })}
-                  className="xl:col-span-1"
                 />
                 <TextField
                   label="Pafta"
@@ -761,13 +790,11 @@ export default function AdresKonumSection({
                   label="Posta Kod"
                   value={data.postaKodu}
                   onChange={(v) => onChange({ postaKodu: v })}
-                  className="xl:col-span-1"
                 />
                 <TextField
                   label="Dış Kapı"
                   value={data.disKapi}
                   onChange={(v) => onChange({ disKapi: v })}
-                  className="xl:col-span-1"
                 />
                 <TextField
                   label="Numaraj Tipi"
@@ -791,7 +818,7 @@ export default function AdresKonumSection({
             </FormGroup>
 
             <FormGroup title="Bağımsız Bölüm Bilgileri Formu" akiciMetin={false}>
-              <div className={`${sectionBodyClass} grid grid-cols-1 gap-x-3 gap-y-3 xl:grid-cols-6`}>
+              <div className="grid grid-cols-1 gap-x-3 gap-y-3 sm:grid-cols-3 xl:grid-cols-6">
                 <TextField
                   label="Kimlik No"
                   value={data.bagimsizBolumKimlikNo}
@@ -814,16 +841,52 @@ export default function AdresKonumSection({
 
       {activeTab === "konum" && (
         <div className="space-y-4">
+          <OzetBasligi
+            etiket="Konum Özeti"
+            ikon={<MapPinned className="h-3.5 w-3.5" />}
+            baslik={ilkKonum?.name || data.kmlDosyaAdi || "KML yüklenmedi"}
+            bos={!ilkKonum && !data.kmlDosyaAdi}
+            altBaslik={
+              data.kmlDosyaAdi
+                ? `${data.kmlDosyaAdi} · ${data.kmlKonumlari.length} taşınmaz`
+                : "Taşınmazın KML dosyasını yükleyerek konumunu haritada gösterin"
+            }
+            sag={
+              haritaUrl && (
+                <a
+                  href={haritaUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-lime-300 px-3 py-2 text-xs font-semibold text-slate-900 hover:bg-lime-200"
+                >
+                  <ExternalLink className="h-3.5 w-3.5" />
+                  Google Haritalar&apos;da aç
+                </a>
+              )
+            }
+          >
+            <OzetIzgarasi>
+              <Ozet etiket="Taşınmaz" deger={data.kmlKonumlari.length ? String(data.kmlKonumlari.length) : ""} />
+              <Ozet etiket="Polygon" deger={data.kmlKonumlari.length ? String(data.kmlKonumlari.filter((k) => k.hasPolygon).length) : ""} />
+              <Ozet etiket="Enlem" deger={enlem} />
+              <Ozet etiket="Boylam" deger={boylam} />
+              <Ozet etiket="İl / İlçe" deger={[data.il, data.ilce].filter(Boolean).join(" / ")} />
+            </OzetIzgarasi>
+          </OzetBasligi>
           <KmlMapPanel properties={data.kmlKonumlari} fileName={data.kmlDosyaAdi} onChange={onChange} />
         </div>
       )}
 
       {activeTab === "bolge" && (
         <FormGroup title="Bölge Özellikleri Sekmesi">
-          <div className={`${sectionBodyClass} p-4`}>
-            <p className="text-sm text-slate-500">
-              Bu sekme yeni bolge ozellikleri alanlari icin ayrildi. Mevcut bagimsiz bolum bilgileri Adres sekmesine
-              tasindi.
+          <div className="flex flex-col items-center gap-2 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/60 px-4 py-10 text-center">
+            <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-white text-slate-400 shadow-sm">
+              <Trees className="h-5 w-5" />
+            </span>
+            <p className="text-sm font-semibold text-slate-700">Bölge özellikleri formu henüz tanımlanmadı</p>
+            <p className="max-w-sm text-xs text-slate-500">
+              Bölgenin gelişmişliği, ulaşım, sosyal donatılar gibi bilgiler için ayrılan alan. Bağımsız bölüm bilgileri Adres
+              sekmesinde.
             </p>
           </div>
         </FormGroup>
